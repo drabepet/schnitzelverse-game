@@ -1,0 +1,72 @@
+// Badges that take real effort (an hour of play or more) add a little income.
+// Badge id → bonus on all prices (0.02 = +2%). Bonuses add up.
+// Tiers follow when the playtest bot earns them: 1–5 h +0.5%, 5–20 h +1%,
+// 20 h+ +2%, beyond the bot's 64 hours (and Chapter 4) +3%. Easy badges, the hall of
+// shame and click-count badges give nothing.
+// Kept apart from badges.ts so the rules can read it without import cycles.
+const tier = (bonus: number, ids: string[]) => ids.map((id) => [id, bonus] as const)
+
+export const BADGE_BONUS: Record<string, number> = Object.fromEntries([
+  ...tier(0.005, [
+    'hour1',
+    'tier-making-2',
+    'tier-prep-1',
+    'placeTown',
+    'allEquipment',
+    'farm1',
+    'speedTown',
+    'money1m',
+    'served100k',
+    'placeCity',
+    'farmAll',
+    'bakery10',
+    'tier-distribution-2',
+    'cousins50',
+    'uncles50',
+  ]),
+  ...tier(0.01, [
+    'franchise5',
+    'coops25',
+    'tier-making-3',
+    'tier-prep-2',
+    'served1m',
+    'pigs25',
+    'farm250',
+    'crumbs100',
+    'placeCountry',
+    'blitzTown',
+    'hour10',
+    'vehicle1',
+    'recipe5',
+    'served10m',
+    'franchise10',
+    'placeContinent',
+    'money1b',
+  ]),
+  ...tier(0.02, [
+    'tier-distribution-3',
+    'tier-distribution-4',
+    'plane1',
+    'fleetAll',
+    'crumbs1k',
+    'tier-making-4',
+    'grandmas100',
+    'served100m',
+    'franchise25',
+    'placePlanet',
+    'everywhere',
+  ]),
+  ...tier(0.03, [
+    'tier-making-5',
+    'tier-making-6',
+    'tier-prep-3',
+    'tier-prep-4',
+    'tier-distribution-5',
+    'tier-distribution-6',
+    'placeOrbit',
+    'placeMoon',
+    'placeMars',
+    'placeSolar',
+    'rocket10',
+    'arkFleet','served1b', 'served10b', 'served1t', 'money1t', 'family500', 'kids100', 'fleet100', 'hour100']),
+])

@@ -1,0 +1,212 @@
+import { D, type Decimal } from './decimal'
+import {
+  CRISP_TEMP_BEST,
+  DEFAULT_AUTO_BUY_RESERVE,
+  DEFAULT_BUFFERS,
+  FACILITIES,
+  INGREDIENT_IDS,
+  ITEM_IDS,
+  REGIONS,
+  SHOP_SHELF_SECONDS,
+  SHOP_SUPPLY_RATE,
+  VEHICLES,
+  WORKERS,
+  type FacilityId,
+  type IngredientId,
+  type ItemId,
+  type PerkId,
+  type RegionId,
+  type StageId,
+  type UpgradeId,
+  type VehicleId,
+  type WorkerId,
+} from './content'
+
+export const SAVE_VERSION = 1
+
+/** How many to buy per click: one, ten, or as many as you can afford. */
+export type BuyAmount = 1 | 10 | 'max'
+export type Notation = 'short' | 'scientific'
+/** How big the whole interface is: 'auto' grows with the window. */
+export type UiScale = 'auto' | 'small' | 'normal' | 'large' | 'xl'
+
+export interface Settings {
+  buyAmount: BuyAmount
+  /** 'short' = 1.23M, 4.56B…; 'scientific' = 1.23e6 from a thousand up. */
+  notation: Notation
+  /** Show a pop-up when a badge is earned. */
+  badgePopups: boolean
+  uiScale: UiScale
+}
+
+export interface RegionState {
+  unlocked: boolean
+  /** Open orders waiting to be delivered. */
+  orders: Decimal
+}
+
+export interface LogEntry {
+  /** Seconds of play time when this happened. */
+  t: number
+  text: string
+}
+
+/** Everything a Franchise resets. */
+export interface RunState {
+  money: Decimal
+  reputation: Decimal
+  items: Record<ItemId, Decimal>
+  workers: Record<WorkerId, number>
+  upgrades: Partial<Record<UpgradeId, true>>
+  regions: Record<RegionId, RegionState>
+  /** Farm buildings owned (Chapter 2). */
+  facilities: Record<FacilityId, number>
+  /** Fleet vehicles owned (Chapter 3). */
+  vehicles: Record<VehicleId, number>
+  /** What the corner shop has left on its shelves, per ingredient. */
+  shelves: Record<IngredientId, Decimal>
+  /** Seconds the player has been broke and unable to cook (Mum's fridge). */
+  stuckFor: number
+  /** This run only. */
+  run: { earned: Decimal; time: number; served: Decimal; servedCold: Decimal }
+}
+
+/**
+ * The whole saved game. Plain data only: no functions, no class instances
+ * other than Decimal, so it serializes cleanly (see save.ts).
+ */
+export interface GameState extends RunState {
+  version: number
+  settings: Settings
+  /** Play time (s) when the neighbours will open the door again (Knock). */
+  knockReadyAt: number
+  /** The welcome screen has been read (false on a new game and after a hard reset). */
+  introSeen: boolean
+  /** Crispness: unlocked once (for good), fryer temperature and oil changes. */
+  crisp: { unlocked: boolean; temperature: number; oil: number }
+  /** Auntie's shopping list: restock up to `target`, never spending below `reserve`. */
+  autoBuy: { enabled: boolean; target: number; reserve: number }
+  /** Cook-to-order limit per kitchen step (see DEFAULT_BUFFERS). */
+  buffers: Record<StageId, number>
+  /** Survives every Franchise. */
+  prestige: {
+    /** True once the Franchise has been unlocked (reached the town once). */
+    unlocked: boolean
+    franchises: number
+    /** Golden Crumbs available to spend. */
+    crumbs: Decimal
+    /** Golden Crumbs earned over all time. */
+    totalCrumbs: Decimal
+    perks: Partial<Record<PerkId, number>>
+  }
+  /** Income over time, for the chart in Records. */
+  history: { clock: number; earned: Decimal; points: HistoryPoint[] }
+  /** Managers the player switched off (bought managers are on by default). */
+  managersOff: Partial<Record<PerkId, true>>
+  /** Seconds since the managers last looked around. */
+  managerClock: number
+  milestones: Record<string, true>
+  /** Badges earned: id → play time (s) when earned. Survives every franchise. */
+  badges: Record<string, number>
+  /** How many badges the player has already looked at (for the "new" dot). */
+  badgesSeen: number
+  log: LogEntry[]
+  /** Lifetime statistics (never reset). */
+  stats: {
+    served: Decimal
+    servedCold: Decimal
+    earned: Decimal
+    clicks: number
+    playtime: number
+    rescues: number
+    /** Times the corner shop could not sell as much as wanted. */
+    soldOut: number
+    /** Easter egg: clicks on the logo. */
+    logoClicks: number
+    /** Extra orders you knocked on doors for. */
+    knocks: number
+    /** Kitchen steps you did by hand (including Cook all three). */
+    byHand: Record<StageId, number>
+    /** Fastest time (s into a run) to reach the whole town; 0 = not yet. */
+    bestTownTime: number
+  }
+  /** Wall-clock ms of the last save; used for offline progress. */
+  lastSaved: number
+}
+
+export const LOG_LIMIT = 40
+
+/** Income history for the Records chart: one point per HISTORY_STEP seconds of play. */
+export const HISTORY_STEP = 60
+export const HISTORY_LENGTH = 480
+
+export interface HistoryPoint {
+  /** Play time (s). */
+  t: number
+  /** Average income per second over the step. */
+  income: number
+  /** Franchises so far, to mark resets on the chart. */
+  f: number
+}
+
+/** A fresh garage: what every run (first game or after a Franchise) starts from. */
+export function freshRun(): RunState {
+  const items = Object.fromEntries(ITEM_IDS.map((id) => [id, D(0)])) as Record<ItemId, Decimal>
+  // Mum's fridge: enough to make the first couple of schnitzels by hand.
+  items.meat = D(2)
+  items.flour = D(5)
+  items.eggs = D(3)
+  items.crumbs = D(5)
+  items.oil = D(3)
+
+  return {
+    money: D(20),
+    reputation: D(0),
+    items,
+    workers: Object.fromEntries(WORKERS.map((w) => [w.id, 0])) as Record<WorkerId, number>,
+    upgrades: {},
+    regions: Object.fromEntries(
+      REGIONS.map((r) => [r.id, { unlocked: r.unlockCost === 0, orders: D(0) }]),
+    ) as Record<RegionId, RegionState>,
+    facilities: Object.fromEntries(FACILITIES.map((f) => [f.id, 0])) as Record<FacilityId, number>,
+    vehicles: Object.fromEntries(VEHICLES.map((v) => [v.id, 0])) as Record<VehicleId, number>,
+    shelves: Object.fromEntries(
+      INGREDIENT_IDS.map((id) => [id, D(SHOP_SUPPLY_RATE * SHOP_SHELF_SECONDS)]),
+    ) as Record<IngredientId, Decimal>,
+    stuckFor: 0,
+    run: { earned: D(0), time: 0, served: D(0), servedCold: D(0) },
+  }
+}
+
+export function newGame(now = Date.now()): GameState {
+  return {
+    version: SAVE_VERSION,
+    ...freshRun(),
+    settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto' },
+    introSeen: false,
+    knockReadyAt: 0,
+    crisp: { unlocked: false, temperature: CRISP_TEMP_BEST, oil: 0 },
+    autoBuy: { enabled: true, target: 20, reserve: DEFAULT_AUTO_BUY_RESERVE },
+    buffers: { ...DEFAULT_BUFFERS },
+    prestige: { unlocked: false, franchises: 0, crumbs: D(0), totalCrumbs: D(0), perks: {} },
+    history: { clock: 0, earned: D(0), points: [] },
+    managersOff: {},
+    managerClock: 0,
+    milestones: {},
+    badges: {},
+    badgesSeen: 0,
+    log: [
+      {
+        t: 0,
+        text: 'You found a frying pan in the garage and a few things in Mum’s fridge. The neighbours look hungry.',
+      },
+    ],
+    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0 },
+    lastSaved: now,
+  }
+}
+
+export function addLog(state: GameState, text: string): void {
+  state.log.unshift({ t: state.stats.playtime, text })
+  if (state.log.length > LOG_LIMIT) state.log.length = LOG_LIMIT
+}
