@@ -6,6 +6,7 @@ import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
 import { HintButton } from './HintButton'
+import { firstReason, needMoney, needRequirement } from './reasons'
 import { guideHint } from './guide'
 
 export function DistributionPanel() {
@@ -79,17 +80,23 @@ export function DistributionPanel() {
                   </span>
                 </div>
               </div>
-              <button
+              <HintButton
                 className={`primary ${r.id === 'neighbours' && guideHint(s)?.target === 'deliver' ? 'pulse' : ''}`}
-                disabled={orders.lt(1) || stock.lt(1) || !helperReaches(r)}
-                title={!helperReaches(r) ? 'Too far to carry yourself: your fleet delivers here' : undefined}
+                whyNot={firstReason(
+                  !helperReaches(r) &&
+                    (r.space
+                      ? 'Far too far to carry by hand: your space vehicles deliver here.'
+                      : `${fmtKm(r.distance)} away: too far to carry by hand. Your fleet delivers here.`),
+                  stock.lt(1) && 'No schnitzel ready: cook one first (🍳 Garage tab).',
+                  orders.lt(1) && 'No open orders here right now. Wait a moment for the next one.',
+                )}
                 onClick={(e) => {
                   const before = s.money
                   if (game.act((st) => clickDeliver(st, r.id))) floatText(e, `+${fmtMoney(game.state.money.sub(before))}`)
                 }}
               >
                 Deliver
-              </button>
+              </HintButton>
             </li>
           )
         })}
@@ -112,9 +119,20 @@ export function DistributionPanel() {
                 )}
               </div>
             </div>
-            <button disabled={!canUnlockRegion(s, next.id)} onClick={() => game.act((st) => unlockRegion(st, next.id))}>
+            <HintButton
+              whyNot={
+                canUnlockRegion(s, next.id)
+                  ? null
+                  : firstReason(
+                      needRequirement(s, { franchises: next.requiresFranchises, reputation: next.unlockReputation }),
+                      needMoney(s, next.unlockCost, game.rates.income),
+                      next.space && 'Space places open once you have reached the whole planet.',
+                    )
+              }
+              onClick={() => game.act((st) => unlockRegion(st, next.id))}
+            >
               Expand
-            </button>
+            </HintButton>
           </li>
         )}
       </ul>

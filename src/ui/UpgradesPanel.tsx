@@ -6,6 +6,8 @@ import { canBuyUpgrade, meets, upgradeVisible } from '../engine/rules'
 import { upgradePillar, type Pillar } from '../engine/tiers'
 import { useGame } from '../game/store'
 import { guideHint } from './guide'
+import { HintButton } from './HintButton'
+import { firstReason, needMoney, needRequirement } from './reasons'
 
 /** Exactly what an upgrade changes, one line per effect. */
 function EffectLines({ u }: { u: UpgradeDef }) {
@@ -27,7 +29,8 @@ export function UpgradesPanel({ pillar, quality = false }: { pillar?: Pillar; qu
   const game = useGame()
   const s = game.state
   const mine = UPGRADES.filter((u) => (quality ? u.quality : !u.quality && upgradePillar(u) === pillar))
-  const available = mine.filter((u) => !s.upgrades[u.id] && upgradeVisible(s, u))
+  // Cheapest first: simple and predictable (the best deals are usually near the top).
+  const available = mine.filter((u) => !s.upgrades[u.id] && upgradeVisible(s, u)).sort((a, b) => a.cost - b.cost)
   const owned = mine.filter((u) => s.upgrades[u.id])
   if (!available.length && !owned.length) return null
 
@@ -45,13 +48,15 @@ export function UpgradesPanel({ pillar, quality = false }: { pillar?: Pillar; qu
               <EffectLines u={u} />
               {!meets(s, u.requires) && <div className="row-sub">Needs ⭐ {fmt(u.requires?.reputation ?? 0)}</div>}
             </div>
-            <button
+            <HintButton
               className={u.id === 'shoppingList' && guideHint(s)?.target === 'shoppingList' ? 'pulse' : ''}
-              disabled={!canBuyUpgrade(s, u)}
+              whyNot={
+                canBuyUpgrade(s, u) ? null : firstReason(needRequirement(s, u.requires), needMoney(s, u.cost, game.rates.income))
+              }
               onClick={() => game.act((st) => buyUpgrade(st, u.id))}
             >
               {fmtMoney(u.cost)}
-            </button>
+            </HintButton>
           </li>
         ))}
       </ul>

@@ -1,4 +1,5 @@
-import { MANAGERS, managerActive, savingFor, setManager } from '../engine/automation'
+import { MANAGERS, familyNextStep, farmNextStep, managerActive, savingStatus, setManager } from '../engine/automation'
+import { fmtMoney, fmtTime } from '../engine/format'
 import { perkLevel } from '../engine/rules'
 import { useGame } from '../game/store'
 
@@ -8,7 +9,9 @@ export function ManagerToggles({ compact = false }: { compact?: boolean }) {
   const s = game.state
   const owned = MANAGERS.filter((m) => perkLevel(s, m.id) > 0)
   if (!owned.length) return null
-  const saving = savingFor(s)
+  const saving = savingStatus(s)
+  const family = managerActive(s, 'familyManager') && !saving ? familyNextStep(s) : null
+  const farm = managerActive(s, 'farmManager') && !saving ? farmNextStep(s) : null
   return (
     <div className="managers">
       <div className="manager-chips">
@@ -29,9 +32,22 @@ export function ManagerToggles({ compact = false }: { compact?: boolean }) {
           )
         })}
       </div>
+      {family?.kind === 'wait' && (
+        <div className="muted small">
+          👵 Grandma is saving for {family.upgrade.emoji} {family.upgrade.name.toLowerCase()} ({fmtMoney(family.remaining)} to
+          go) instead of hiring more: it does more per dollar.
+        </div>
+      )}
+      {farm?.kind === 'wait' && (
+        <div className="muted small">
+          👴 Grandpa is saving for {farm.upgrade.emoji} {farm.upgrade.name.toLowerCase()} ({fmtMoney(farm.remaining)} to go)
+          instead of building more: it does more per dollar.
+        </div>
+      )}
       {saving && (
         <div className="muted small">
-          🐷 Saving up for {saving.emoji} {saving.name.toLowerCase()}
+          🐷 Mum asked the others to wait: saving for {saving.region.emoji} {saving.region.name.toLowerCase()},{' '}
+          {fmtMoney(saving.remaining)} to go (about {fmtTime(saving.eta)}).
         </div>
       )}
     </div>

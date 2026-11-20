@@ -3,6 +3,7 @@
 // versions get their defaults and old saves keep working.
 import { Decimal } from './decimal'
 import { newGame, SAVE_VERSION, type GameState } from './state'
+import { REGIONS } from './content'
 
 const DECIMAL_PREFIX = 'D:'
 
@@ -53,6 +54,12 @@ function migrate(state: GameState): GameState {
     state.run.time = state.stats.playtime
   }
   if (state.milestones.town) state.prestige.unlocked = true
+  // Saves from before frontier sales: the furthest place from this run and the story so far.
+  if (state.stats.bestPlace === 0) {
+    REGIONS.forEach((r, i) => {
+      if (state.regions[r.id].unlocked || state.milestones[r.id]) state.stats.bestPlace = Math.max(state.stats.bestPlace, i)
+    })
+  }
   // Saves from before the welcome screen: anyone who has played doesn't need it.
   if (state.stats.served.gt(0) || state.prestige.franchises > 0) state.introSeen = true
   // Saves from before crispness: anyone past the next town has earned it.

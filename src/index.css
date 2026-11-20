@@ -758,6 +758,25 @@ input[type='number'] {
 
 /* ---------- quick actions + chatter (sidebar) */
 
+/* Franchise: the two ways to sell */
+.sell-ways {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.6rem 0;
+  font-size: 0.85rem;
+}
+.sell-way {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+.sell-way.ready {
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--good);
+}
+
 /* Buttons with an explaining pop-up (HintButton): placed against the window,
    so scrolling panels can't clip it, and never in the way of clicks. */
 .hint-btn {
@@ -1527,6 +1546,63 @@ button.buy-btn {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+}
+
+/* New badges: highlighted while Records is open */
+.badge {
+  position: relative;
+}
+.badge.new {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel-2));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.new-tag {
+  position: absolute;
+  top: -0.5rem;
+  right: 0.6rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.new-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0.2rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.new-badges-title {
+  font-weight: 600;
+  margin-right: 0.2rem;
+}
+.new-badge-chip {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  border-color: var(--accent);
+}
+.badge.flash {
+  animation: badge-flash 1.2s ease-out;
+}
+@keyframes badge-flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge.flash {
+    animation: none;
+  }
 }
 
 /* Phone: compact header with the three stats in one row.

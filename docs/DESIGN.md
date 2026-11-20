@@ -55,6 +55,8 @@ Selling strategies compared with the playtest bot over 8 hours (`npm run playtes
 | Sell the moment you reach the town | 20 | 27 | never |
 | Idle: no clicking after run 1, checks every 10 min | 6 | 134 | 3h 57m |
 
+**Two ways to sell.** Selling needs at least 1 Golden Crumb. Crumbs come from lifetime earnings (√(earnings ÷ 2,500), minus what you've collected). After a huge run (say, overnight) the next crumb from earnings can be hours away, so there is a second way: in a run that reaches your furthest place ever (or beyond, at least the whole town), you can sell for at least 5% of your lifetime crumbs. Those bonus crumbs are tracked apart, so they don't push the next earnings crumb further away. Tying it to your record place keeps it from being a quick-reset trick.
+
 ## Chapter 2: Grandpa's farm (built)
 
 - **Why:** the corner shop's van brings only **30 of each ingredient per second** (shelves hold a minute's worth). Plenty for Chapter 1, the bottleneck from the city on.
@@ -110,10 +112,10 @@ Perks bought with Golden Crumbs that do the buying for you, also offline. Each c
 
 | Manager | Crumbs | Does |
 |---|---|---|
-| 👵 Grandma, head of staff | 2 | Hires for the slowest step while capacity is below demand × 1.3 |
+| 👵 Grandma, head of staff | 2 | Hires for the slowest step while capacity is below demand × 1.3; buys (or briefly saves for) equipment for that step when it adds more per dollar |
 | 🧔 Uncle, the quartermaster | 3 | Buys equipment, cheapest first |
-| 👩 Mum, the estate agent | 4 | Unlocks the next place; when it only lacks money and costs ≤ 1 hour of income, the others pause to save up |
-| 👴 Grandpa, farm boss | 10 (Ch. 2) | Builds the building holding back the least-covered ingredient, following the chain upstream |
+| 👩 Mum, the estate agent | 4 | Unlocks the next place; when it only lacks money that is ≤ 5 minutes of recent income away, the others pause briefly to save up |
+| 👴 Grandpa, farm boss | 10 (Ch. 2) | Builds the building holding back the least-covered ingredient, following the chain upstream; buys (or briefly saves for) farm equipment for that building's group when it adds more per dollar |
 | 🧑‍💼 The kid, now a dispatcher | 40 (Ch. 3) | Buys vehicles to reach every place, then capacity while delivery lags the kitchen |
 
 The family runs the business; the staff does the work. Helpers and farm buildings are renamed as their tab is promoted (`names.ts`; ids and saves never change):
@@ -157,7 +159,7 @@ Starts for good the first time you reach the whole planet. Space places are reac
 | 🪐 Jupiter's moons | 630M km | 2M | $1K | $6T | 150B |
 | ☀️ Whole Solar System | 6B km | 8M | $3K | $30T | 800B |
 
-Space pays far more per schnitzel than Earth (orbit $30 → Solar System $3K): that is the late game's money engine. Bot (sells when crumbs double, 2 h runs): planet 20h, orbit 36h, Moon 68h, Mars 107h, asteroid belt 131h, Jupiter and the Solar System beyond 150h. `tools/saves/mars.txt` (made by `tools/demo-save.sim.ts`) loads a game just past Mars.
+Space pays far more per schnitzel than Earth (orbit $30 → Solar System $3K): that is the late game's money engine. Bot (sells when crumbs double, 2 h runs, all managers): planet 15h, orbit 17h, Moon 21h, Mars 27h, asteroid belt 37½h, Jupiter and the Solar System beyond 64h. `tools/saves/mars.txt` (made by `tools/demo-save.sim.ts`) loads a game just past Mars.
 
 Vehicles: 🚀 Schnitzel rocket (2K/s, Moon range, $1B), 🛸 Crust cruiser (12K/s, to Jupiter, $50B), 🌌 Schnitzel ark (80K/s, whole system, $2T). Space freshness uses each vehicle's own `freshKm`.
 Upgrades: Zero-g fryer (kitchen ×3), Hydroponic domes (farm ×3), Teleport pantry (shop packs ×10), Orbital sun mirrors (fields ×3), Cutlet cloning vats (animals ×3), Matter replicators (processing ×3), Terraforming (farm ×5, new promotion "Terraformed worlds"), Space elevator (fleet ×2), Billboard on the Moon (orders ×2), Cosmic crumbs (crisp +0.5), Dyson fryer (kitchen ×5). Perk: Launch contracts. New promotions: Space farms, Orbital kitchen (20K/s), Space program, Interplanetary.
@@ -177,7 +179,7 @@ The tabs follow the game's own loop: **prep → making → distribution**, then 
 - **Franchise:** the Business dashboard (this run, crumbs per hour, the "selling doubles your crumbs" hint) above selling, the next-crumb progress bar and the recipe book.
 - **Records:** statistics, an income-per-second chart (log scale, franchises marked, hover for values), 90 badges (including promotions), garage chatter.
 - **Why?** ⓘ next to prices, orders, cooling and every speed lists each upgrade, perk, badge bonus and crispness that multiplies it.
-- **Buttons live where they act**, each with a pop-up (after a short hover) saying what it does and, when greyed out, why: **🍳 Cook all three** in the kitchen (pound, bread, fry in one click; names the missing ingredients), **🛒 Restock** in the corner shop (gone once Auntie's shopping list is bought), **📣 Knock on the neighbours' door** in Distribution (one extra order from the next-door neighbours, at most every 5 s, never past their order limit). Early on customers are the limit, so clicking still has a purpose. Cheap early upgrades fill the wait between places: chalkboard (orders ×1.3, $150), lemon wedges (reputation ×1.5, $250), flyers (orders ×1.3, $450), street group chat (orders ×1.4, $800). First run (bot): street 7½ min, block 17, district 23, town 30½ active / 40 idle.
+- **Buttons live where they act**, each with a pop-up (after a short hover) saying what it does and, when greyed out, why: **🍳 Cook all three** in the kitchen (pound, bread, fry in one click; names the missing ingredients), **🛒 Restock** in the corner shop (gone once Auntie's shopping list is bought), **📣 Knock on the neighbours' door** in Distribution (one extra order from the next-door neighbours, at most every 5 s, never past their order limit). Early on customers are the limit, so clicking still has a purpose. Cheap early upgrades fill the wait between places: chalkboard (orders ×1.3, $150), lemon wedges (reputation ×1.5, $250), flyers (orders ×1.3, $450), street group chat (orders ×1.4, $800). First run (bot): street 8¾ min, block 18, district 24, town 31 active / 36 idle. Reputation targets (street 200, block 1,100, district 4,000, town 10,000) are set so reputation arrives only a little before the money (street $200).
 - **Corner shop limit in Chapter 1:** the shop sells 30 of each ingredient per second. Mrs. Horáková's bigger van (×1.5, $3K, ⭐1,500) and the wholesale market card (×2, $20K, ⭐5,000) keep it ahead of the kitchen until Grandpa's farm (2 franchises); the shop panel shows supply vs kitchen use and how far the farm is.
 - **Size:** the whole stylesheet is in rem, so ☰ Game → Settings → Size scales everything: Fit to window (default, 14–20px text by window width) or Small / Normal / Large / Extra large. Margins show a faint gingham tablecloth.
 - **Welcome screen** on a new game and after a hard reset (☰ Game → How to play reopens it): the garage story, how the game works, and the first five steps.

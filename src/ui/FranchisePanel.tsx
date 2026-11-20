@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { PERKS } from '../engine/content'
+import { CRUMB_DIVISOR, FRONTIER_CRUMB_SHARE, PERKS, REGIONS } from '../engine/content'
 import { fmt, fmtMoney, fmtTime } from '../engine/format'
 import { buyPerk, franchise } from '../engine/actions'
 import {
+  atFrontier,
   canBuyPerk,
-  canFranchise,
   crumbProgress,
+  earningsCrumbs,
+  franchiseBlocker,
+  frontierCrumbs,
+  furthestPlace,
   nextCrumbAt,
   pendingCrumbs,
   perkCost,
@@ -15,6 +19,7 @@ import {
 } from '../engine/rules'
 import { useGame } from '../game/store'
 import { ManagerToggles } from './Managers'
+import { HintButton } from './HintButton'
 import type { PerkDef } from '../engine/content'
 
 export function FranchisePanel() {
@@ -25,6 +30,10 @@ export function FranchisePanel() {
   if (!p.unlocked && p.franchises === 0) return null
 
   const pending = pendingCrumbs(s)
+  const earned = earningsCrumbs(s)
+  const frontier = frontierCrumbs(s)
+  const best = REGIONS[s.stats.bestPlace]
+  const here = REGIONS[furthestPlace(s)]
   const affordable = PERKS.filter((perk) => canBuyPerk(s, perk)).length
   const next = crumbProgress(s)
   const pct = Math.floor(next.fraction * 100)
@@ -44,20 +53,48 @@ export function FranchisePanel() {
       <div className="franchise-box">
         <div>
           Selling now gives <b>+{fmt(pending, 0)} ✨</b>
+          {frontier.gt(earned) && <span className="muted"> (frontier sale)</span>}
           <div className="row-sub">
             Lifetime earnings {fmtMoney(s.stats.earned)}; next crumb at {fmtMoney(nextCrumbAt(s))}. This run:{' '}
             {fmtMoney(s.run.earned)} in {fmtTime(s.run.time)}.
           </div>
         </div>
-        <button className="primary" disabled={!canFranchise(s)} onClick={() => setConfirming(true)}>
+        <HintButton
+          className="primary"
+          title="Sell & franchise"
+          explain="Sell this business: you start over in an empty garage and keep Golden Crumbs, perks, badges and statistics."
+          whyNot={franchiseBlocker(s)}
+          onClick={() => setConfirming(true)}
+        >
           Sell &amp; franchise
-        </button>
+        </HintButton>
+      </div>
+
+      <div className="sell-ways">
+        <div className={`sell-way ${earned.gte(1) ? 'ready' : ''}`}>
+          <b>💰 From earnings:</b> +{fmt(earned, 0)} ✨ now. Each Golden Crumb needs more lifetime earnings than the last
+          (crumbs = √(earnings ÷ {fmt(CRUMB_DIVISOR, 0)})).
+        </div>
+        <div className={`sell-way ${atFrontier(s) ? 'ready' : ''}`}>
+          <b>🗺️ At your frontier:</b>{' '}
+          {atFrontier(s) ? (
+            <>
+              you’ve reached your furthest place ever, so you can sell for at least +{fmt(frontierCrumbs(s), 0)} ✨ (
+              {FRONTIER_CRUMB_SHARE * 100}% of your lifetime crumbs) even when earnings don’t give one yet.
+            </>
+          ) : (
+            <>
+              reach {best.emoji} {best.name.toLowerCase()} again (you’re at {here.emoji} {here.name.toLowerCase()}) to
+              sell for at least {FRONTIER_CRUMB_SHARE * 100}% of your lifetime crumbs. Handy after a big overnight run.
+            </>
+          )}
+        </div>
       </div>
 
       <div className="next-crumb">
         <div className="next-crumb-label">
           <span>
-            Next Golden Crumb: <b>+{fmt(pending.add(1), 0)} ✨</b> if you sell
+            Next Golden Crumb from earnings: <b>+{fmt(earned.add(1), 0)} ✨</b> if you sell
           </span>
           <span className="muted">
             {fmtMoney(next.remaining)} to go
@@ -140,9 +177,20 @@ function PerkGrid({ perks }: { perks: PerkDef[] }) {
               </div>
               <div className="row-sub">{perk.description}</div>
             </div>
-            <button disabled={!canBuyPerk(s, perk)} onClick={() => game.act((st) => buyPerk(st, perk.id))}>
+            <HintButton
+              whyNot={
+                canBuyPerk(s, perk)
+                  ? null
+                  : maxed
+                    ? perk.manager
+                      ? 'Already hired. Switch them on or off above.'
+                      : 'Maxed out: this perk can’t go higher.'
+                    : `Costs ${fmt(perkCost(s, perk), 0)} ✨: ${fmt(perkCost(s, perk).sub(s.prestige.crumbs), 0)} more Golden Crumbs to go. Sell a franchise to earn them.`
+              }
+              onClick={() => game.act((st) => buyPerk(st, perk.id))}
+            >
               {maxed ? (perk.manager ? 'Hired' : 'Max') : `${fmt(perkCost(s, perk), 0)} ✨`}
-            </button>
+            </HintButton>
           </li>
         )
       })}

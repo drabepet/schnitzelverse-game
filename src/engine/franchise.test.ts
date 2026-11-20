@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { D } from './decimal'
-import { CRUMB_DIVISOR, HEAD_START_BASE } from './content'
+import { CRUMB_DIVISOR, HEAD_START_BASE, REGIONS } from './content'
 import { newGame } from './state'
 import { buyPerk, canUnlockRegion, franchise, hireWorker, unlockRegion } from './actions'
-import { canFranchise, crumbProgress, getMods, pendingCrumbs, perkCost } from './rules'
+import { canFranchise, crumbProgress, earningsCrumbs, franchiseBlocker, getMods, pendingCrumbs, perkCost } from './rules'
 import { deserialize } from './save'
 import { advance } from './tick'
 import { PERKS } from './content'
@@ -29,7 +29,9 @@ describe('franchise', () => {
   it('reaching the town unlocks it', () => {
     const s = readyToFranchise(0)
     expect(s.prestige.unlocked).toBe(true)
-    expect(canFranchise(s)).toBe(false) // nothing earned yet: no crumbs
+    // Nothing earned yet, but the town is your furthest place: a frontier sale for 1.
+    expect(pendingCrumbs(s).toNumber()).toBe(1)
+    expect(canFranchise(s)).toBe(true)
   })
 
   it('gives sqrt(earned / divisor) Golden Crumbs', () => {
@@ -61,8 +63,10 @@ describe('franchise', () => {
     expect(s.stats.served.toNumber()).toBe(1234)
   })
 
-  it('crumbs come from lifetime earnings, so resetting early gives nothing extra', () => {
+  it('crumbs come from lifetime earnings; short of your furthest place there is nothing to sell', () => {
     const s = readyToFranchise(CRUMB_DIVISOR * 25)
+    s.regions.nextTown.unlocked = true // furthest place ever: the next town
+    s.stats.bestPlace = REGIONS.findIndex((r) => r.id === 'nextTown')
     expect(franchise(s)).toBe(true)
     expect(s.prestige.crumbs.toNumber()).toBe(5)
     // Straight back to the town without earning anything new: nothing to collect.
@@ -72,6 +76,27 @@ describe('franchise', () => {
     // Lifetime earnings reach 36 × divisor: worth 6 in total, 1 new.
     s.stats.earned = D(CRUMB_DIVISOR * 36)
     expect(pendingCrumbs(s).toNumber()).toBe(1)
+  })
+
+  it('a frontier sale pays 5% of lifetime crumbs, as a bonus that does not delay earnings', () => {
+    const s = readyToFranchise(CRUMB_DIVISOR * 400) // worth 20
+    expect(franchise(s)).toBe(true)
+    expect(s.prestige.totalCrumbs.toNumber()).toBe(20)
+    // A huge run is already paid out; back at the furthest place (the town) we can still sell.
+    for (const r of ['friends', 'street', 'block', 'district', 'town'] as const) s.regions[r].unlocked = true
+    expect(earningsCrumbs(s).toNumber()).toBe(0)
+    expect(pendingCrumbs(s).toNumber()).toBe(1) // max(1, 5% of 20)
+    expect(franchise(s)).toBe(true)
+    expect(s.prestige.bonusCrumbs.toNumber()).toBe(1)
+    // The bonus doesn't count against earnings: 21² × divisor earned gives the 21st crumb.
+    s.stats.earned = D(CRUMB_DIVISOR * 441)
+    expect(earningsCrumbs(s).toNumber()).toBe(1)
+  })
+
+  it('remembers the furthest place ever reached', () => {
+    const s = readyToFranchise(CRUMB_DIVISOR)
+    expect(REGIONS[s.stats.bestPlace].id).toBe('town')
+    expect(franchiseBlocker(s)).toBeNull()
   })
 
   it('later places need franchises', () => {

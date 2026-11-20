@@ -15,6 +15,8 @@ import {
 import { useGame } from '../game/store'
 import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
+import { HintButton } from './HintButton'
+import { needMoney } from './reasons'
 
 export function FleetPanel() {
   const game = useGame()
@@ -60,13 +62,13 @@ export function FleetPanel() {
                       : `Can’t reach ${farthest.name.toLowerCase()}`}
                 </div>
               </div>
-              <button
+              <HintButton
                 className="buy-btn"
-                disabled={!plan.affordable}
+                whyNot={plan.affordable ? null : needMoney(s, plan.cost, game.rates.income)}
                 onClick={() => game.act((st) => buyVehicle(st, v.id, st.settings.buyAmount))}
               >
                 <BuyLabel verb="Buy" plan={plan} />
-              </button>
+              </HintButton>
             </li>
           )
         })}

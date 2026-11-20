@@ -18,6 +18,8 @@ import { SupplyPanel } from './SupplyPanel'
 import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
 import { facilityLook } from '../engine/names'
+import { HintButton } from './HintButton'
+import { needMoney } from './reasons'
 
 /** The farm page; `equipment` sits next to the intro, so it isn't buried below the chains. */
 export function FarmPanel({ equipment }: { equipment?: ReactNode }) {
@@ -172,13 +174,13 @@ function FlowStep({
           </>
         )}
         <div className={warn ? 'warn small' : 'muted small'}>{status}</div>
-        <button
+        <HintButton
           className="buy-btn"
-          disabled={!plan.affordable}
+          whyNot={plan.affordable ? null : needMoney(s, plan.cost, game.rates.income)}
           onClick={() => game.act((st) => buyFacility(st, f.id, st.settings.buyAmount))}
         >
           <BuyLabel verb="Build" plan={plan} />
-        </button>
+        </HintButton>
       </div>
     </>
   )

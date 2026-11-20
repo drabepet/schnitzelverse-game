@@ -97,6 +97,8 @@ export interface GameState extends RunState {
     crumbs: Decimal
     /** Golden Crumbs earned over all time. */
     totalCrumbs: Decimal
+    /** Of those, extra crumbs from frontier sales (not from earnings; see frontierCrumbs). */
+    bonusCrumbs: Decimal
     perks: Partial<Record<PerkId, number>>
   }
   /** Income over time, for the chart in Records. */
@@ -129,6 +131,8 @@ export interface GameState extends RunState {
     byHand: Record<StageId, number>
     /** Fastest time (s into a run) to reach the whole town; 0 = not yet. */
     bestTownTime: number
+    /** The furthest place ever reached (index into REGIONS), over all runs. */
+    bestPlace: number
   }
   /** Wall-clock ms of the last save; used for offline progress. */
   lastSaved: number
@@ -188,7 +192,7 @@ export function newGame(now = Date.now()): GameState {
     crisp: { unlocked: false, temperature: CRISP_TEMP_BEST, oil: 0 },
     autoBuy: { enabled: true, target: 20, reserve: DEFAULT_AUTO_BUY_RESERVE },
     buffers: { ...DEFAULT_BUFFERS },
-    prestige: { unlocked: false, franchises: 0, crumbs: D(0), totalCrumbs: D(0), perks: {} },
+    prestige: { unlocked: false, franchises: 0, crumbs: D(0), totalCrumbs: D(0), bonusCrumbs: D(0), perks: {} },
     history: { clock: 0, earned: D(0), points: [] },
     managersOff: {},
     managerClock: 0,
@@ -201,7 +205,7 @@ export function newGame(now = Date.now()): GameState {
         text: 'You found a frying pan in the garage and a few things in Mum’s fridge. The neighbours look hungry.',
       },
     ],
-    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0 },
+    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0, bestPlace: 0 },
     lastSaved: now,
   }
 }

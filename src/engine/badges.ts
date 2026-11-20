@@ -180,3 +180,9 @@ export const BADGES: BadgeDef[] = [
 ]
 
 export const BADGE_BY_ID: Record<string, BadgeDef> = Object.fromEntries(BADGES.map((b) => [b.id, b]))
+
+/** Badges earned since you last looked at Records (the newest ones), newest first. */
+export function unseenBadges(state: GameState): string[] {
+  const earned = Object.entries(state.badges).sort((a, b) => b[1] - a[1])
+  return earned.slice(0, Math.max(0, earned.length - state.badgesSeen)).map(([id]) => id)
+}

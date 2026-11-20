@@ -38,6 +38,7 @@ import {
   chapter2Unlocked,
   chapter4Unlocked,
   clickAmount,
+  earningsCrumbs,
   helperReaches,
   vehicleVisible,
   facilityPlan,
@@ -111,6 +112,8 @@ export function unlockRegion(state: GameState, id: RegionId): boolean {
   const def = REGIONS.find((r) => r.id === id)!
   state.money = state.money.sub(def.unlockCost)
   state.regions[id].unlocked = true
+  const index = REGIONS.findIndex((r) => r.id === id)
+  if (index > state.stats.bestPlace) state.stats.bestPlace = index
   if (id === FRANCHISE_UNLOCK_REGION) {
     state.prestige.unlocked = true
     const best = state.stats.bestTownTime
@@ -177,9 +180,13 @@ function applyStartPerks(state: GameState): void {
 export function franchise(state: GameState): boolean {
   if (!canFranchise(state)) return false
   const gain = pendingCrumbs(state)
+  // Whatever a frontier sale pays on top of earnings is bonus: kept apart, so it
+  // doesn't push the next crumb from earnings further away.
+  const bonus = gain.sub(earningsCrumbs(state))
   Object.assign(state, freshRun())
   state.prestige.crumbs = state.prestige.crumbs.add(gain)
   state.prestige.totalCrumbs = state.prestige.totalCrumbs.add(gain)
+  if (bonus.gt(0)) state.prestige.bonusCrumbs = state.prestige.bonusCrumbs.add(bonus)
   state.prestige.franchises++
   applyStartPerks(state)
   addLog(state, FRANCHISE_MESSAGES[(state.prestige.franchises - 1) % FRANCHISE_MESSAGES.length])

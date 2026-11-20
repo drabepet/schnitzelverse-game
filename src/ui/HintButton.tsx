@@ -11,11 +11,14 @@ const POP_WIDTH = 260
  */
 export function HintButton(props: {
   children: ReactNode
-  title: string
-  explain: string
+  /** Pop-up heading and text; optional: a plain button only explains why it's greyed out. */
+  title?: string
+  explain?: string
   /** Why it's greyed out right now; null when it can be used. */
   whyNot: string | null
   className?: string
+  /** Native tooltip, for buttons whose label is only an icon or a price. */
+  ariaTitle?: string
   onClick: (e: React.MouseEvent) => void
 }) {
   const ref = useRef<HTMLSpanElement>(null)
@@ -23,6 +26,7 @@ export function HintButton(props: {
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const show = () => {
     window.clearTimeout(timer.current)
+    if (!props.explain && !props.whyNot) return
     timer.current = window.setTimeout(() => {
       const r = ref.current?.getBoundingClientRect()
       if (!r) return
@@ -40,14 +44,14 @@ export function HintButton(props: {
 
   return (
     <span ref={ref} className="hint-btn" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
-      <button className={props.className} disabled={props.whyNot !== null} onClick={props.onClick}>
+      <button className={props.className} disabled={props.whyNot !== null} onClick={props.onClick} title={props.ariaTitle}>
         {props.children}
       </button>
       {pos && (
         <span className="hint-pop" role="tooltip" style={{ top: pos.top, left: pos.left, width: pos.width }}>
-          <b>{props.title}</b>
-          <span>{props.explain}</span>
-          {props.whyNot && <span className="warn small">Right now: {props.whyNot}</span>}
+          {props.title && <b>{props.title}</b>}
+          {props.explain && <span>{props.explain}</span>}
+          {props.whyNot && <span className="warn small">{props.explain ? 'Right now: ' : ''}{props.whyNot}</span>}
         </span>
       )}
     </span>

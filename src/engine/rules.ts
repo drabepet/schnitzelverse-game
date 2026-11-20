@@ -1,6 +1,6 @@
 // Derived values: modifiers from upgrades, costs, capacities, requirements.
 // Pure functions of the state; nothing here changes it.
-import { D, type Decimal } from './decimal'
+import { D, Decimal } from './decimal'
 import {
   BASE_COOLING,
   NIGHT_SHIFT_HOURS,
@@ -21,6 +21,8 @@ import {
   HELPER_RANGE_KM,
   VEHICLES,
   CRUMB_DIVISOR,
+  FRANCHISE_UNLOCK_REGION,
+  FRONTIER_CRUMB_SHARE,
   FACILITIES,
   SHOP_SHELF_SECONDS,
   SHOP_SUPPLY_RATE,
@@ -332,9 +334,41 @@ export function crumbsWorth(state: GameState): Decimal {
  * Golden Crumbs a Franchise would give right now: what lifetime earnings are
  * worth minus what was already collected. Resetting early gives nothing extra.
  */
-export function pendingCrumbs(state: GameState): Decimal {
-  const pending = crumbsWorth(state).sub(state.prestige.totalCrumbs)
+export function earningsCrumbs(state: GameState): Decimal {
+  // Frontier bonuses don't count against what earnings are worth.
+  const collected = state.prestige.totalCrumbs.sub(state.prestige.bonusCrumbs)
+  const pending = crumbsWorth(state).sub(collected)
   return pending.lt(0) ? D(0) : pending
+}
+
+/** Index (in REGIONS) of the furthest place unlocked in this run. */
+export function furthestPlace(state: GameState): number {
+  let best = 0
+  REGIONS.forEach((r, i) => {
+    if (state.regions[r.id].unlocked) best = i
+  })
+  return best
+}
+
+/** In this run you've reached your furthest place ever (or beyond), and at least the whole town. */
+export function atFrontier(state: GameState): boolean {
+  const here = furthestPlace(state)
+  const town = REGIONS.findIndex((r) => r.id === FRANCHISE_UNLOCK_REGION)
+  return here >= town && here >= state.stats.bestPlace
+}
+
+/** What a frontier sale pays at least: a share of lifetime crumbs, never less than 1. */
+export function frontierCrumbs(state: GameState): Decimal {
+  if (!atFrontier(state)) return D(0)
+  return Decimal.max(1, state.prestige.totalCrumbs.mul(FRONTIER_CRUMB_SHARE).floor())
+}
+
+/**
+ * Golden Crumbs a Franchise would give right now: what lifetime earnings are
+ * worth minus what was already collected, or the frontier minimum if that's more.
+ */
+export function pendingCrumbs(state: GameState): Decimal {
+  return Decimal.max(earningsCrumbs(state), frontierCrumbs(state))
 }
 
 /** Money this run needs to have earned for the next Golden Crumb. */
@@ -354,6 +388,14 @@ export function crumbProgress(state: GameState): { fraction: number; remaining: 
 
 export function canFranchise(state: GameState): boolean {
   return state.prestige.unlocked && pendingCrumbs(state).gte(1)
+}
+
+/** Why you can't sell yet, and how to get there (null when you can). */
+export function franchiseBlocker(state: GameState): string | null {
+  if (canFranchise(state)) return null
+  if (!state.prestige.unlocked) return 'Franchising unlocks the first time you reach the whole town.'
+  const best = REGIONS[state.stats.bestPlace]
+  return `Two ways to sell: earn enough for the next Golden Crumb, or reach your furthest place again (${best.emoji} ${best.name.toLowerCase()}) for at least ${FRONTIER_CRUMB_SHARE * 100}% of your lifetime crumbs.`
 }
 
 export function meets(state: GameState, req: Requirement | undefined): boolean {
@@ -573,14 +615,18 @@ export function upgradeVisible(state: GameState, def: UpgradeDef): boolean {
   return (!def.quality || state.crisp.unlocked) && (!def.space || chapter4Unlocked(state)) && isTeased(state, def.requires)
 }
 
-export function canBuyUpgrade(state: GameState, def: UpgradeDef): boolean {
+/** Not owned yet and everything but the money is in place. */
+export function upgradeUnlocked(state: GameState, def: UpgradeDef): boolean {
   return (
     !state.upgrades[def.id] &&
     (!def.quality || state.crisp.unlocked) &&
     (!def.space || chapter4Unlocked(state)) &&
-    meets(state, def.requires) &&
-    state.money.gte(def.cost)
+    meets(state, def.requires)
   )
+}
+
+export function canBuyUpgrade(state: GameState, def: UpgradeDef): boolean {
+  return upgradeUnlocked(state, def) && state.money.gte(def.cost)
 }
 
 /** Units per second the staff can do for a task, ignoring input shortages. */

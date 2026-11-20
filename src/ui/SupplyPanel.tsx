@@ -4,6 +4,7 @@ import { QUICK_RESTOCK_BELOW, buyIngredient, quickRestock, setAutoBuy } from '..
 import { chapter2Unlocked, getMods, packSize, shelfMax, shopSupplyRate, supplyNeeds } from '../engine/rules'
 import { useGame } from '../game/store'
 import { HintButton } from './HintButton'
+import { firstReason, needMoney } from './reasons'
 import { guideHint } from './guide'
 import { floatText } from './juice'
 
@@ -84,19 +85,25 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
                 </div>
               </div>
               <div className="btns">
-                <button
-                  disabled={s.money.lt(offer.packPrice) || s.shelves[id].lt(size)}
+                <HintButton
+                  whyNot={firstReason(
+                    needMoney(s, offer.packPrice, game.rates.income),
+                    s.shelves[id].lt(size) && 'Mrs. Horáková’s shelf is empty for now; her van is on the way.',
+                  )}
                   onClick={() => game.act((st) => buyIngredient(st, id, 1))}
                 >
                   Buy
-                </button>
-                <button
+                </HintButton>
+                <HintButton
                   className="ghost"
-                  disabled={s.money.lt(offer.packPrice * 10) || s.shelves[id].lt(size.mul(10))}
+                  whyNot={firstReason(
+                    needMoney(s, offer.packPrice * 10, game.rates.income),
+                    s.shelves[id].lt(size.mul(10)) && `The shop has only ${fmtInt(s.shelves[id])} left, not enough for 10 packs.`,
+                  )}
                   onClick={() => game.act((st) => buyIngredient(st, id, 10))}
                 >
                   ×10
-                </button>
+                </HintButton>
               </div>
             </li>
           )

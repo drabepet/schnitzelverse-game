@@ -1,7 +1,9 @@
 import { HELPER_RANGE_KM, STAGES, WORKERS } from '../engine/content'
 import { fmt } from '../engine/format'
 import { hireWorker } from '../engine/actions'
-import { getMods, isTeased, meets, workerPlan } from '../engine/rules'
+import { getMods, isTeased, workerPlan } from '../engine/rules'
+import { HintButton } from './HintButton'
+import { firstReason, needMoney, needRequirement } from './reasons'
 import { useGame } from '../game/store'
 import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
@@ -44,13 +46,13 @@ export function StaffPanel({ pillar }: { pillar: 'making' | 'distribution' }) {
                 </div>
                 {look.name !== look.original && <div className="row-sub muted small">Started out as: {look.original}</div>}
               </div>
-              <button
-                disabled={!meets(s, w.requires) || !plan.affordable}
+              <HintButton
+                whyNot={firstReason(needRequirement(s, w.requires), needMoney(s, plan.cost, game.rates.income))}
                 className={`buy-btn ${guideHint(s)?.target === 'hire' && w.id === 'uncle' ? 'pulse' : ''}`}
                 onClick={() => game.act((st) => hireWorker(st, w.id, st.settings.buyAmount))}
               >
                 <BuyLabel verb="Hire" plan={plan} />
-              </button>
+              </HintButton>
             </li>
           )
         })}

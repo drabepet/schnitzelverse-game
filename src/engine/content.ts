@@ -963,8 +963,8 @@ export const REGIONS: RegionDef[] = [
     population: 120,
     orderRate: 0.8,
     price: 6.5,
-    unlockCost: 250,
-    unlockReputation: 150,
+    unlockCost: 200,
+    unlockReputation: 200,
     distance: 0.5,
   },
   {
@@ -976,7 +976,7 @@ export const REGIONS: RegionDef[] = [
     orderRate: 2,
     price: 7,
     unlockCost: 1500,
-    unlockReputation: 650,
+    unlockReputation: 1100,
     distance: 1,
   },
   {
@@ -988,7 +988,7 @@ export const REGIONS: RegionDef[] = [
     orderRate: 5,
     price: 8,
     unlockCost: 7500,
-    unlockReputation: 2500,
+    unlockReputation: 4000,
     distance: 3,
   },
   {
@@ -1000,7 +1000,7 @@ export const REGIONS: RegionDef[] = [
     orderRate: 12,
     price: 9,
     unlockCost: 32000,
-    unlockReputation: 6000,
+    unlockReputation: 10_000,
     distance: 6,
   },
   {
@@ -1464,6 +1464,13 @@ export const FRANCHISE_UNLOCK_REGION: RegionId = 'town'
  * Basing it on lifetime earnings means resetting early gives nothing extra:
  * the way to more crumbs is earning faster (going deeper, better perks).
  */
+/**
+ * Frontier sale: reaching your furthest place ever (again) lets you sell for
+ * at least this share of your lifetime Golden Crumbs, even when earnings
+ * alone wouldn't give one yet (e.g. right after a huge overnight run).
+ */
+export const FRONTIER_CRUMB_SHARE = 0.05
+
 export const CRUMB_DIVISOR = 2500
 
 export type PerkId =
@@ -1683,7 +1690,8 @@ export const PERKS: PerkDef[] = [
     id: 'familyManager',
     name: 'Grandma, head of staff',
     emoji: '👵',
-    description: 'Hires helpers for whichever step is slowest, while customers want more',
+    description:
+      'Hires helpers for whichever step is slowest, while customers want more. If equipment for that step does more per dollar, she buys that instead (or saves for it when it’s a few minutes away)',
     baseCost: 2,
     costGrowth: 1,
     maxLevel: 1,
@@ -1703,7 +1711,8 @@ export const PERKS: PerkDef[] = [
     id: 'estateAgent',
     name: 'Mum, the estate agent',
     emoji: '👩',
-    description: 'Unlocks the next place as soon as you can, and asks the others to save up for it',
+    description:
+      'Unlocks the next place as soon as you can. When it’s only a few minutes of income away, she asks the others to wait so the money gets there sooner',
     baseCost: 4,
     costGrowth: 1,
     maxLevel: 1,
@@ -1713,7 +1722,8 @@ export const PERKS: PerkDef[] = [
     id: 'farmManager',
     name: 'Grandpa, farm boss',
     emoji: '👴',
-    description: 'Builds whichever farm building holds back the shortest ingredient',
+    description:
+      'Builds whichever farm building holds back the shortest ingredient. If farm equipment for it does more per dollar, he buys that instead (or saves for it when it’s a few minutes away)',
     baseCost: 10,
     costGrowth: 1,
     maxLevel: 1,
@@ -1744,8 +1754,8 @@ export const MANAGER_SPEND_SHARE = 0.1
 export const QUARTERMASTER_SPEND_SHARE = 0.25
 /** Managers look around this often (seconds of game time). */
 export const MANAGER_INTERVAL = 1
-/** Saving for the next place when it costs at most this many seconds of income. */
-export const SAVE_FOR_PLACE_SECONDS = 3600
+/** Mum asks the others to save up only when the money still missing is at most this many seconds of recent income. */
+export const SAVE_FOR_PLACE_SECONDS = 300
 
 /** Places Old connections unlocks at the start of a run, one per level. */
 export const START_REGIONS: RegionId[] = ['friends', 'street', 'block']

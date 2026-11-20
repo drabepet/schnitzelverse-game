@@ -67,15 +67,23 @@ export function KitchenPanel() {
                 <span className="arrow">→</span>
                 <span title={ITEMS[stage.output].name}>{ITEMS[stage.output].emoji}</span>
               </div>
-              <button
+              <HintButton
                 className={`primary ${id === 'fry' && actual > 0 ? 'sizzle' : ''}`}
-                disabled={missing.length > 0}
+                whyNot={
+                  missing.length
+                    ? `Missing ${missing.map((m) => `${ITEMS[m].emoji} ${ITEMS[m].name.toLowerCase()}`).join(', ')}. ${
+                        missing.some((m) => m === 'cutlet' || m === 'breaded')
+                          ? 'Do the step before first.'
+                          : 'Restock in the 🛒 Corner shop.'
+                      }`
+                    : null
+                }
                 onClick={(e) => {
                   if (game.act((st) => clickStage(st, id))) floatText(e, `+${fmt(clickAmount(id, mods))} ${ITEMS[stage.output].emoji}`)
                 }}
               >
                 {stage.verb} ×{fmt(clickAmount(id, mods))}
-              </button>
+              </HintButton>
               <div className="stage-foot">
                 {staff > 0 ? (
                   <>

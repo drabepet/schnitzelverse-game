@@ -104,3 +104,15 @@ describe('made by hand', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 })
+
+describe('new badges', () => {
+  it('are the newest ones since you last looked', async () => {
+    const { unseenBadges } = await import('./badges')
+    const s = newGame()
+    s.badges = { served1: 10, served10: 50, placeFriends: 30 }
+    s.badgesSeen = 1
+    expect(unseenBadges(s)).toEqual(['served10', 'placeFriends'])
+    markBadgesSeen(s)
+    expect(unseenBadges(s)).toEqual([])
+  })
+})

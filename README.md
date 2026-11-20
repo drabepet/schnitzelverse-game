@@ -55,4 +55,5 @@ Rules of thumb:
 
 - New content goes into `content.ts`. The engine should not need to change for it.
 - Anything that can grow without limit is a `Decimal` (break_eternity.js).
+- Every button that can be greyed out is a `HintButton` with a `whyNot` reason (helpers in `src/ui/reasons.ts`): hovering it says why, and what unlocks it.
 - The engine never touches `window`/`document`, so it runs the same in the game, in tests and in offline catch-up.
