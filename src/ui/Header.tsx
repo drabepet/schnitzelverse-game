@@ -1,3 +1,5 @@
+import { Logo } from './Logo'
+import { useTabIcon } from './useTabIcon'
 import { useRef, useState } from 'react'
 import { SettingsDialog } from './SettingsDialog'
 import { AboutDialog } from './AboutDialog'
@@ -9,6 +11,7 @@ import { useGame } from '../game/store'
 export function Header() {
   const game = useGame()
   const s = game.state
+  useTabIcon()
   const [menuOpen, setMenuOpen] = useState(false)
   const [note, setNote] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -76,7 +79,7 @@ export function Header() {
       <div className="brand">
         {/* Psst: click the plate. */}
         <button className="brand-mark" aria-label="Schnitzelverse" onClick={() => game.act((st) => clickLogo(st))}>
-          🍽️
+          <Logo size={56} />
         </button>
         <div>
           <h1>Schnitzelverse</h1>

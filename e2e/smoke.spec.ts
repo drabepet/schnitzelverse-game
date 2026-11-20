@@ -27,9 +27,10 @@ async function visitEveryTab(page: Page) {
 test('a fresh game: cook, deliver, browse every tab', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Schnitzelverse', exact: true })).toBeVisible()
-  // A new game opens with the welcome screen.
-  await expect(page.getByRole('heading', { name: /Welcome to Schnitzelverse/ })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('heading', { name: 'Schnitzelverse', exact: true })).toBeVisible()
+  // A new game opens with the welcome page.
+  await expect(page.getByRole('dialog', { name: 'Schnitzelverse' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Your first minutes/ })).toBeVisible()
   await page.getByRole('button', { name: /Fire up the pan/ }).click()
 
   // Cook one schnitzel all the way (kitchen), then deliver it (distribution tab).

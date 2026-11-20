@@ -3,6 +3,8 @@
 import { D, Decimal } from './decimal'
 import {
   BASE_COOLING,
+  BUFFER_SECONDS,
+  MIN_BUFFERS,
   NIGHT_SHIFT_HOURS,
   OFFLINE_CAP_HOURS,
   CRISP_BASE_SKILL,
@@ -51,6 +53,9 @@ import {
   type VehicleDef,
   type WorkerDef,
   type WorkerId,
+  FARM_GOALS,
+  FARM_GOAL_MULT,
+  type FacilityId,
 } from './content'
 import type { BuyAmount, GameState } from './state'
 import { BADGE_BONUS } from './badgeBonus'
@@ -73,6 +78,8 @@ export interface Mods {
   crisp: number
   /** Corner shop supply (bigger van, wholesale card). */
   shopSupply: number
+  /** One kind of farm building (farm gear), on top of its group. */
+  building: Record<FacilityId, number>
 }
 
 function applyEffect(mods: Mods, e: Effect): void {
@@ -118,6 +125,9 @@ function applyEffect(mods: Mods, e: Effect): void {
     case 'shopSupply':
       mods.shopSupply *= e.mult
       break
+    case 'building':
+      mods.building[e.facility] *= e.mult
+      break
   }
 }
 
@@ -135,6 +145,7 @@ function identityMods(): Mods {
     fleet: 1,
     crisp: 0,
     shopSupply: 1,
+    building: { wheatField: 1, mill: 1, bakery: 1, sunflowers: 1, oilPress: 1, coop: 1, pigFarm: 1, butcher: 1 },
   }
 }
 
@@ -251,18 +262,23 @@ export function getMods(state: GameState): Mods {
   for (const src of modSources(state)) src.effects.forEach((e) => applyEffect(mods, e))
   Object.freeze(mods.speed)
   Object.freeze(mods.facility)
+  Object.freeze(mods.building)
   Object.freeze(mods)
   modsCache.set(state, { key, mods })
   return mods
 }
 
 /** The numbers a "Why?" breakdown can explain. */
-export type ModKey = Exclude<keyof Mods, 'speed' | 'facility' | 'autoBuy'> | Task | FacilityGroup
+export type ModKey = Exclude<keyof Mods, 'speed' | 'facility' | 'building' | 'autoBuy'> | Task | FacilityGroup | FacilityId
 
 function readMod(m: Mods, key: ModKey): number {
   if (key in m.speed) return m.speed[key as Task]
   if (key in m.facility) return m.facility[key as FacilityGroup]
-  return m[key as Exclude<ModKey, Task | FacilityGroup>]
+  if (key in m.building) {
+    const f = FACILITIES.find((x) => x.id === key)!
+    return m.facility[f.group] * m.building[f.id]
+  }
+  return m[key as Exclude<ModKey, Task | FacilityGroup | FacilityId>]
 }
 
 export interface Factor {
@@ -402,12 +418,14 @@ export function meets(state: GameState, req: Requirement | undefined): boolean {
   if (!req) return true
   if (req.reputation !== undefined && state.reputation.lt(req.reputation)) return false
   if (req.franchises !== undefined && state.prestige.franchises < req.franchises) return false
+  if (req.place !== undefined && !state.regions[req.place].unlocked) return false
   return true
 }
 
 /** Show things a bit before they are affordable, so players have goals. */
 export function isTeased(state: GameState, req: Requirement | undefined): boolean {
   if (req?.franchises !== undefined && state.prestige.franchises < req.franchises) return false
+  if (req?.place !== undefined && !state.regions[req.place].unlocked) return false
   if (!req?.reputation) return true
   return state.reputation.gte(req.reputation * 0.5)
 }
@@ -483,9 +501,29 @@ export function canBuyFacility(state: GameState, def: FacilityDef): boolean {
   return chapter2Unlocked(state) && state.money.gte(facilityCost(state, def))
 }
 
+/** How many count goals (FARM_GOALS) this many buildings have reached. */
+export function farmGoalsReached(count: number): number {
+  let n = 0
+  for (const g of FARM_GOALS) if (count >= g) n++
+  return n
+}
+
+/** The next count goal, or null when every goal is reached. */
+export function nextFarmGoal(count: number): number | null {
+  return FARM_GOALS.find((g) => count < g) ?? null
+}
+
+/** Speed bonus from count goals. */
+export const farmGoalBonus = (count: number): number => FARM_GOAL_MULT ** farmGoalsReached(count)
+
+/** Cycles per second one building of this kind runs: group gear, its own gear, count goals. */
+export function facilitySpeed(state: GameState, def: FacilityDef, mods: Mods): number {
+  return def.rate * mods.facility[def.group] * mods.building[def.id] * farmGoalBonus(state.facilities[def.id])
+}
+
 /** Cycles per second all buildings of this kind can run, ignoring shortages. */
 export function facilityCapacity(state: GameState, def: FacilityDef, mods: Mods): Decimal {
-  return D(def.rate).mul(state.facilities[def.id]).mul(mods.facility[def.group])
+  return D(facilitySpeed(state, def, mods)).mul(state.facilities[def.id])
 }
 
 /** What the corner shop can sell per second of each ingredient. */
@@ -665,15 +703,27 @@ export function coolingRate(mods: Mods): number {
   return BASE_COOLING * mods.cooling
 }
 
+/** Units per second the step after this one can take. */
+function nextStepCapacity(state: GameState, stage: StageId, mods: Mods): Decimal {
+  const next = NEXT_TASK[stage]
+  return next === 'deliver' ? deliveryCapacity(state, mods) : taskCapacity(state, next, mods)
+}
+
 /**
- * Cook to order: how many units of a stage's output staff may have waiting.
- * The buffer, plus what the next step can consume this tick, so long ticks
- * (background tabs, offline progress) are not throttled by the buffer.
+ * Cook to order, set automatically: how many of a step's output may wait for
+ * the next step. A few seconds of what the next step can use, at least MIN_BUFFERS.
+ */
+export function stageBuffer(state: GameState, stage: StageId, mods: Mods = getMods(state)): Decimal {
+  return Decimal.max(MIN_BUFFERS[stage], nextStepCapacity(state, stage, mods).mul(BUFFER_SECONDS).ceil())
+}
+
+/**
+ * How many of a step's output staff may have waiting: the buffer, plus what
+ * the next step can consume this tick, so long ticks (background tabs,
+ * offline progress) are not throttled by the buffer.
  */
 export function stageLimit(state: GameState, stage: StageId, mods: Mods, dt: number): Decimal {
-  const next = NEXT_TASK[stage]
-  const nextCapacity = next === 'deliver' ? deliveryCapacity(state, mods) : taskCapacity(state, next, mods)
-  return D(state.buffers[stage]).add(nextCapacity.mul(dt))
+  return stageBuffer(state, stage, mods).add(nextStepCapacity(state, stage, mods).mul(dt))
 }
 
 /** Ingredients still needed to finish one more schnitzel, given what is already half-made. */
@@ -703,4 +753,9 @@ export function nextRegion(state: GameState): { region: RegionDef; locked: boole
   const region = REGIONS.find((r) => !state.regions[r.id].unlocked)
   if (!region) return null
   return { region, locked: state.prestige.franchises < (region.requiresFranchises ?? 0) }
+}
+
+/** The orbit, ever (any run): the logo leaves the flaming pan for space. */
+export function reachedOrbit(state: GameState): boolean {
+  return state.stats.bestPlace >= REGIONS.findIndex((r) => r.id === 'orbit')
 }

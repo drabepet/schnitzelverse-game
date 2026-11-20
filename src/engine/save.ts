@@ -60,6 +60,8 @@ function migrate(state: GameState): GameState {
       if (state.regions[r.id].unlocked || state.milestones[r.id]) state.stats.bestPlace = Math.max(state.stats.bestPlace, i)
     })
   }
+  // Kitchen buffers are automatic now: drop the old hand-set ones.
+  delete (state as unknown as Record<string, unknown>).buffers
   // Saves from before the welcome screen: anyone who has played doesn't need it.
   if (state.stats.served.gt(0) || state.prestige.franchises > 0) state.introSeen = true
   // Saves from before crispness: anyone past the next town has earned it.

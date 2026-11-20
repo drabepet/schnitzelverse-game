@@ -2,7 +2,6 @@ import { D, type Decimal } from './decimal'
 import {
   CRISP_TEMP_BEST,
   DEFAULT_AUTO_BUY_RESERVE,
-  DEFAULT_BUFFERS,
   FACILITIES,
   INGREDIENT_IDS,
   ITEM_IDS,
@@ -86,8 +85,6 @@ export interface GameState extends RunState {
   crisp: { unlocked: boolean; temperature: number; oil: number }
   /** Auntie's shopping list: restock up to `target`, never spending below `reserve`. */
   autoBuy: { enabled: boolean; target: number; reserve: number }
-  /** Cook-to-order limit per kitchen step (see DEFAULT_BUFFERS). */
-  buffers: Record<StageId, number>
   /** Survives every Franchise. */
   prestige: {
     /** True once the Franchise has been unlocked (reached the town once). */
@@ -191,7 +188,6 @@ export function newGame(now = Date.now()): GameState {
     knockReadyAt: 0,
     crisp: { unlocked: false, temperature: CRISP_TEMP_BEST, oil: 0 },
     autoBuy: { enabled: true, target: 20, reserve: DEFAULT_AUTO_BUY_RESERVE },
-    buffers: { ...DEFAULT_BUFFERS },
     prestige: { unlocked: false, franchises: 0, crumbs: D(0), totalCrumbs: D(0), bonusCrumbs: D(0), perks: {} },
     history: { clock: 0, earned: D(0), points: [] },
     managersOff: {},

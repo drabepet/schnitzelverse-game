@@ -7,6 +7,7 @@ import { newGame, type GameState } from '../engine/state'
 import { advance, type Flows } from '../engine/tick'
 import { deserialize, fromExportString, serialize, toExportString } from '../engine/save'
 import { offlineCap } from '../engine/rules'
+import type { RouteRates } from '../engine/routes'
 import { LocalStorageSave, type SaveStorage } from './storage'
 
 const TICK_MS = 50
@@ -15,7 +16,7 @@ const AUTOSAVE_MS = 10_000
 const BACKUP_MS = 10 * 60_000
 const OFFLINE_MIN_SECONDS = 30
 
-export type Rates = Record<Exclude<keyof Flows, 'farm'>, number>
+export type Rates = Record<Exclude<keyof Flows, 'farm' | 'routes'>, number>
 
 export interface OfflineReport {
   /** Seconds actually simulated (after the cap). */
@@ -34,6 +35,8 @@ export class GameStore {
   private lastReputation: Decimal | null = null
   /** Smoothed output per second of each kind of farm building. */
   farmRates: Partial<Record<FacilityId, number>> = {}
+  /** Smoothed schnitzels per second along each delivery route (routes.ts). */
+  routeRates: RouteRates = {}
   offlineReport: OfflineReport | null = null
   /** A message about the save itself (restored from backup…), shown once. */
   saveNotice: string | null = null
@@ -88,6 +91,12 @@ export class GameStore {
       const perSecond = dt > 0 ? (flows.farm[f.id]?.toNumber() ?? 0) / dt : 0
       const prev = this.farmRates[f.id] ?? 0
       this.farmRates[f.id] = prev + (perSecond - prev) * smoothing
+    }
+    for (const key of new Set([...Object.keys(this.routeRates), ...Object.keys(flows.routes)])) {
+      const perSecond = dt > 0 ? (flows.routes[key]?.toNumber() ?? 0) / dt : 0
+      const next = (this.routeRates[key] ?? 0) + (perSecond - (this.routeRates[key] ?? 0)) * smoothing
+      if (next < 1e-4 && !flows.routes[key]) delete this.routeRates[key]
+      else this.routeRates[key] = next
     }
     this.notify()
   }

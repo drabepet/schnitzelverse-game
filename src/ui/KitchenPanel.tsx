@@ -1,7 +1,7 @@
-import { ITEMS, STAGE_IDS, STAGES, WORKERS, type ItemId } from '../engine/content'
+import { BUFFER_SECONDS, ITEMS, MIN_BUFFERS, STAGE_IDS, STAGES, WORKERS, type ItemId } from '../engine/content'
 import { fmt, fmtInt } from '../engine/format'
-import { clickStage, cookAll, missingForCookAll, setBuffer } from '../engine/actions'
-import { clickAmount, getMods, stageInputs, taskCapacity } from '../engine/rules'
+import { clickStage, cookAll, missingForCookAll } from '../engine/actions'
+import { clickAmount, getMods, stageBuffer, stageInputs, taskCapacity } from '../engine/rules'
 import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
@@ -49,7 +49,16 @@ export function KitchenPanel() {
           const starved = capacity > 0 && actual < capacity * 0.5 && missing.length > 0
           const staff = WORKERS.filter((w) => w.task === id).reduce((n, w) => n + s.workers[w.id], 0)
           const waiting = s.items[stage.output].floor().toNumber()
-          const paused = staff > 0 && !starved && waiting >= s.buffers[id]
+          const buffer = stageBuffer(s, id, mods).toNumber()
+          const paused = staff > 0 && !starved && waiting >= buffer
+          // One status line, always there (empty or not), so the cards never jump.
+          const status = starved
+            ? { text: `Waiting for ${missing.map((m) => ITEMS[m].emoji).join(' ')}`, cls: 'warn' }
+            : paused
+              ? { text: `⏸ ${fmt(buffer, 0)} ready, waiting for the next step`, cls: 'muted' }
+              : staff > 0 && actual > 0
+                ? { text: '▶ Working', cls: 'muted' }
+                : { text: '', cls: 'muted' }
 
           return (
             <div key={id} className={`stage ${starved ? 'starved' : ''}`}>
@@ -94,22 +103,12 @@ export function KitchenPanel() {
                   <span className="muted">no staff yet</span>
                 )}
               </div>
-              {starved && (
-                <div className="warn">Waiting for {missing.map((m) => ITEMS[m].emoji).join(' ')}</div>
-              )}
-              {staff > 0 && (
-                <label className="buffer" title="Staff stop once this many are waiting for the next step. Cooking to order avoids waste.">
-                  Max
-                  <input
-                    type="number"
-                    min={0}
-                    value={s.buffers[id]}
-                    onChange={(e) => game.act((st) => setBuffer(st, id, Number(e.target.value)))}
-                  />
-                  {ITEMS[stage.output].emoji}
-                </label>
-              )}
-              {paused && <div className="muted small">⏸ Enough ready, waiting for orders</div>}
+              <div
+                className={`stage-status small ${status.cls}`}
+                title={`Staff keep about ${BUFFER_SECONDS} seconds of work ready for the next step (at least ${MIN_BUFFERS[id]}), then pause: cooking to order, so nothing goes cold.`}
+              >
+                {status.text || '\u00a0'}
+              </div>
             </div>
           )
         })}

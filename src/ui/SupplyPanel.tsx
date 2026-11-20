@@ -4,9 +4,12 @@ import { QUICK_RESTOCK_BELOW, buyIngredient, quickRestock, setAutoBuy } from '..
 import { chapter2Unlocked, getMods, packSize, shelfMax, shopSupplyRate, supplyNeeds } from '../engine/rules'
 import { useGame } from '../game/store'
 import { HintButton } from './HintButton'
+import { shopLook } from '../engine/names'
 import { firstReason, needMoney } from './reasons'
 import { guideHint } from './guide'
 import { floatText } from './juice'
+import { UpgradesPanel } from './UpgradesPanel'
+import { isShopGear } from '../engine/tiers'
 
 /**
  * The corner shop. On the Garage tab it is the main supply; once the farm
@@ -17,6 +20,7 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
   const s = game.state
   const mods = getMods(s)
   const shelf = shelfMax(mods)
+  const shop = shopLook(s)
   const supply = fmt(shopSupplyRate(mods))
   const kitchenUse = supplyNeeds(s, mods).meat ?? 0
   const low = INGREDIENT_IDS.filter((i) => s.items[i].lt(QUICK_RESTOCK_BELOW))
@@ -27,10 +31,62 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
       ? 'Not enough money for a pack.'
       : 'Mrs. Horáková’s shelves are empty for now; her van is on the way.'
 
+  const rows = (
+      <ul className="rows">
+          {INGREDIENT_IDS.map((id) => {
+            const offer = SHOP[id]
+            const size = packSize(id, mods)
+            return (
+              <li key={id} className="row">
+                <span className="emoji">{ITEMS[id].emoji}</span>
+                <div className="row-main">
+                  <div className="row-title">
+                    {ITEMS[id].name} <span className="count">{fmtInt(s.items[id])}</span>
+                  </div>
+                  <div className="row-sub">
+                    {offer.packName} · {fmtInt(size)} for {fmtMoney(offer.packPrice)}
+                    {(backup || s.shelves[id].lt(shelf.div(2))) && (
+                      <span className={s.shelves[id].lt(size) ? 'warn' : ''}>
+                        {' '}
+                        · shop has {fmtInt(s.shelves[id])} left
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="btns">
+                  <HintButton
+                    whyNot={firstReason(
+                      needMoney(s, offer.packPrice, game.rates.income),
+                      s.shelves[id].lt(size) && 'Mrs. Horáková’s shelf is empty for now; her van is on the way.',
+                    )}
+                    onClick={() => game.act((st) => buyIngredient(st, id, 1))}
+                  >
+                    Buy
+                  </HintButton>
+                  <HintButton
+                    className="ghost"
+                    whyNot={firstReason(
+                      needMoney(s, offer.packPrice * 10, game.rates.income),
+                      s.shelves[id].lt(size.mul(10)) && `The shop has only ${fmtInt(s.shelves[id])} left, not enough for 10 packs.`,
+                    )}
+                    onClick={() => game.act((st) => buyIngredient(st, id, 10))}
+                  >
+                    ×10
+                  </HintButton>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+  )
+
   return (
     <section className="panel panel-supply">
       <div className="panel-head">
-        <h2>{backup ? '🛒 Corner shop (backup)' : '🛒 Supply'}</h2>
+        <h2 title={shop.flavor}>
+          {shop.emoji} {shop.name}
+          {backup ? ' (backup)' : ''}
+        </h2>
         {/* Once Auntie's shopping list is bought she restocks by herself: no button needed. */}
         {!mods.autoBuy && (
           <HintButton
@@ -48,8 +104,8 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
       </div>
       <p className="hint">
         {backup
-          ? `Your farm comes first. Mrs. Horáková covers the rest, up to ${supply} of each ingredient per second. Auntie’s stock target below is also what the farm fills to.`
-          : `Mrs. Horáková’s corner shop round the block. Her van brings ${supply} of each ingredient per second, no more. Your kitchen uses up to ${fmt(kitchenUse)}/s.`}
+          ? `Your farm comes first. Mrs. Horáková covers the rest, up to ${supply} of each ingredient per second (her equipment below raises that). Auntie’s stock target is also what the farm fills to.`
+          : `${shop.flavor} She can sell ${supply} of each ingredient per second, no more. Your kitchen uses up to ${fmt(kitchenUse)}/s.`}
       </p>
       {!backup && !chapter2Unlocked(s) && (
         <p className={`farm-countdown ${kitchenUse > shopSupplyRate(mods) * 0.8 ? 'warn' : 'muted'}`}>
@@ -63,52 +119,16 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
         </p>
       )}
 
-      <ul className="rows">
-        {INGREDIENT_IDS.map((id) => {
-          const offer = SHOP[id]
-          const size = packSize(id, mods)
-          return (
-            <li key={id} className="row">
-              <span className="emoji">{ITEMS[id].emoji}</span>
-              <div className="row-main">
-                <div className="row-title">
-                  {ITEMS[id].name} <span className="count">{fmtInt(s.items[id])}</span>
-                </div>
-                <div className="row-sub">
-                  {offer.packName} · {fmtInt(size)} for {fmtMoney(offer.packPrice)}
-                  {(backup || s.shelves[id].lt(shelf.div(2))) && (
-                    <span className={s.shelves[id].lt(size) ? 'warn' : ''}>
-                      {' '}
-                      · shop has {fmtInt(s.shelves[id])} left
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="btns">
-                <HintButton
-                  whyNot={firstReason(
-                    needMoney(s, offer.packPrice, game.rates.income),
-                    s.shelves[id].lt(size) && 'Mrs. Horáková’s shelf is empty for now; her van is on the way.',
-                  )}
-                  onClick={() => game.act((st) => buyIngredient(st, id, 1))}
-                >
-                  Buy
-                </HintButton>
-                <HintButton
-                  className="ghost"
-                  whyNot={firstReason(
-                    needMoney(s, offer.packPrice * 10, game.rates.income),
-                    s.shelves[id].lt(size.mul(10)) && `The shop has only ${fmtInt(s.shelves[id])} left, not enough for 10 packs.`,
-                  )}
-                  onClick={() => game.act((st) => buyIngredient(st, id, 10))}
-                >
-                  ×10
-                </HintButton>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      {backup ? (
+        <details className="hand-buy">
+          <summary>Buy packs by hand</summary>
+          {rows}
+        </details>
+      ) : (
+        rows
+      )}
+
+      {backup && <UpgradesPanel pillar="prep" only={isShopGear} title="🧰 Her equipment" embedded />}
 
       {mods.autoBuy && (
         <div className="automation">

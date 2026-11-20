@@ -54,5 +54,9 @@ export function describeEffect(e: Effect, state?: GameState): string {
       return `The corner shop can sell ${times(e.mult)} as much of each ingredient per second`
     case 'crisp':
       return `Crispness skill +${e.add} (crisper schnitzel sells for more)`
+    case 'building': {
+      const f = state ? facilityLook(state, e.facility) : FACILITIES.find((x) => x.id === e.facility)!
+      return `${f.emoji} ${f.name}: every one works ${times(e.mult)} faster`
+    }
   }
 }

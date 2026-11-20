@@ -23,21 +23,43 @@ function EffectLines({ u }: { u: UpgradeDef }) {
 
 /**
  * Equipment for one pipeline tab (prep, making or distribution), or with
- * `quality` the crispness technique shown in the Quality panel.
+ * `quality` the crispness technique shown in the Quality panel. `only`
+ * narrows it further; `embedded` draws it inside another panel. Farm gear
+ * lives on the farm cards (FarmGear.tsx), never here.
  */
-export function UpgradesPanel({ pillar, quality = false }: { pillar?: Pillar; quality?: boolean }) {
+export function UpgradesPanel({
+  pillar,
+  quality = false,
+  only,
+  title = '🧰 Equipment',
+  embedded = false,
+}: {
+  pillar?: Pillar
+  quality?: boolean
+  only?: (u: UpgradeDef) => boolean
+  title?: string
+  embedded?: boolean
+}) {
   const game = useGame()
   const s = game.state
-  const mine = UPGRADES.filter((u) => (quality ? u.quality : !u.quality && upgradePillar(u) === pillar))
+  const mine = UPGRADES.filter(
+    (u) =>
+      !u.building &&
+      !u.chain &&
+      (quality ? u.quality : !u.quality && upgradePillar(u) === pillar) &&
+      (!only || only(u)),
+  )
   // Cheapest first: simple and predictable (the best deals are usually near the top).
   const available = mine.filter((u) => !s.upgrades[u.id] && upgradeVisible(s, u)).sort((a, b) => a.cost - b.cost)
   const owned = mine.filter((u) => s.upgrades[u.id])
   if (!available.length && !owned.length) return null
 
   return (
-    <section className={quality ? 'technique' : 'panel panel-upgrades'}>
-      {quality ? <h3>📖 Technique</h3> : <h2>🧰 Equipment</h2>}
-      {available.length === 0 && <p className="hint">Nothing new here right now. Build your reputation.</p>}
+    <section className={quality ? 'technique' : embedded ? 'embedded-upgrades' : 'panel panel-upgrades'}>
+      {quality ? <h3>📖 Technique</h3> : embedded ? <h3>{title}</h3> : <h2>{title}</h2>}
+      {available.length === 0 && (
+        <p className="hint">{owned.length === mine.length ? 'All bought for this run.' : 'Nothing new here right now. Build your reputation.'}</p>
+      )}
       <ul className="rows">
         {available.map((u) => (
           <li key={u.id} className="row">

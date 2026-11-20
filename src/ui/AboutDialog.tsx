@@ -1,11 +1,14 @@
 import { GAME_VERSION } from '../version'
+import { Logo } from './Logo'
 
 /** ☰ Game → About: what this is, why it exists, and which version you're playing. */
 export function AboutDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="about-title" onClick={onClose}>
       <div className="dialog about" onClick={(e) => e.stopPropagation()}>
-        <h2 id="about-title">🍽️ Schnitzelverse</h2>
+        <h2 id="about-title">
+          <Logo size={40} /> Schnitzelverse
+        </h2>
         <div className="about-version">
           Version <b>{GAME_VERSION}</b> <span className="muted">· licence to grill</span>
         </div>

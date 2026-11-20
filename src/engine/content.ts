@@ -1,5 +1,6 @@
 // All game content lives here as plain data, so adding ingredients, staff,
 // upgrades or regions never needs engine changes.
+import { buildFarmGear, type FarmChainId, type FarmGearId } from './farmGear'
 import type { GameState } from './state'
 
 // ---------------------------------------------------------------- items
@@ -80,10 +81,13 @@ export const STAGES: Record<StageId, StageDef> = {
 }
 
 /**
- * Cook to order: staff stop a step once this many of its output are waiting
- * (plus whatever the next step can take this tick). Manual clicks ignore it.
+ * Cook to order, automatically: staff stop a step once a few seconds of what
+ * the next step can use are waiting (BUFFER_SECONDS), but never fewer than
+ * MIN_BUFFERS. Enough to keep the next step busy, not so much that schnitzel
+ * goes cold. Manual clicks ignore it.
  */
-export const DEFAULT_BUFFERS: Record<StageId, number> = { pound: 10, bread: 10, fry: 5 }
+export const MIN_BUFFERS: Record<StageId, number> = { pound: 10, bread: 10, fry: 5 }
+export const BUFFER_SECONDS = 3
 
 /** Which task consumes each stage's output. */
 export const NEXT_TASK: Record<StageId, Task> = { pound: 'bread', bread: 'fry', fry: 'deliver' }
@@ -110,6 +114,8 @@ export const COLD_REPUTATION = 0.2
 export interface Requirement {
   reputation?: number
   franchises?: number
+  /** Reached this place in this run. */
+  place?: RegionId
 }
 
 // ---------------------------------------------------------------- staff
@@ -194,12 +200,23 @@ export type Effect =
   | { kind: 'crisp'; add: number }
   /** How much the corner shop can sell per second. */
   | { kind: 'shopSupply'; mult: number }
+  /** One kind of farm building (farm gear, see farmGear.ts). */
+  | { kind: 'building'; facility: FacilityId; mult: number }
 
 export type UpgradeId =
+  | FarmGearId
   | 'heavyMallet'
   | 'chalkboard'
   | 'biggerVan'
   | 'wholesaleCard'
+  | 'secondVan'
+  | 'miniMarket'
+  | 'nightDeliveries'
+  | 'supermarket'
+  | 'regionalDepot'
+  | 'groceryChain'
+  | 'hypermarket'
+  | 'galacticGrocer'
   | 'lemonWedges'
   | 'flyers'
   | 'streetGroup'
@@ -270,6 +287,10 @@ export interface UpgradeDef {
   quality?: true
   /** Only shown in Chapter 4 (the stars). */
   space?: true
+  /** Farm gear for one building (shown on its card). */
+  building?: FacilityId
+  /** A farm hand for one chain (shown on the chain's card). */
+  chain?: FarmChainId
   effects: Effect[]
 }
 
@@ -491,7 +512,8 @@ export const UPGRADES: UpgradeDef[] = [
     requires: { reputation: 350 },
     effects: [{ kind: 'orders', mult: 1.4 }],
   },
-  // The corner shop grows a little with you, until Grandpa's farm takes over (Chapter 2).
+  // The corner shop grows with you: first to keep up until Grandpa's farm (Chapter 2),
+  // then slowly into a grocery empire that backs up the farm (see SHOP_LOOKS in names.ts).
   {
     id: 'biggerVan',
     name: 'Mrs. Horáková’s bigger van',
@@ -509,6 +531,81 @@ export const UPGRADES: UpgradeDef[] = [
     cost: 20_000,
     requires: { reputation: 5_000 },
     effects: [{ kind: 'shopSupply', mult: 2 }],
+  },
+  // …and keeps growing slowly as a backup to the farm: small steps, all the way to the stars.
+  {
+    id: 'secondVan',
+    name: 'A second delivery van',
+    emoji: '🚐',
+    description: 'Two vans, twice the honking. Shop supply ×1.25',
+    cost: 150_000,
+    requires: { franchises: 2, reputation: 20_000 },
+    effects: [{ kind: 'shopSupply', mult: 1.25 }],
+  },
+  {
+    id: 'miniMarket',
+    name: 'Mini-market extension',
+    emoji: '🏪',
+    description: 'Mrs. Horáková knocks through to next door. Shop supply ×1.3',
+    cost: 1_000_000,
+    requires: { franchises: 2, reputation: 100_000 },
+    effects: [{ kind: 'shopSupply', mult: 1.3 }],
+  },
+  {
+    id: 'nightDeliveries',
+    name: 'Night deliveries',
+    emoji: '🌙',
+    description: 'The van now runs while the town sleeps. Shop supply ×1.25',
+    cost: 5_000_000,
+    requires: { franchises: 3, reputation: 500_000 },
+    effects: [{ kind: 'shopSupply', mult: 1.25 }],
+  },
+  {
+    id: 'supermarket',
+    name: 'A proper supermarket',
+    emoji: '🏬',
+    description: 'Trolleys, aisles, a cheese counter. Shop supply ×1.4',
+    cost: 40_000_000,
+    requires: { franchises: 5, reputation: 5_000_000 },
+    effects: [{ kind: 'shopSupply', mult: 1.4 }],
+  },
+  {
+    id: 'regionalDepot',
+    name: 'Regional depot',
+    emoji: '📦',
+    description: 'Forklifts beep in Mrs. Horáková’s honour. Shop supply ×1.3',
+    cost: 300_000_000,
+    requires: { franchises: 6, reputation: 30_000_000 },
+    effects: [{ kind: 'shopSupply', mult: 1.3 }],
+  },
+  {
+    id: 'groceryChain',
+    name: 'Horáková & Sons',
+    emoji: '🏷️',
+    description: 'Her grandsons open a shop in every town. Shop supply ×1.5',
+    cost: 3_000_000_000,
+    requires: { franchises: 8, reputation: 300_000_000 },
+    effects: [{ kind: 'shopSupply', mult: 1.5 }],
+  },
+  {
+    id: 'hypermarket',
+    name: 'Hypermarket in orbit',
+    emoji: '🛰️',
+    description: 'Aisle 7: zero-g breadcrumbs. Shop supply ×1.5',
+    cost: 50_000_000_000,
+    requires: { reputation: 1_000_000_000 },
+    space: true,
+    effects: [{ kind: 'shopSupply', mult: 1.5 }],
+  },
+  {
+    id: 'galacticGrocer',
+    name: 'Galactic grocer',
+    emoji: '🛸',
+    description: 'Same opening hours on every planet. Shop supply ×1.5',
+    cost: 2_000_000_000_000,
+    requires: { reputation: 100_000_000_000 },
+    space: true,
+    effects: [{ kind: 'shopSupply', mult: 1.5 }],
   },
   {
     id: 'neonSign',
@@ -1091,8 +1188,8 @@ export const REGIONS: RegionDef[] = [
     population: 12,
     orderRate: 20_000,
     price: 30,
-    unlockCost: 3_000_000_000,
-    unlockReputation: 400_000_000,
+    unlockCost: 10_000_000_000,
+    unlockReputation: 1_300_000_000,
     distance: 400,
     space: true,
   },
@@ -1104,8 +1201,8 @@ export const REGIONS: RegionDef[] = [
     population: 5_000,
     orderRate: 60_000,
     price: 60,
-    unlockCost: 300_000_000_000,
-    unlockReputation: 40_000_000_000,
+    unlockCost: 3e12,
+    unlockReputation: 4e11,
     distance: 384_400,
     space: true,
   },
@@ -1117,8 +1214,8 @@ export const REGIONS: RegionDef[] = [
     population: 1_000_000,
     orderRate: 200_000,
     price: 150,
-    unlockCost: 30_000_000_000_000,
-    unlockReputation: 4_000_000_000_000,
+    unlockCost: 5e14,
+    unlockReputation: 7e13,
     distance: 225_000_000,
     space: true,
   },
@@ -1130,8 +1227,8 @@ export const REGIONS: RegionDef[] = [
     population: 20_000_000,
     orderRate: 600_000,
     price: 400,
-    unlockCost: 3e15,
-    unlockReputation: 4e14,
+    unlockCost: 1.5e16,
+    unlockReputation: 2e15,
     distance: 400_000_000,
     space: true,
   },
@@ -1143,8 +1240,8 @@ export const REGIONS: RegionDef[] = [
     population: 300_000_000,
     orderRate: 2_000_000,
     price: 1000,
-    unlockCost: 3e17,
-    unlockReputation: 4e16,
+    unlockCost: 6e17,
+    unlockReputation: 8e16,
     distance: 630_000_000,
     space: true,
   },
@@ -1156,8 +1253,8 @@ export const REGIONS: RegionDef[] = [
     population: 20_000_000_000,
     orderRate: 8_000_000,
     price: 3000,
-    unlockCost: 3e19,
-    unlockReputation: 4e18,
+    unlockCost: 6e19,
+    unlockReputation: 8e18,
     distance: 6_000_000_000,
     space: true,
   },
@@ -1331,6 +1428,13 @@ export const FARM_CHAINS: FarmChain[] = [
   { id: 'oil', name: 'Frying oil', emoji: '🫗', outputs: ['oil'], buildings: ['sunflowers', 'oilPress'] },
   { id: 'eggs', name: 'Eggs', emoji: '🥚', outputs: ['eggs'], buildings: ['coop'] },
 ]
+
+/**
+ * Goals for building counts: each one reached makes that kind of building
+ * FARM_GOAL_MULT × faster (Grandpa's "just six more pig farms").
+ */
+export const FARM_GOALS = [10, 25, 50, 100, 200, 400, 800, 1600, 3200]
+export const FARM_GOAL_MULT = 1.2
 
 /** Farm goods waiting for processing are kept up to this (plus what the next step uses). */
 export const FARM_GOOD_BUFFER = 50
@@ -1899,3 +2003,6 @@ export const MILESTONES: Milestone[] = [
     text: 'The whole Solar System eats your schnitzel. Grandma looks up at the night sky and nods. (The galaxy is next. Some day.)',
   },
 ]
+
+// Farm gear (farmGear.ts) needs the places and buildings above, so it joins UPGRADES last.
+UPGRADES.push(...buildFarmGear(REGIONS, FACILITIES, CHAPTER2_FRANCHISES))

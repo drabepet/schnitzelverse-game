@@ -67,7 +67,7 @@ export default function App() {
 
           {current === 'prep' &&
             (farm ? (
-              <FarmPanel equipment={<UpgradesPanel pillar="prep" />} />
+              <FarmPanel />
             ) : (
               <div className="tab-grid">
                 <SupplyPanel />

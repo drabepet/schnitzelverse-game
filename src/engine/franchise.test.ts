@@ -45,7 +45,7 @@ describe('franchise', () => {
     const s = readyToFranchise(CRUMB_DIVISOR * 16)
     hireWorker(s, 'grandma')
     s.upgrades.foil = true
-    s.buffers.fry = 3
+    s.settings.buyAmount = 10
     s.stats.served = D(1234)
     expect(franchise(s)).toBe(true)
 
@@ -59,7 +59,7 @@ describe('franchise', () => {
     expect(s.upgrades.foil).toBeUndefined()
     expect(s.regions.town.unlocked).toBe(false)
     expect(s.run.earned.toNumber()).toBe(0)
-    expect(s.buffers.fry).toBe(3)
+    expect(s.settings.buyAmount).toBe(10)
     expect(s.stats.served.toNumber()).toBe(1234)
   })
 

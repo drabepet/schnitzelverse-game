@@ -5,6 +5,8 @@ import { advance, tick } from './tick'
 import { buyIngredient, buyUpgrade, clickDeliver, clickStage, hireWorker, unlockRegion } from './actions'
 import { deserialize, fromExportString, serialize, toExportString } from './save'
 import { fmt } from './format'
+import { BUFFER_SECONDS, MIN_BUFFERS } from './content'
+import { stageBuffer } from './rules'
 
 describe('kitchen', () => {
   it('turns ingredients into a hot schnitzel by hand', () => {
@@ -96,8 +98,16 @@ describe('safety nets', () => {
     hireWorker(s, 'uncle')
     s.items.meat = D(100)
     advance(s, 120)
-    expect(s.items.cutlet.toNumber()).toBeCloseTo(s.buffers.pound, 0)
-    expect(s.items.meat.toNumber()).toBeCloseTo(100 - s.buffers.pound, 0)
+    // Nobody breads yet, so the automatic buffer is the minimum.
+    expect(stageBuffer(s, 'pound').toNumber()).toBe(MIN_BUFFERS.pound)
+    expect(s.items.cutlet.toNumber()).toBeCloseTo(MIN_BUFFERS.pound, 0)
+    expect(s.items.meat.toNumber()).toBeCloseTo(100 - MIN_BUFFERS.pound, 0)
+  })
+
+  it('the buffer grows with the next step: a few seconds of what it can use', () => {
+    const s = newGame(0)
+    s.workers.grandma = 100 // breads 35/s
+    expect(stageBuffer(s, 'pound').toNumber()).toBe(Math.ceil(35 * BUFFER_SECONDS))
   })
 
   it('buffers do not throttle long offline steps', () => {

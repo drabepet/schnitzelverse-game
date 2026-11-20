@@ -8,6 +8,8 @@ import { floatText } from './juice'
 import { HintButton } from './HintButton'
 import { firstReason, needMoney, needRequirement } from './reasons'
 import { guideHint } from './guide'
+import { buildLanes, carriers, placeStatus } from '../engine/routes'
+import { RouteCell, RouteLegend } from './RouteMap'
 
 export function DistributionPanel() {
   const game = useGame()
@@ -18,6 +20,14 @@ export function DistributionPanel() {
   const unlocked = REGIONS.filter((r) => s.regions[r.id].unlocked)
   const next = REGIONS.find((r) => !s.regions[r.id].unlocked)
   const hidden = REGIONS.filter((r) => !s.regions[r.id].unlocked).length - (next ? 1 : 0)
+  const all = carriers(s, mods)
+  const lanes = buildLanes(all, unlocked, game.routeRates)
+  const kinds = new Set(unlocked.map((r) => placeStatus(s, mods, r, game.routeRates, all).kind))
+  const limit = kinds.has('kitchen')
+    ? '⏳ Orders are piling up while carriers have room to spare: the kitchen is the limit (or its ingredients). Faraway places get served first.'
+    : kinds.has('fleet')
+      ? '⏳ Orders are piling up and your carriers are all busy: more vehicles (or helpers) would help.'
+      : null
 
 
   return (
@@ -50,13 +60,17 @@ export function DistributionPanel() {
       </p>
 
 
+      <RouteLegend lanes={lanes} rates={game.routeRates} />
+      {limit && <p className="route-summary small warn">{limit}</p>}
       <ul className="rows">
-        {unlocked.map((r) => {
+        {unlocked.map((r, j) => {
           const orders = s.regions[r.id].orders
           const cap = orderCap(r, mods)
           const pct = Math.min(100, orders.div(cap).toNumber() * 100)
+          const status = placeStatus(s, mods, r, game.routeRates, all)
           return (
             <li key={r.id} className="row region">
+              <RouteCell lanes={lanes} row={j} region={r} rates={game.routeRates} />
               <span className="emoji">{r.emoji}</span>
               <div className="row-main">
                 <div className="row-title">
@@ -65,7 +79,8 @@ export function DistributionPanel() {
                     · {fmtMoney(regionPrice(r, mods))} each
                     <Why k="price" label={`Price in ${r.name.toLowerCase()}`} base={fmtMoney(r.price)} /> ·{' '}
                     {fmt(orderRate(r, mods))} orders/s
-                    <Why k="orders" label={`Orders from ${r.name.toLowerCase()}`} base={`${fmt(r.orderRate)}/s`} />
+                    <Why k="orders" label={`Orders from ${r.name.toLowerCase()}`} base={`${fmt(r.orderRate)}/s`} /> ·{' '}
+                    {fmtKm(r.distance)}
                   </span>
                 </div>
                 {!canReach(s, r) && (
@@ -76,9 +91,18 @@ export function DistributionPanel() {
                 <div className="bar" title={`${fmt(orderRate(r, mods))} orders per second`}>
                   <div className="bar-fill" style={{ width: `${pct}%` }} />
                   <span className="bar-label">
-                    {fmtInt(orders)} / {fmtInt(cap)} orders
+                    {fmtInt(orders)} / {fmtInt(cap)} orders waiting
                   </span>
                 </div>
+                {status.kind !== 'unreached' && (
+                  <div
+                    className={`place-status small ${status.kind}`}
+                    title={status.detail}
+                  >
+                    {status.text}
+                    {status.by.length > 0 && <span className="muted"> · {status.by.map((b) => b.carrier.emoji).join('')}</span>}
+                  </div>
+                )}
               </div>
               <HintButton
                 className={`primary ${r.id === 'neighbours' && guideHint(s)?.target === 'deliver' ? 'pulse' : ''}`}
@@ -103,6 +127,7 @@ export function DistributionPanel() {
 
         {next && (
           <li className="row region locked">
+            <RouteCell lanes={lanes} row={-1} region={null} rates={game.routeRates} />
             <span className="emoji">{next.emoji}</span>
             <div className="row-main">
               <div className="row-title">{next.name}</div>

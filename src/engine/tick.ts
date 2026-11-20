@@ -48,6 +48,7 @@ import {
   vehicleCapacity,
   type Mods,
 } from './rules'
+import { routeKey, type CarrierId } from './routes'
 
 /** What happened during a tick, for rate displays and offline summaries. */
 export interface Flows {
@@ -58,6 +59,8 @@ export interface Flows {
   income: Decimal
   /** Units of output each kind of farm building made. */
   farm: Partial<Record<FacilityId, Decimal>>
+  /** Schnitzels delivered per route, keyed by routeKey(carrier, place). */
+  routes: Record<string, Decimal>
 }
 
 export const emptyFlows = (): Flows => ({
@@ -67,11 +70,14 @@ export const emptyFlows = (): Flows => ({
   deliver: ZERO,
   income: ZERO,
   farm: {},
+  routes: {},
 })
 
 export function addFlows(a: Flows, b: Flows): Flows {
   const farm = { ...a.farm }
   for (const [id, v] of Object.entries(b.farm) as [FacilityId, Decimal][]) farm[id] = (farm[id] ?? ZERO).add(v)
+  const routes = { ...a.routes }
+  for (const [k, v] of Object.entries(b.routes)) routes[k] = (routes[k] ?? ZERO).add(v)
   return {
     pound: a.pound.add(b.pound),
     bread: a.bread.add(b.bread),
@@ -79,6 +85,7 @@ export function addFlows(a: Flows, b: Flows): Flows {
     deliver: a.deliver.add(b.deliver),
     income: a.income.add(b.income),
     farm,
+    routes,
   }
 }
 
@@ -255,10 +262,16 @@ export function tick(state: GameState, dt: number): Flows {
 
   // 6. Delivery. The fleet goes first, longest range first, each vehicle to
   //    the best-paying place it can reach; then helpers cover what is left nearby.
-  const serve = (capacity: Decimal, reaches: (r: RegionDef) => boolean, freshFor: (r: RegionDef) => number) => {
+  const serve = (
+    carrier: CarrierId,
+    capacity: Decimal,
+    reaches: (r: RegionDef) => boolean,
+    freshFor: (r: RegionDef) => number,
+  ) => {
     for (let i = REGIONS.length - 1; i >= 0 && capacity.gt(0); i--) {
       if (!reaches(REGIONS[i])) continue
       const [served, revenue] = deliverTo(state, REGIONS[i], capacity, mods, freshFor(REGIONS[i]))
+      if (served.gt(0)) flows.routes[routeKey(carrier, REGIONS[i].id)] = served
       capacity = capacity.sub(served)
       flows.deliver = flows.deliver.add(served)
       flows.income = flows.income.add(revenue)
@@ -266,9 +279,9 @@ export function tick(state: GameState, dt: number): Flows {
   }
   for (const v of [...VEHICLES].reverse()) {
     if (state.vehicles[v.id] <= 0) continue
-    serve(vehicleCapacity(state, v, mods).mul(dt), (r) => vehicleServes(v, r), (r) => freshness(v, r, mods))
+    serve(v.id, vehicleCapacity(state, v, mods).mul(dt), (r) => vehicleServes(v, r), (r) => freshness(v, r, mods))
   }
-  serve(taskCapacity(state, 'deliver', mods).mul(dt), helperReaches, () => 1)
+  serve('helpers', taskCapacity(state, 'deliver', mods).mul(dt), helperReaches, () => 1)
 
   // 7. Managers (perks) do the shopping.
   runManagers(state, dt)

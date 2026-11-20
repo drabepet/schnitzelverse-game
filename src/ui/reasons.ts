@@ -2,7 +2,7 @@
 // Every disabled button in the game uses these (see HintButton).
 import type { Decimal } from '../engine/decimal'
 import { D } from '../engine/decimal'
-import type { Requirement } from '../engine/content'
+import { REGIONS, type Requirement } from '../engine/content'
 import { fmt, fmtMoney, fmtTime } from '../engine/format'
 import type { GameState } from '../engine/state'
 
@@ -26,6 +26,10 @@ export function needRequirement(s: GameState, req: Requirement | undefined): str
   if (!req) return null
   if (req.franchises !== undefined && s.prestige.franchises < req.franchises) {
     return `Unlocks after ${req.franchises} franchise${req.franchises === 1 ? '' : 's'} (you have ${s.prestige.franchises}).`
+  }
+  if (req.place !== undefined && !s.regions[req.place].unlocked) {
+    const place = REGIONS.find((r) => r.id === req.place)!
+    return `Unlocks once you reach ${place.emoji} ${place.name.replace(/^The /, 'the ')} in this run.`
   }
   if (req.reputation !== undefined && s.reputation.lt(req.reputation)) {
     return `Needs ⭐ ${fmt(req.reputation)} reputation (you have ${fmt(s.reputation)}). Deliver hot schnitzels to earn more.`

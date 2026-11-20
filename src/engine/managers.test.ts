@@ -178,6 +178,8 @@ describe('Grandpa and farm equipment', () => {
     for (const f of Object.keys(s.facilities) as (keyof typeof s.facilities)[]) s.facilities[f] = 200
     s.facilities.pigFarm = 20
     s.upgrades.shoppingList = true
+    // The farm hands are cheaper and better still; already hired here.
+    for (const c of ['meat', 'flour', 'oil', 'eggs'] as const) s.upgrades[`hand_${c}`] = true
     s.run.time = 600
     s.run.earned = D(6e6) // $10K/s
     return s

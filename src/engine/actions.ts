@@ -137,9 +137,6 @@ export function setCrisp(state: GameState, temperature: number, oil: number): vo
   state.crisp.oil = Math.min(OIL_LEVELS.length - 1, Math.max(0, Math.floor(Number.isFinite(oil) ? oil : 0)))
 }
 
-export function setBuffer(state: GameState, stage: StageId, limit: number): void {
-  state.buffers[stage] = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0
-}
 
 export function setAutoBuy(state: GameState, enabled: boolean, target: number, reserve = state.autoBuy.reserve): void {
   const clean = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0)

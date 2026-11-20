@@ -62,3 +62,17 @@ describe('Chapter 4: the stars', () => {
     expect(s.regions.orbit.orders.lt(1000 + 20_000 * 0.1 * getMods(s).orders)).toBe(true)
   })
 })
+
+describe('the logo', () => {
+  it('leaves the flaming pan for space once the orbit is reached, for good', async () => {
+    const { reachedOrbit } = await import('./rules')
+    const { newGame } = await import('./state')
+    const { REGIONS } = await import('./content')
+    const s = newGame(0)
+    expect(reachedOrbit(s)).toBe(false)
+    s.stats.bestPlace = REGIONS.findIndex((r) => r.id === 'planet')
+    expect(reachedOrbit(s)).toBe(false)
+    s.stats.bestPlace = REGIONS.findIndex((r) => r.id === 'orbit')
+    expect(reachedOrbit(s)).toBe(true)
+  })
+})

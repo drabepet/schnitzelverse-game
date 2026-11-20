@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { facilityLook, staffTitle, workerLook } from './names'
+import { facilityLook, shopLook, staffTitle, workerLook } from './names'
+import { getMods, shopSupplyRate } from './rules'
+import { SHOP_SUPPLY_RATE } from './content'
 import { newGame } from './state'
 
 describe('names that grow with the business', () => {
@@ -38,5 +40,20 @@ describe('crew equipment', () => {
     const m = getMods(s)
     expect(m.speed.pound).toBe(4)
     expect(m.speed.bread).toBe(1)
+  })
+})
+
+describe('the corner shop grows slowly', () => {
+  it('each shop upgrade adds a small step, and the bigger ones rename the shop', () => {
+    const s = newGame(0)
+    expect(shopLook(s).name).toContain('corner shop')
+    expect(shopSupplyRate(getMods(s))).toBe(SHOP_SUPPLY_RATE)
+    s.upgrades.miniMarket = true
+    expect(shopLook(s).name).toContain('mini-market')
+    expect(shopSupplyRate(getMods(s))).toBeCloseTo(SHOP_SUPPLY_RATE * 1.3)
+    s.upgrades.supermarket = true
+    expect(shopLook(s).name).toContain('supermarket')
+    s.upgrades.galacticGrocer = true
+    expect(shopLook(s).emoji).toBe('🛸')
   })
 })

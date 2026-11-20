@@ -161,7 +161,11 @@ export function currentTier(state: GameState, pillar: Pillar): Tier {
 /** Which pipeline tab an upgrade belongs to, from what it improves. */
 export function upgradePillar(u: UpgradeDef): Pillar {
   const kinds = u.effects.map((e) => (e.kind === 'speed' ? (e.task === 'deliver' ? 'deliver' : 'kitchen') : e.kind))
-  if (kinds.some((k) => k === 'packSize' || k === 'autoBuy' || k === 'facility' || k === 'shopSupply')) return 'prep'
+  if (kinds.some((k) => k === 'packSize' || k === 'autoBuy' || k === 'facility' || k === 'building' || k === 'shopSupply')) return 'prep'
   if (kinds.some((k) => k === 'deliver' || k === 'fleet' || k === 'cooling' || k === 'orders')) return 'distribution'
   return 'making'
 }
+
+/** Equipment for the corner shop (supply, pack size, Auntie): shown in the shop panel. */
+export const isShopGear = (u: UpgradeDef): boolean =>
+  u.effects.some((e) => e.kind === 'shopSupply' || e.kind === 'packSize' || e.kind === 'autoBuy')

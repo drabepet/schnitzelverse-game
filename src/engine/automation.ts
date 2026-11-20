@@ -44,6 +44,7 @@ import {
   vehicleVisible,
   workerPlan,
   type Mods,
+  facilitySpeed,
 } from './rules'
 import { D, type Decimal } from './decimal'
 import type { GameState } from './state'
@@ -198,7 +199,7 @@ function familyManager(state: GameState): void {
  * The farm building holding back an item: follow the chain upstream while an
  * input can't keep up with the building that needs it.
  */
-function farmBottleneck(state: GameState, item: ItemId, mods: Mods): FacilityDef | null {
+export function farmBottleneck(state: GameState, item: ItemId, mods: Mods): FacilityDef | null {
   const maker = FACILITIES.find((f) => f.output === item)
   if (!maker) return null
   const cycles = facilityCapacity(state, maker, mods).toNumber()
@@ -212,14 +213,23 @@ function farmBottleneck(state: GameState, item: ItemId, mods: Mods): FacilityDef
   return maker
 }
 
-/** Farm equipment for a building's group, and how much output per second it adds per dollar. */
+/** How much faster an upgrade makes one kind of farm building (group gear and its own gear). */
+export function farmGearMult(u: UpgradeDef, f: FacilityDef): number {
+  let mult = 1
+  for (const e of u.effects) {
+    if (e.kind === 'facility' && e.group === f.group) mult *= e.mult
+    if (e.kind === 'building' && e.facility === f.id) mult *= e.mult
+  }
+  return mult
+}
+
+/** Farm equipment for a building, and how much output per second it adds per dollar. */
 function bestFarmUpgradeFor(state: GameState, f: FacilityDef, mods: Mods): { u: UpgradeDef; perDollar: number } | null {
   const now = facilityCapacity(state, f, mods).toNumber() * f.yield
   let best: { u: UpgradeDef; perDollar: number } | null = null
   for (const u of UPGRADES) {
     if (!upgradeUnlocked(state, u)) continue
-    let mult = 1
-    for (const e of u.effects) if (e.kind === 'facility' && e.group === f.group) mult *= e.mult
+    const mult = farmGearMult(u, f)
     if (mult <= 1) continue
     const perDollar = (now * (mult - 1)) / u.cost
     if (!best || perDollar > best.perDollar) best = { u, perDollar }
@@ -253,7 +263,7 @@ function farmStepFor(state: GameState, item: IngredientId, mods: Mods): FarmStep
   const f = farmBottleneck(state, item, mods)
   if (!f) return null
   const cost = facilityPlan(state, f, 1).cost
-  const buildPerDollar = (f.rate * f.yield * mods.facility[f.group]) / cost.toNumber()
+  const buildPerDollar = (facilitySpeed(state, f, mods) * f.yield) / cost.toNumber()
   const gear = bestFarmUpgradeFor(state, f, mods)
   if (gear && gear.perDollar > buildPerDollar) {
     const money = spendable(state)
