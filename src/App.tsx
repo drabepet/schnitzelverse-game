@@ -16,7 +16,7 @@ import { BusinessPanel } from './ui/BusinessPanel'
 import { StatsPanel } from './ui/StatsPanel'
 import { StatusSidebar } from './ui/StatusSidebar'
 import { QualityPanel } from './ui/QualityPanel'
-import { IncomeChart } from './ui/IncomeChart'
+import { RecordsTop } from './ui/RecordsTop'
 import { IntroDialog } from './ui/IntroDialog'
 import { TabBar, visibleTabs, type TabId } from './ui/Tabs'
 import { chapter2Unlocked } from './engine/rules'
@@ -108,8 +108,8 @@ export default function App() {
 
           {current === 'records' && (
             <div className="stack">
+              <RecordsTop />
               <StatsPanel />
-              <IncomeChart />
               <BadgesPage />
               <LogPanel />
             </div>

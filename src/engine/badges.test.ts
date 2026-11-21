@@ -116,3 +116,29 @@ describe('new badges', () => {
     expect(unseenBadges(s)).toEqual([])
   })
 })
+
+describe('the second shelf', () => {
+  it('has a lot more to chase, each in a listed category', async () => {
+    const { BADGE_CATEGORIES } = await import('./badges')
+    expect(BADGES.length).toBeGreaterThanOrEqual(250)
+    const cats = new Set(BADGE_CATEGORIES.map((c) => c.id))
+    for (const b of BADGES) expect(cats.has(b.category), b.id).toBe(true)
+  })
+
+  it('The Last Lemon needs every other badge', () => {
+    const s = newGame(0)
+    for (const b of BADGES) if (b.id !== 'allBadges' && b.id !== 'served1') s.badges[b.id] = 0
+    advance(s, 0.05)
+    expect(s.badges.allBadges).toBeUndefined()
+    s.badges.served1 = 0
+    advance(s, 0.05)
+    expect(s.badges.allBadges).toBeDefined()
+  })
+
+  it('secret settings badges', () => {
+    const s = newGame(0)
+    s.settings.notation = 'scientific'
+    advance(s, 0.05)
+    expect(s.badges.nerd).toBeDefined()
+  })
+})

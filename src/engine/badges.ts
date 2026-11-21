@@ -3,6 +3,7 @@
 import { FACILITIES, REGIONS, UPGRADES, VEHICLES, WORKERS, type RegionId, type StageId } from './content'
 import { D } from './decimal'
 import { TIERS } from './tiers'
+import { MORE_BADGES } from './badgesExtra'
 import type { GameState } from './state'
 
 export type BadgeCategory =
@@ -15,8 +16,10 @@ export type BadgeCategory =
   | 'farm'
   | 'fleet'
   | 'space'
+  | 'fame'
   | 'shame'
   | 'byHand'
+  | 'collector'
   | 'misc'
 
 export interface BadgeDef {
@@ -36,6 +39,7 @@ export const BADGE_CATEGORIES: { id: BadgeCategory; name: string }[] = [
   { id: 'promotions', name: 'Promotions' },
   { id: 'served', name: 'Schnitzels served' },
   { id: 'money', name: 'Money' },
+  { id: 'fame', name: 'Fame' },
   { id: 'family', name: 'Family & staff' },
   { id: 'places', name: 'Places' },
   { id: 'franchise', name: 'Franchise' },
@@ -44,6 +48,7 @@ export const BADGE_CATEGORIES: { id: BadgeCategory; name: string }[] = [
   { id: 'space', name: 'The stars' },
   { id: 'shame', name: 'Hall of shame' },
   { id: 'byHand', name: 'Made by hand' },
+  { id: 'collector', name: 'Badge hunter' },
   { id: 'misc', name: 'Odds & ends' },
 ]
 
@@ -178,6 +183,16 @@ export const BADGES: BadgeDef[] = [
   { id: 'everywhere', category: 'misc', emoji: '📍', name: 'Everywhere at Once', goal: 'Secret', flavor: 'Every place unlocked in a single run. Your map is just one big pin.', secret: true, check: (s) => REGIONS.every((r) => s.regions[r.id].unlocked) },
   { id: 'hoarder', category: 'misc', emoji: '🐿️', name: 'Breadcrumb Hoarder', goal: 'Secret', flavor: 'Ten thousand bags of breadcrumbs in stock. For winter.', secret: true, check: (s) => s.items.crumbs.gte(D(1e4)) },
 ]
+
+BADGES.push(...MORE_BADGES, {
+  id: 'allBadges',
+  category: 'collector',
+  emoji: '🍋',
+  name: 'The Last Lemon',
+  goal: 'Earn every other badge',
+  flavor: 'There is nothing left to earn. Grandma hands you a lemon. “Again,” she says.',
+  check: (s) => BADGES.every((b) => b.id === 'allBadges' || s.badges[b.id] !== undefined),
+})
 
 export const BADGE_BY_ID: Record<string, BadgeDef> = Object.fromEntries(BADGES.map((b) => [b.id, b]))
 

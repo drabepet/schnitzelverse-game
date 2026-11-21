@@ -1,77 +1,50 @@
 import { Logo } from './Logo'
 import { useTabIcon } from './useTabIcon'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SettingsDialog } from './SettingsDialog'
 import { AboutDialog } from './AboutDialog'
+import { SavesDialog } from './SavesDialog'
 import { GAME_VERSION } from '../version'
-import { chapter2Unlocked, chapter3Unlocked, chapter4Unlocked } from '../engine/rules'
-import { clickLogo, setIntroSeen } from '../engine/actions'
+import { chapterNumber, furthestPlace } from '../engine/rules'
+import { CHAPTERS, REGIONS } from '../engine/content'
+import { clickLogo, setIntroSeen, setNewsSeen } from '../engine/actions'
 import { useGame } from '../game/store'
+
+/** “The whole town” → “the whole town”; proper names (Moon, Mars, Jupiter) stay. */
+const inSentence = (name: string) => (/^(Moon|Mars|Jupiter)/.test(name) ? name : name[0].toLowerCase() + name.slice(1))
 
 export function Header() {
   const game = useGame()
   const s = game.state
   useTabIcon()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [note, setNote] = useState('')
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [aboutOpen, setAboutOpen] = useState(false)
-  const fileInput = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState<'settings' | 'saves' | 'about' | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const chapter = chapterNumber(s)
+  const place = REGIONS[furthestPlace(s)]
+  const hasNews = s.introSeen && s.newsSeen !== GAME_VERSION
 
-  const flash = (text: string) => {
-    setNote(text)
-    window.setTimeout(() => setNote(''), 2500)
-  }
-
-  const onExport = async () => {
-    const text = game.exportSave()
-    try {
-      await navigator.clipboard.writeText(text)
-      flash('Save copied to clipboard')
-    } catch {
-      window.prompt('Copy your save:', text)
+  // Close the menu on a click outside it or on Escape.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false)
     }
-  }
-
-  const onImport = () => {
-    const text = window.prompt('Paste a save string:')
-    if (!text) return
-    try {
-      game.importSave(text)
-      flash('Save imported')
-    } catch {
-      flash('That does not look like a Schnitzelverse save')
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
     }
-  }
-
-  const onDownload = () => {
-    const text = game.exportSave()
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `schnitzelverse-${new Date().toISOString().slice(0, 10)}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-    flash('Save downloaded')
-  }
-
-  const onUpload = async (file: File | undefined) => {
-    if (!file) return
-    try {
-      game.importSave(await file.text())
-      flash('Save loaded')
-    } catch {
-      flash('That file is not a Schnitzelverse save')
+    document.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onKey)
     }
-  }
+  }, [menuOpen])
 
-  const onRestore = () => {
-    if (!window.confirm('Go back to the backup copy (saved up to 10 minutes ago, or just before your last import or reset)?')) return
-    flash(game.restoreBackup() ? 'Backup restored' : 'No backup yet')
-  }
-
-  const onReset = () => {
-    if (window.confirm('Start over from an empty garage? This deletes your progress.')) game.hardReset()
+  const pick = (what: 'settings' | 'saves' | 'about') => {
+    setMenuOpen(false)
+    setOpen(what)
+    if (what === 'about') game.act((st) => setNewsSeen(st, GAME_VERSION))
   }
 
   return (
@@ -84,54 +57,53 @@ export function Header() {
         <div>
           <h1>Schnitzelverse</h1>
           <div className="subtitle">
-            Chapter {chapter4Unlocked(s) ? 4 : chapter3Unlocked(s) ? 3 : chapter2Unlocked(s) ? 2 : 1} · run #
-            {s.prestige.franchises + 1}
+            Chapter {chapter} · {CHAPTERS[chapter - 1].name}
+          </div>
+          <div className="subline">
+            Run {s.prestige.franchises + 1} · selling to {place.emoji} {inSentence(place.name)}
           </div>
         </div>
       </div>
 
-
-      <div className="menu">
-        {note && <span className="note">{note}</span>}
-        <button className="ghost" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen}>
+      <div className="menu" ref={menuRef}>
+        <button className="ghost" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-haspopup="menu">
           ☰ Game
+          {hasNews && <span className="news-dot" title="What’s new" />}
         </button>
         {menuOpen && (
-          <div className="menu-pop" onMouseLeave={() => setMenuOpen(false)}>
+          <div className="menu-pop" role="menu">
             <button
+              role="menuitem"
               onClick={() => {
-                game.save()
-                flash('Saved')
+                setMenuOpen(false)
+                game.act((st) => setIntroSeen(st, false))
               }}
             >
-              💾 Save now
+              <b>How to play</b>
+              <span>The welcome page again</span>
             </button>
-            <button onClick={() => setAboutOpen(true)}>ℹ️ About · v{GAME_VERSION}</button>
-            <button onClick={() => game.act((st) => setIntroSeen(st, false))}>📖 How to play</button>
-            <button onClick={() => setSettingsOpen(true)}>⚙️ Settings</button>
-            <button onClick={onDownload}>⬇️ Save to file</button>
-            <button onClick={() => fileInput.current?.click()}>⬆️ Load from file</button>
-            <button onClick={onExport}>📤 Copy save text</button>
-            <button onClick={onImport}>📥 Paste save text</button>
-            <button onClick={onRestore}>↩️ Restore backup</button>
-            <button className="danger" onClick={onReset}>
-              🗑️ Hard reset
+            <button role="menuitem" onClick={() => pick('settings')}>
+              <b>Settings</b>
+              <span>Size, numbers, pop-ups</span>
             </button>
+            <button role="menuitem" onClick={() => pick('saves')}>
+              <b>Saves</b>
+              <span>Keep a copy, load one, start over</span>
+            </button>
+            <button role="menuitem" onClick={() => pick('about')}>
+              <b>
+                About &amp; what’s new
+                {hasNews && <span className="new-pill">New</span>}
+              </b>
+              <span>Version {GAME_VERSION}</span>
+            </button>
+            <p className="menu-foot">Saves itself every few seconds.</p>
           </div>
         )}
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".txt,text/plain"
-          hidden
-          onChange={(e) => {
-            void onUpload(e.target.files?.[0])
-            e.target.value = ''
-          }}
-        />
       </div>
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
-      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+      {open === 'settings' && <SettingsDialog onClose={() => setOpen(null)} />}
+      {open === 'saves' && <SavesDialog onClose={() => setOpen(null)} />}
+      {open === 'about' && <AboutDialog onClose={() => setOpen(null)} />}
       {game.saveNotice && (
         <div className="overlay" role="dialog" aria-modal="true">
           <div className="dialog">

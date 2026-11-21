@@ -43,9 +43,20 @@ test('a fresh game: cook, deliver, browse every tab', async ({ page }) => {
   await visitEveryTab(page)
 
   await page.getByRole('button', { name: /Game/ }).click()
-  await page.getByRole('button', { name: /Settings/ }).click()
+  await page.getByRole('menuitem', { name: /Settings/ }).click()
   await page.getByRole('radio', { name: 'Scientific' }).click()
   await page.getByRole('button', { name: 'Done' }).click()
+
+  await page.getByRole('button', { name: /Game/ }).click()
+  await page.getByRole('menuitem', { name: /Saves/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Your save' })).toBeVisible()
+  await page.getByRole('button', { name: 'Done' }).click()
+
+  await page.getByRole('button', { name: /Game/ }).click()
+  await page.getByRole('menuitem', { name: /About/ }).click()
+  await expect(page.getByRole('heading', { name: 'What’s new' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('heading', { name: 'What’s new' })).toHaveCount(0)
 
   expect(errors).toEqual([])
 })

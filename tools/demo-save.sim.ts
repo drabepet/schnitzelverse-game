@@ -67,6 +67,21 @@ function marsSave(): GameState {
   s.history.earned = s.stats.earned
   s.history.clock = 0
 
+  // Run history (Records): 52 runs, short ones early, two-hour ones near the end, each a bit further.
+  s.stats.runs = []
+  let end = 0
+  for (let i = 0; i < 52; i++) {
+    const time = i < 10 ? 20 * 60 + i * 6 * 60 : i < 30 ? 50 * 60 : 2 * H
+    end += time
+    const place = Math.min(last - 1, 5 + Math.floor(i / 4.5))
+    s.stats.runs.push({ end, time, place, crumbs: Math.round(2 * 1.35 ** i), earned: 10 ** (5 + i * 0.13), served: 10 ** (3.5 + i * 0.1) })
+  }
+  s.stats.bestIncome = 10 ** (6.2 + 3 * 0.12 + 2.3)
+  s.stats.bestSale = D(s.stats.runs[51].crumbs)
+  s.stats.bestRunServed = D(s.stats.runs[51].served)
+  s.stats.longestRun = 2 * H
+  s.stats.bestPlace = last
+
   s.log = []
   addLog(s, '🔴 Mars colony. The red planet now smells of golden crust.')
   addLog(s, '🌕 Moon base unlocked. The flag is a lemon wedge on a stick.')

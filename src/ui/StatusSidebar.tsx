@@ -1,9 +1,11 @@
 import { ITEMS } from '../engine/content'
-import { fmt, fmtInt, fmtMoney, fmtTime } from '../engine/format'
+import { fmt, fmtCompact, fmtInt, fmtTime } from '../engine/format'
+import { D } from '../engine/decimal'
 import { pendingCrumbs } from '../engine/rules'
 import { useGame } from '../game/store'
 import { flow, ingredients, nextGoal } from './insights'
 import { ManagerToggles } from './Managers'
+import { BadgeQuote } from './BadgeQuote'
 import { guideHint } from './guide'
 import { MANAGERS } from '../engine/automation'
 import { crispness, perkLevel } from '../engine/rules'
@@ -26,10 +28,12 @@ export function StatusSidebar() {
   return (
     <aside className="sidebar" aria-label="Status">
       <div className="sb-section sb-key">
-        <Stat label="Money" value={fmtMoney(s.money)} sub={`+${fmtMoney(game.rates.income)}/s`} />
-        <Stat label="Reputation" value={`⭐ ${fmt(s.reputation, 1)}`} sub={`+${fmt(game.reputationRate)}/s`} />
-        {showCrumbs && <Stat label="Golden Crumbs" value={`✨ ${fmt(p.crumbs, 0)}`} sub={`+${fmt(pendingCrumbs(s), 0)} if sold`} />}
-        <Stat label="Served" value={fmtInt(s.stats.served)} sub={`${fmt(game.rates.deliver)}/s`} />
+        <Stat label="Money" value={'$' + fmtCompact(s.money)} sub={`+$${fmtCompact(game.rates.income)}/s`} />
+        <Stat label="Reputation" value={fmtCompact(s.reputation)} sub={`+${fmtCompact(game.reputationRate)}/s`} />
+        {showCrumbs && (
+          <Stat label="Crumbs" value={fmtCompact(D(p.crumbs).floor())} sub={`+${fmtCompact(D(pendingCrumbs(s)).floor())} if sold`} />
+        )}
+        <Stat label="Served" value={fmtCompact(D(s.stats.served).floor())} sub={`${fmtCompact(game.rates.deliver)}/s`} />
       </div>
 
       {hint && (
@@ -91,11 +95,7 @@ export function StatusSidebar() {
         </div>
       )}
 
-      {s.log[0] && (
-        <div className="sb-section sb-detail sb-chatter" title="Garage chatter: see Records">
-          💬 {s.log[0].text}
-        </div>
-      )}
+      <BadgeQuote />
     </aside>
   )
 }

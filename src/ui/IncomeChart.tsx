@@ -60,7 +60,8 @@ export function IncomeChart() {
     <section className="panel income-chart">
       <h2>📈 Income per second</h2>
       <p className="hint">
-        The last {fmtTime(t1 - t0)} of play, on a log scale: each line up is ten times more. Dashed lines are franchises.
+        Now <b>{fmtMoney(points[points.length - 1].income)}/s</b> · best ever <b>{fmtMoney(state.stats.bestIncome)}/s</b>. The last{' '}
+        {fmtTime(t1 - t0)} of play, on a log scale: each line up is ten times more. Dashed lines are franchises.
       </p>
       <div className="chart-wrap" ref={wrap}>
         <svg

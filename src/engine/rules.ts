@@ -443,6 +443,11 @@ export function chapter4Unlocked(state: GameState): boolean {
   return !!state.milestones[CHAPTER4_REGION] || state.regions[CHAPTER4_REGION].unlocked
 }
 
+/** The chapter you're in: 1 (the garage) to 4 (the stars). */
+export function chapterNumber(state: GameState): 1 | 2 | 3 | 4 {
+  return chapter4Unlocked(state) ? 4 : chapter3Unlocked(state) ? 3 : chapter2Unlocked(state) ? 2 : 1
+}
+
 /** Space vehicles only show up in Chapter 4. */
 export function vehicleVisible(state: GameState, def: VehicleDef): boolean {
   return def.space ? chapter4Unlocked(state) : chapter3Unlocked(state)

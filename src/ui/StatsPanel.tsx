@@ -23,6 +23,8 @@ export function StatsPanel() {
         ['Money earned', fmtMoney(s.stats.earned)],
         ['Time played', fmtTime(s.stats.playtime)],
         ['Your own clicks', fmtInt(s.stats.clicks)],
+        ['Cooked by hand', `${fmtInt(s.stats.byHand.pound)} · ${fmtInt(s.stats.byHand.bread)} · ${fmtInt(s.stats.byHand.fry)}`],
+        ['Doors knocked on', fmtInt(s.stats.knocks)],
       ],
     },
     {
@@ -55,7 +57,7 @@ export function StatsPanel() {
 
   return (
     <section className="panel">
-      <h2>📊 Statistics</h2>
+      <h2>📊 All the numbers</h2>
       <div className="stats-grid">
         {groups.map((g) => (
           <div key={g.title}>

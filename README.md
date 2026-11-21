@@ -12,7 +12,8 @@ Runs in any web browser, tested on Chrome.
 Development happens in the private repo (`drabepet/schnitzelverse`): commit and push any time.
 The public repo (`drabepet/schnitzelverse-game`) only changes on a release:
 
-1. Bump `GAME_VERSION` in `src/version.ts` (shown in ☰ Game → About).
+1. Bump `GAME_VERSION` in `src/version.ts` and add a short entry at the top of `src/changelog.ts`
+   (both shown in ☰ Game → About & what's new; a test checks they match).
 2. Commit and push to the private `main`.
 3. Run `tools/release.sh`. It copies the committed files (not the history) into the public repo
    as one commit "Release v<version>", tags it, and pushes; GitHub Pages then publishes the game.

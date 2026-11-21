@@ -1,5 +1,6 @@
 // Everything the player can do. Each action returns whether it did anything.
-import { D } from './decimal'
+import { D, type Decimal } from './decimal'
+import { GAME_VERSION } from '../version'
 import {
   KNOCK_COOLDOWN,
   CRISP_TEMP_BEST,
@@ -30,7 +31,7 @@ import {
   type VehicleId,
   type WorkerId,
 } from './content'
-import { addLog, freshRun, type BuyAmount, type GameState, type Notation, type UiScale } from './state'
+import { addLog, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale } from './state'
 import {
   canBuyPerk,
   canBuyUpgrade,
@@ -39,6 +40,7 @@ import {
   chapter4Unlocked,
   clickAmount,
   earningsCrumbs,
+  furthestPlace,
   helperReaches,
   vehicleVisible,
   facilityPlan,
@@ -174,12 +176,30 @@ function applyStartPerks(state: GameState): void {
  * Sell the business: reset the run, keep Golden Crumbs, perks, settings,
  * statistics and the story so far.
  */
+/** Remember the run that is ending, for the run history and personal bests in Records. */
+function recordRun(state: GameState, gain: Decimal): void {
+  const st = state.stats
+  st.runs.push({
+    end: st.playtime,
+    time: state.run.time,
+    place: furthestPlace(state),
+    crumbs: gain.toNumber(),
+    earned: state.run.earned.toNumber(),
+    served: state.run.served.toNumber(),
+  })
+  if (st.runs.length > RUNS_LIMIT) st.runs.splice(0, st.runs.length - RUNS_LIMIT)
+  if (gain.gt(st.bestSale)) st.bestSale = gain
+  if (state.run.served.gt(st.bestRunServed)) st.bestRunServed = state.run.served
+  st.longestRun = Math.max(st.longestRun, state.run.time)
+}
+
 export function franchise(state: GameState): boolean {
   if (!canFranchise(state)) return false
   const gain = pendingCrumbs(state)
   // Whatever a frontier sale pays on top of earnings is bonus: kept apart, so it
   // doesn't push the next crumb from earnings further away.
   const bonus = gain.sub(earningsCrumbs(state))
+  recordRun(state, gain)
   Object.assign(state, freshRun())
   state.prestige.crumbs = state.prestige.crumbs.add(gain)
   state.prestige.totalCrumbs = state.prestige.totalCrumbs.add(gain)
@@ -279,6 +299,13 @@ export function setBadgePopups(state: GameState, on: boolean): void {
 /** Open (false) or close (true) the welcome screen. */
 export function setIntroSeen(state: GameState, seen: boolean): void {
   state.introSeen = seen
+  // A new player has nothing to catch up on in "What's new".
+  if (seen && !state.newsSeen) state.newsSeen = GAME_VERSION
+}
+
+/** The player opened About & what's new for this version. */
+export function setNewsSeen(state: GameState, version: string): void {
+  state.newsSeen = version
 }
 
 export function setBuyAmount(state: GameState, amount: BuyAmount): void {

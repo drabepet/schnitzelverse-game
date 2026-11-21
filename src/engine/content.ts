@@ -1260,6 +1260,14 @@ export const REGIONS: RegionDef[] = [
   },
 ]
 
+/** The four chapters, shown in the header and on the welcome page. */
+export const CHAPTERS = [
+  { emoji: '🏚️', name: 'The garage' },
+  { emoji: '🚜', name: 'Grandpa’s farm' },
+  { emoji: '🚚', name: 'On the road' },
+  { emoji: '🚀', name: 'The stars' },
+] as const
+
 /** Chapter 4 starts the first time you reach this place. */
 export const CHAPTER4_REGION: RegionId = 'planet'
 

@@ -68,6 +68,9 @@ function migrate(state: GameState): GameState {
   if (state.regions.nextTown.unlocked || state.prestige.franchises >= 2) state.crisp.unlocked = true
   // Saves from before the income chart: start counting from now, not from zero.
   if (!state.history.points.length && state.history.earned.eq(0)) state.history.earned = state.stats.earned
+  // Saves from before personal bests: start from what the chart and this run already show.
+  if (state.stats.bestIncome === 0) state.stats.bestIncome = Math.max(0, ...state.history.points.map((p) => p.income))
+  if (state.stats.bestRunServed.lt(state.run.served)) state.stats.bestRunServed = state.run.served
   state.version = SAVE_VERSION
   return state
 }

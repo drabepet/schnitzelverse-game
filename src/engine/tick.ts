@@ -301,7 +301,9 @@ function recordHistory(state: GameState, dt: number): void {
   h.clock += dt
   if (h.clock < HISTORY_STEP) return
   const income = state.stats.earned.sub(h.earned).div(h.clock).toNumber()
-  h.points.push({ t: state.stats.playtime + dt, income: Number.isFinite(income) ? Math.max(0, income) : 0, f: state.prestige.franchises })
+  const perSecond = Number.isFinite(income) ? Math.max(0, income) : 0
+  h.points.push({ t: state.stats.playtime + dt, income: perSecond, f: state.prestige.franchises })
+  if (perSecond > state.stats.bestIncome) state.stats.bestIncome = perSecond
   if (h.points.length > HISTORY_LENGTH) h.points.splice(0, h.points.length - HISTORY_LENGTH)
   h.clock = 0
   h.earned = state.stats.earned

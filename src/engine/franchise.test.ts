@@ -235,3 +235,27 @@ describe('next Golden Crumb progress', () => {
     expect(crumbProgress(s).fraction).toBeCloseTo(0.5)
   })
 })
+
+describe('run history', () => {
+  it('records each finished run and the personal bests', async () => {
+    const { newGame } = await import('./state')
+    const { franchise } = await import('./actions')
+    const { D } = await import('./decimal')
+    const s = newGame(0)
+    s.prestige.unlocked = true
+    s.regions.town.unlocked = true
+    s.stats.earned = D(1e7)
+    s.run.earned = D(1e7)
+    s.run.served = D(5000)
+    s.run.time = 1800
+    expect(franchise(s)).toBe(true)
+    expect(s.stats.runs).toHaveLength(1)
+    const r = s.stats.runs[0]
+    expect(r.time).toBe(1800)
+    expect(r.served).toBe(5000)
+    expect(r.crumbs).toBeGreaterThan(0)
+    expect(s.stats.bestSale.toNumber()).toBe(r.crumbs)
+    expect(s.stats.bestRunServed.toNumber()).toBe(5000)
+    expect(s.stats.longestRun).toBe(1800)
+  })
+})

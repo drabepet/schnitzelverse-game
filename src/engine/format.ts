@@ -27,6 +27,41 @@ export function fmt(value: Num, decimals = 2): string {
   return D(d).div(D(10).pow(exp)).toNumber().toFixed(2) + 'e' + exp
 }
 
+/**
+ * Three significant digits, for the headline numbers that must stay short:
+ * 7.42, 74.2, 742, 7.42K, 74.2K, 742K, 7.42M … (or 7.42e45 in scientific).
+ */
+export function fmtCompact(value: Num): string {
+  const d = D(value)
+  if (d.isNan()) return 'NaN'
+  if (d.lt(0)) return '-' + fmtCompact(d.neg())
+  // Rounded to three significant digits (as a number, so "7.50" shows as 7.5).
+  const round3 = (m: number) => Number(m.toFixed(m < 10 ? 2 : m < 100 ? 1 : 0))
+  if (d.lt(1000)) {
+    const n = round3(d.toNumber())
+    // 999.96 would round up to "1000": show it as 1K instead.
+    return n >= 1000 ? fmtCompact(1000) : n.toString()
+  }
+  let exp = d.log10().floor().toNumber()
+  if (!Number.isFinite(exp) || exp > 1e15) return d.toString()
+  if (notation === 'short' && Math.floor(exp / 3) < SUFFIXES.length) {
+    let group = Math.floor(exp / 3)
+    let m = D(d).div(D(10).pow(group * 3)).toNumber()
+    if (round3(m) >= 1000) {
+      group += 1
+      m /= 1000
+    }
+    if (group < SUFFIXES.length) return round3(m).toString() + SUFFIXES[group]
+    exp = group * 3
+  }
+  let m = D(d).div(D(10).pow(exp)).toNumber()
+  if (Number(m.toFixed(2)) >= 10) {
+    exp += 1
+    m /= 10
+  }
+  return m.toFixed(2) + 'e' + exp
+}
+
 /** Whole units (stock counts). */
 export const fmtInt = (value: Num): string => fmt(D(value).floor(), 0)
 

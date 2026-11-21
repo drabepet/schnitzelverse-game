@@ -81,6 +81,8 @@ export interface GameState extends RunState {
   knockReadyAt: number
   /** The welcome screen has been read (false on a new game and after a hard reset). */
   introSeen: boolean
+  /** The newest version whose "What's new" the player has seen ('' = none yet). */
+  newsSeen: string
   /** Crispness: unlocked once (for good), fryer temperature and oil changes. */
   crisp: { unlocked: boolean; temperature: number; oil: number }
   /** Auntie's shopping list: restock up to `target`, never spending below `reserve`. */
@@ -130,10 +132,33 @@ export interface GameState extends RunState {
     bestTownTime: number
     /** The furthest place ever reached (index into REGIONS), over all runs. */
     bestPlace: number
+    /** Personal bests (Records): income per second (one-minute average), crumbs from one sale, served in one run, longest run (s). */
+    bestIncome: number
+    bestSale: Decimal
+    bestRunServed: Decimal
+    longestRun: number
+    /** The last RUNS_LIMIT finished runs, oldest first (Records → run history). */
+    runs: RunRecord[]
   }
   /** Wall-clock ms of the last save; used for offline progress. */
   lastSaved: number
 }
+
+/** One finished run, recorded when you franchise. */
+export interface RunRecord {
+  /** Play time (s) when the run ended. */
+  end: number
+  /** How long the run took (s). */
+  time: number
+  /** Farthest place reached (index into REGIONS). */
+  place: number
+  /** Golden Crumbs the sale paid. */
+  crumbs: number
+  earned: number
+  served: number
+}
+
+export const RUNS_LIMIT = 100
 
 export const LOG_LIMIT = 40
 
@@ -185,6 +210,7 @@ export function newGame(now = Date.now()): GameState {
     ...freshRun(),
     settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto' },
     introSeen: false,
+    newsSeen: '',
     knockReadyAt: 0,
     crisp: { unlocked: false, temperature: CRISP_TEMP_BEST, oil: 0 },
     autoBuy: { enabled: true, target: 20, reserve: DEFAULT_AUTO_BUY_RESERVE },
@@ -201,7 +227,7 @@ export function newGame(now = Date.now()): GameState {
         text: 'You found a frying pan in the garage and a few things in Mum’s fridge. The neighbours look hungry.',
       },
     ],
-    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0, bestPlace: 0 },
+    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0, bestPlace: 0, bestIncome: 0, bestSale: D(0), bestRunServed: D(0), longestRun: 0, runs: [] },
     lastSaved: now,
   }
 }
