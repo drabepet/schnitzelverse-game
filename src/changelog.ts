@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Chapter 5, the Schnitzelverse: seven new places past the Solar System, from the next-door star to the end of everything.',
       'Warp freighters, wormhole gates and stasis crates, so schnitzel arrives hot even in another galaxy.',
       'The Franchise tab is now a family tree: every perk opens the next, pick-one choices and a big capstone per family member.',
-      'Managers have ranks, their own cards with what they bought lately, and Mum can even sell the business for you (only if you switch it on).',
-      'Mrs. Horáková’s shop grows with every place you reach, the Solar System comes sooner, and the sidebar shows what holds you back.',
+      'Managers have ranks, their own cards with what they bought lately, and Mum can even sell the business for you at the best moment (only if you switch it on).',
+      'Mrs. Horáková’s shop grows with every place you reach, the Solar System comes sooner, the sidebar shows what holds you back, and the Franchise tab shows all your Golden Crumbs at a glance.',
     ],
   },
   {

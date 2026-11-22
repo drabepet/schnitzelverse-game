@@ -12,7 +12,6 @@ import { FarmPanel } from './ui/FarmPanel'
 import { FleetPanel } from './ui/FleetPanel'
 import { BadgesPage } from './ui/BadgesPage'
 import { BadgeToasts } from './ui/BadgeToasts'
-import { BusinessPanel } from './ui/BusinessPanel'
 import { StatsPanel } from './ui/StatsPanel'
 import { StatusSidebar } from './ui/StatusSidebar'
 import { QualityPanel } from './ui/QualityPanel'
@@ -117,7 +116,6 @@ export default function App() {
 
           {current === 'franchise' && (
             <div className="stack">
-              <BusinessPanel />
               <FranchisePanel />
             </div>
           )}

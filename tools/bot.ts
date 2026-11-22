@@ -40,6 +40,7 @@ import {
   facilityCost,
   canBuyPerk,
   canBuyUpgrade,
+  bestMomentToSell,
   canFranchise,
   canHire,
   getMods,
@@ -292,7 +293,7 @@ export function run(p: Profile): void {
  * reward at least doubles its lifetime Golden Crumbs (a common idle-game rule
  * of thumb), and buys the cheapest perks first.
  */
-type SellRule = 'atTown' | 'double' | 'triple'
+type SellRule = 'atTown' | 'double' | 'triple' | 'best'
 
 interface FranchiseProfile {
   name: string
@@ -347,7 +348,13 @@ export function runFranchises(p: FranchiseProfile): void {
       const pending = pendingCrumbs(s)
       const lifetime = Decimal.max(1, s.prestige.totalCrumbs)
       const want =
-        p.sell === 'atTown' ? s.regions.town.unlocked : p.sell === 'double' ? pending.gte(lifetime) : pending.gte(lifetime.mul(2))
+        p.sell === 'atTown'
+          ? s.regions.town.unlocked
+          : p.sell === 'best'
+            ? bestMomentToSell(s)
+            : p.sell === 'double'
+              ? pending.gte(lifetime)
+              : pending.gte(lifetime.mul(2))
       const stalled = s.run.time > 120 * 60
       if (canFranchise(s) && (want || stalled)) {
         const last = [...REGIONS].reverse().find((r) => s.regions[r.id].unlocked)!

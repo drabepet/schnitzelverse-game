@@ -71,6 +71,12 @@ function migrate(state: GameState): GameState {
   // Saves from before personal bests: start from what the chart and this run already show.
   if (state.stats.bestIncome === 0) state.stats.bestIncome = Math.max(0, ...state.history.points.map((p) => p.income))
   if (state.stats.bestRunServed.lt(state.run.served)) state.stats.bestRunServed = state.run.served
+  // Mum's selling rules from before the best-moment rule: doubles → +100%, triples → +200%.
+  const rule = state.autoSell.rule as string
+  if (rule === 'double' || rule === 'triple') {
+    state.autoSell.rule = 'share'
+    state.autoSell.percent = rule === 'double' ? 100 : 200
+  }
   state.version = SAVE_VERSION
   return state
 }

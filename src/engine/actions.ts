@@ -31,7 +31,7 @@ import {
   type VehicleId,
   type WorkerId,
 } from './content'
-import { addLog, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale } from './state'
+import { addLog, AUTO_SELL_PERCENTS, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale } from './state'
 import {
   canBuyPerk,
   canSwapFork,
@@ -330,6 +330,7 @@ export function swapFork(state: GameState, id: PerkId): boolean {
 export function setAutoSell(state: GameState, change: Partial<GameState['autoSell']>): void {
   const next = { ...state.autoSell, ...change }
   next.minutes = Math.min(1440, Math.max(10, Math.round(Number.isFinite(next.minutes) ? next.minutes : 120)))
+  if (!(AUTO_SELL_PERCENTS as readonly number[]).includes(next.percent)) next.percent = 25
   state.autoSell = next
 }
 

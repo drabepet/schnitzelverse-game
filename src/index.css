@@ -3231,14 +3231,46 @@ button.sb-mgr.off::after {
   border: 2px solid var(--panel);
   background: var(--muted);
 }
-.sb-mgr.busy .sb-mgr-dot {
+/* Manager status colours: sidebar dots, the pop-up and the legend share them. */
+.sb-mgr.busy .sb-mgr-dot,
+.mood-dot.busy {
   background: var(--good);
 }
-.sb-mgr.saving .sb-mgr-dot {
+.sb-mgr.saving .sb-mgr-dot,
+.mood-dot.saving {
   background: #e3a33a;
 }
-.sb-mgr.idle .sb-mgr-dot {
+.sb-mgr.idle .sb-mgr-dot,
+.mood-dot.idle {
   background: var(--border);
+}
+.mood-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.25rem;
+  border-radius: 50%;
+  vertical-align: baseline;
+  background: var(--muted);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 25%, transparent);
+}
+.mood-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.sb-mgr-pop .mood-legend {
+  flex-direction: column;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.sb-mgr-title {
+  cursor: help;
+}
+.office-legend .mood-legend {
+  font-size: inherit;
 }
 .sb-mgr-pop {
   font-size: 0.82rem;
@@ -3263,4 +3295,33 @@ button.sb-icon-btn:hover {
 .sb-mgr-hint {
   font-size: 0.72rem;
   color: var(--accent-2);
+}
+
+/* Franchise: Golden Crumbs at a glance */
+.crumb-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.6rem;
+  margin: 0.3rem 0 0.8rem;
+}
+.crumb-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.crumb-tile b {
+  font-size: 1.35rem;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+.crumb-tile-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
 }

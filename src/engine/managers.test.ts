@@ -246,7 +246,7 @@ describe('manager ranks, the log and Mum’s sale', () => {
     s.prestige.perks.estateAgent = 3
     runManagers(s, 1)
     expect(s.prestige.franchises).toBe(0)
-    setAutoSell(s, { enabled: true, rule: 'double' })
+    setAutoSell(s, { enabled: true, rule: 'share', percent: 100 })
     runManagers(s, 1)
     expect(s.prestige.franchises).toBe(1)
     expect(s.managerLog.some((e) => Object.keys(e.items).some((k) => k.includes('Sold the business')))).toBe(true)
@@ -262,10 +262,42 @@ describe('manager ranks, the log and Mum’s sale', () => {
     s.regions.town.unlocked = true
     s.stats.earned = D(1e12)
     s.run.earned = D(1e12)
-    setAutoSell(s, { enabled: true, rule: 'double', spendCrumbs: true })
+    setAutoSell(s, { enabled: true, rule: 'share', percent: 100, spendCrumbs: true })
     runManagers(s, 1)
     expect(s.prestige.franchises).toBe(1)
     expect(s.prestige.perks.headStart).toBeGreaterThan(0)
     for (const p of PERKS.filter((x) => x.fork)) expect(s.prestige.perks[p.id] ?? 0).toBe(0)
+  })
+})
+
+describe('Mum’s best moment to sell', () => {
+  async function setup(lifetime: number, pending: number) {
+    const { CRUMB_DIVISOR } = await import('./content')
+    const s = newGame()
+    s.prestige.unlocked = true
+    s.prestige.totalCrumbs = D(lifetime)
+    s.stats.earned = D(lifetime + pending).pow(2).mul(CRUMB_DIVISOR)
+    s.run.time = 2 * 3600
+    return s
+  }
+
+  it('sells at once when the sale triples a small pile', async () => {
+    const { bestMomentToSell } = await import('./rules')
+    expect(bestMomentToSell(await setup(100, 250))).toBe(true)
+    expect(bestMomentToSell(await setup(100, 150))).toBe(false)
+  })
+
+  it('otherwise sells once the run’s growth has peaked, if the sale adds at least 10%', async () => {
+    const { bestMomentToSell, crumbGrowth } = await import('./rules')
+    const s = await setup(1000, 300)
+    const now = crumbGrowth(s)
+    expect(now).toBeGreaterThan(0)
+    s.run.growthPeak = now
+    expect(bestMomentToSell(s)).toBe(false) // still at its best
+    s.run.growthPeak = now * 1.1
+    expect(bestMomentToSell(s)).toBe(true) // past its best
+    const small = await setup(1000, 50)
+    small.run.growthPeak = crumbGrowth(small) * 1.1
+    expect(bestMomentToSell(small)).toBe(false) // +5% isn't worth a sale
   })
 })

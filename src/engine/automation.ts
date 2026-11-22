@@ -28,6 +28,7 @@ import { buyFacility, buyPerk, buyUpgrade, buyVehicle, canUnlockRegion, franchis
 import {
   canBuyPerk,
   canBuyUpgrade,
+  bestMomentToSell,
   canFranchise,
   pendingCrumbs,
   perkCost,
@@ -449,11 +450,13 @@ export function recordManagerWork(state: GameState, who: PerkId, items: Record<s
 export function autoSellDue(state: GameState): boolean {
   const a = state.autoSell
   if (!a.enabled || managerRank(state, 'estateAgent') < 3 || !canFranchise(state)) return false
-  const pending = pendingCrumbs(state)
-  const lifetime = Decimal.max(1, state.prestige.totalCrumbs)
-  if (a.rule === 'double') return pending.gte(lifetime)
-  if (a.rule === 'triple') return pending.gte(lifetime.mul(2))
-  return state.run.time >= a.minutes * 60
+  if (a.rule === 'time') return state.run.time >= a.minutes * 60
+  if (a.rule === 'share') {
+    const lifetime = Decimal.max(1, state.prestige.totalCrumbs)
+    return pendingCrumbs(state).gte(lifetime.mul(a.percent / 100))
+  }
+  // Best moment: crumbs per hour has peaked and started to fall.
+  return bestMomentToSell(state)
 }
 
 /** Mum sells; then, if asked, Auntie spends the crumbs on the cheapest perks (never on a pick-one choice). */

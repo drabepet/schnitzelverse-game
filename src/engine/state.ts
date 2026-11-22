@@ -78,6 +78,10 @@ export interface RunState {
     forkSwaps: Partial<Record<ForkId, true>>
     /** Money each manager spent this run. */
     managerSpent: Partial<Record<PerkId, number>>
+    /** The best Golden Crumbs per hour seen this run (selling now ÷ hours so far), from CRUMB_RATE_FROM on. */
+    crumbRatePeak: number
+    /** The best growth of lifetime crumbs per hour seen this run (see crumbGrowth). */
+    growthPeak: number
   }
 }
 
@@ -122,7 +126,7 @@ export interface GameState extends RunState {
   /** What the managers bought lately, newest last (see automation.ts). */
   managerLog: ManagerLogEntry[]
   /** Mum sells the business for you (manager rank 3). Off until the player switches it on. */
-  autoSell: { enabled: boolean; rule: AutoSellRule; minutes: number; spendCrumbs: boolean }
+  autoSell: { enabled: boolean; rule: AutoSellRule; percent: number; minutes: number; spendCrumbs: boolean }
   /** Seconds since the managers last looked around. */
   managerClock: number
   milestones: Record<string, true>
@@ -181,8 +185,21 @@ export const RUNS_LIMIT = 100
 
 export const LOG_LIMIT = 40
 
-/** When Mum sells the business: the sale doubles or triples your lifetime crumbs, or the run has lasted long enough. */
-export type AutoSellRule = 'double' | 'triple' | 'time'
+/**
+ * When Mum sells the business: at the best moment (this run's crumbs per hour
+ * has peaked), when the sale adds a share of your lifetime crumbs, or after a set time.
+ */
+export type AutoSellRule = 'best' | 'share' | 'time'
+/** The shares Mum can wait for (percent of lifetime Golden Crumbs). */
+export const AUTO_SELL_PERCENTS = [10, 25, 50, 100, 200] as const
+/** Crumbs per hour is only trusted after this much of a run (s). */
+export const CRUMB_RATE_FROM = 15 * 60
+/** “Past its best”: the rate has dropped this far below this run's peak. */
+export const CRUMB_RATE_DROP = 0.97
+/** The best moment also wants the sale to add at least this share of lifetime crumbs (no selling for crumbs and crumbs). */
+export const BEST_SALE_MIN_SHARE = 0.1
+/** …and sells at once when the sale adds this many times your lifetime crumbs (best early on). */
+export const BEST_SALE_EARLY = 2
 
 /** One line of the managers' log: a manager's purchases, merged while they keep buying. */
 export interface ManagerLogEntry {
@@ -234,7 +251,7 @@ export function freshRun(): RunState {
       INGREDIENT_IDS.map((id) => [id, D(SHOP_SUPPLY_RATE * SHOP_SHELF_SECONDS)]),
     ) as Record<IngredientId, Decimal>,
     stuckFor: 0,
-    run: { earned: D(0), time: 0, served: D(0), servedCold: D(0), forkSwaps: {}, managerSpent: {} },
+    run: { earned: D(0), time: 0, served: D(0), servedCold: D(0), forkSwaps: {}, managerSpent: {}, crumbRatePeak: 0, growthPeak: 0 },
   }
 }
 
@@ -254,7 +271,7 @@ export function newGame(now = Date.now()): GameState {
     managersOff: {},
     managerSpend: {},
     managerLog: [],
-    autoSell: { enabled: false, rule: 'double', minutes: 120, spendCrumbs: false },
+    autoSell: { enabled: false, rule: 'best', percent: 25, minutes: 120, spendCrumbs: false },
     managerClock: 0,
     milestones: {},
     badges: {},

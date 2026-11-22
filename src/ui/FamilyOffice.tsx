@@ -1,10 +1,11 @@
 import { BRANCHES, MANAGER_RANKS, PERKS, SPEND_LEVELS, type PerkDef, type PerkId } from '../engine/content'
 import { describeManagerItems as describeItems, managerActive, managerRank, setManager, setSpendLevel, spendLevel } from '../engine/automation'
 import { doingNow } from './managerStatus'
+import { MoodLegend } from './MoodLegend'
 import { setAutoSell } from '../engine/actions'
 import { fmt, fmtMoney, fmtTime } from '../engine/format'
-import { pendingCrumbs } from '../engine/rules'
-import type { AutoSellRule, ManagerLogEntry } from '../engine/state'
+import { crumbGrowth, crumbRate, pendingCrumbs } from '../engine/rules'
+import { AUTO_SELL_PERCENTS, BEST_SALE_MIN_SHARE, type AutoSellRule, type ManagerLogEntry } from '../engine/state'
 import { useGame } from '../game/store'
 
 const PERK = Object.fromEntries(PERKS.map((p) => [p.id, p])) as Record<PerkId, PerkDef>
@@ -63,11 +64,13 @@ function AutoSell() {
         🏷️ At rank 3 Mum can also sell the business for you, by a rule you set. It stays off until you switch it on.
       </p>
     )
-  const rules: { id: AutoSellRule; name: string }[] = [
-    { id: 'double', name: 'Doubles my crumbs' },
-    { id: 'triple', name: 'Triples my crumbs' },
-    { id: 'time', name: 'After a set time' },
+  const rules: { id: AutoSellRule; name: string; title: string }[] = [
+    { id: 'best', name: 'At the best moment', title: 'When this run stops growing your crumbs as fast as it did: quick sales early on, longer runs later.' },
+    { id: 'share', name: 'When it adds…', title: 'When the sale adds a share of the crumbs you have collected so far.' },
+    { id: 'time', name: 'After a set time', title: 'After a run has lasted this long.' },
   ]
+  const rate = crumbRate(s)
+  const pct = (g: number) => `${fmt(g * 100, g < 0.1 ? 1 : 0)}%`
   return (
     <div className="office-sell">
       <label className="setting-check">
@@ -81,12 +84,36 @@ function AutoSell() {
             role="radio"
             aria-checked={a.rule === r.id}
             className={a.rule === r.id ? 'on' : ''}
+            title={r.title}
             onClick={() => game.act((st) => setAutoSell(st, { rule: r.id }))}
           >
             {r.name}
           </button>
         ))}
       </div>
+      {a.rule === 'best' && (
+        <p className="muted small">
+          {rate > 0
+            ? `This run grows your crumbs by ${pct(crumbGrowth(s))} an hour (best so far ${pct(s.run.growthPeak)}). She sells as soon as the sale would triple your crumbs, or once that growth drops a little below the best (if the sale adds at least ${BEST_SALE_MIN_SHARE * 100}%): quick sales while your pile is small, longer runs later.`
+            : 'She sells as soon as the sale would triple your crumbs, and from 15 minutes into a run she also watches how fast the run grows them.'}
+        </p>
+      )}
+      {a.rule === 'share' && (
+        <div className="buy-amount" role="radiogroup" aria-label="How much the sale must add">
+          {AUTO_SELL_PERCENTS.map((p) => (
+            <button
+              key={p}
+              role="radio"
+              aria-checked={a.percent === p}
+              className={a.percent === p ? 'on' : ''}
+              title={`Sell when the sale adds ${p}% of the ${fmt(s.prestige.totalCrumbs, 0)} crumbs collected so far (+${fmt(s.prestige.totalCrumbs.mul(p / 100), 0)}).`}
+              onClick={() => game.act((st) => setAutoSell(st, { percent: p }))}
+            >
+              +{p}%
+            </button>
+          ))}
+        </div>
+      )}
       {a.rule === 'time' && (
         <label className="office-minutes">
           Sell after{' '}
@@ -171,6 +198,9 @@ export function FamilyOffice() {
       <p className="hint">
         What each promoted family member is doing now, what they bought lately and how much they spent this run. “How boldly” sets how big
         a share of your money one purchase may take: careful, normal, and (at higher ranks) bold or all in.
+      </p>
+      <p className="hint office-legend">
+        The dots on their faces in the sidebar: <MoodLegend />
       </p>
       <div className="office-grid">
         {BRANCHES.map((b) => (

@@ -47,6 +47,8 @@ import {
   taskCapacity,
   vehicleCapacity,
   type Mods,
+  crumbGrowth,
+  crumbRate,
 } from './rules'
 import { routeKey, type CarrierId } from './routes'
 
@@ -288,11 +290,21 @@ export function tick(state: GameState, dt: number): Flows {
 
   rescueIfStuck(state, dt)
   recordHistory(state, dt)
+  trackCrumbRate(state)
   state.stats.playtime += dt
   state.run.time += dt
   checkMilestones(state)
   checkBadges(state)
   return flows
+}
+
+/** The best Golden Crumbs per hour of this run (for Mum's best-moment rule and the Franchise tab). */
+function trackCrumbRate(state: GameState): void {
+  if (!state.prestige.unlocked && state.prestige.franchises === 0) return
+  const rate = crumbRate(state)
+  if (rate > state.run.crumbRatePeak) state.run.crumbRatePeak = rate
+  const growth = crumbGrowth(state)
+  if (growth > state.run.growthPeak) state.run.growthPeak = growth
 }
 
 /** One point of income history every HISTORY_STEP seconds of play. */

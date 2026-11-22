@@ -1,32 +1,36 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { MANAGER_RANKS, type PerkId } from '../engine/content'
 import { MANAGERS, describeManagerItems, managerRank, setManager } from '../engine/automation'
 import { fmtMoney, fmtTime } from '../engine/format'
 import { useGame } from '../game/store'
 import { goTo } from './goTo'
 import { doingNow, managerMood, MOOD_TEXT } from './managerStatus'
+import { MoodDot, MoodLegend } from './MoodLegend'
 
 /** Pop-up width at the normal interface size (15px text). */
 const POP_WIDTH = 270
 
 /**
  * The sidebar's managers: one face per promoted family member with a dot
- * for what they're up to. Hover (or focus) for the details, click to switch
- * them on or off. The pop-up is pinned to the window (like the button hints),
- * so the scrolling sidebar can't cut it off. The full cards are on the
- * Franchise tab (⚙️).
+ * for what they're up to. Hover (or focus) a face for the details, click to
+ * switch them on or off; hover the title for what the dot colours mean. The
+ * pop-ups are pinned to the window and rendered at the page root, so neither
+ * the scrolling sidebar nor the main panel can cover them. The full cards are
+ * on the Franchise tab (⚙️).
  */
 export function SidebarManagers() {
   const game = useGame()
   const s = game.state
-  const [open, setOpen] = useState<{ id: PerkId; top: number; left: number; width: number } | null>(null)
+  // Which pop-up is open: a manager's, or the colour key (hover the “Managers” title).
+  const [open, setOpen] = useState<{ id: PerkId | 'key'; top: number; left: number; width: number } | null>(null)
   const timer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const owned = MANAGERS.filter((m) => managerRank(s, m.id) > 0)
   if (!owned.length) return null
 
-  const show = (id: PerkId, el: HTMLElement) => {
+  const show = (id: PerkId | 'key', el: HTMLElement) => {
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
       const r = el.getBoundingClientRect()
@@ -42,6 +46,14 @@ export function SidebarManagers() {
 
   const m = open && owned.find((x) => x.id === open.id)
   const pop = (() => {
+    if (open?.id === 'key')
+      return (
+        <span className="hint-pop sb-mgr-pop" role="tooltip" style={{ top: open.top, left: open.left, width: open.width }}>
+          <b>What the dots mean</b>
+          <MoodLegend />
+          <span className="muted small">Hover a face for details, click it to switch them on or off.</span>
+        </span>
+      )
     if (!open || !m) return null
     const mood = managerMood(s, m.id)
     const rank = managerRank(s, m.id)
@@ -52,7 +64,10 @@ export function SidebarManagers() {
           {m.emoji} {m.name}
         </b>
         <span className="muted small">
-          Rank {rank} · {MANAGER_RANKS[rank - 1]} · {MOOD_TEXT[mood]}
+          Rank {rank} · {MANAGER_RANKS[rank - 1]}
+        </span>
+        <span className="sb-mgr-mood">
+          <MoodDot mood={mood} /> {MOOD_TEXT[mood]}
         </span>
         {mood !== 'off' && <span>{doingNow(s, m.id)}</span>}
         {last && (
@@ -69,7 +84,16 @@ export function SidebarManagers() {
   return (
     <div className="sb-section sb-detail">
       <div className="sb-mgr-head">
-        <span className="sb-title">🤖 Managers</span>
+        <span
+          className="sb-title sb-mgr-title"
+          tabIndex={0}
+          onMouseEnter={(e) => show('key', e.currentTarget)}
+          onMouseLeave={hide}
+          onFocus={(e) => show('key', e.currentTarget)}
+          onBlur={hide}
+        >
+          🤖 Managers
+        </span>
         <button
           className="sb-icon-btn"
           aria-label="Manager settings and log"
@@ -103,7 +127,7 @@ export function SidebarManagers() {
           )
         })}
       </div>
-      {pop}
+      {pop && createPortal(pop, document.body)}
     </div>
   )
 }

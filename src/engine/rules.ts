@@ -61,7 +61,7 @@ import {
   FARM_GOAL_MULT,
   type FacilityId,
 } from './content'
-import type { BuyAmount, GameState } from './state'
+import { BEST_SALE_EARLY, BEST_SALE_MIN_SHARE, CRUMB_RATE_DROP, CRUMB_RATE_FROM, type BuyAmount, type GameState } from './state'
 import { BADGE_BONUS } from './badgeBonus'
 
 export interface Mods {
@@ -386,7 +386,32 @@ export function canBuyPerk(state: GameState, perk: PerkDef): boolean {
   )
 }
 
-/** Golden Crumbs a Franchise would give right now. */
+/**
+ * Golden Crumbs per hour this run (0 early in a run): what earnings are worth
+ * so far, unrounded, ÷ the hours so far. Unrounded so the rate doesn't saw up
+ * and down with each whole crumb; frontier sales don't count (they jump).
+ */
+export function crumbRate(state: GameState): number {
+  if (state.run.time < CRUMB_RATE_FROM) return 0
+  const collected = state.prestige.totalCrumbs.sub(state.prestige.bonusCrumbs)
+  const worth = state.stats.earned.div(CRUMB_DIVISOR).sqrt().sub(collected)
+  return Math.max(0, worth.toNumber()) / (state.run.time / 3600)
+}
+
+/**
+ * How fast this run grows your lifetime Golden Crumbs, per hour (0.12 = 12%
+ * an hour, compounded): ln(1 + sale ÷ lifetime) ÷ hours, with the sale
+ * unrounded. What Mum's best moment maximises: early on a quick sale that
+ * doubles a small pile beats a long one, late on long runs win.
+ */
+export function crumbGrowth(state: GameState): number {
+  const rate = crumbRate(state)
+  if (rate <= 0) return 0
+  const hours = state.run.time / 3600
+  const lifetime = Math.max(1, state.prestige.totalCrumbs.toNumber())
+  return Math.log1p((rate * hours) / lifetime) / hours
+}
+
 /** Golden Crumbs your lifetime earnings are worth in total (collected or not). */
 export function crumbsWorth(state: GameState): Decimal {
   return state.stats.earned.div(CRUMB_DIVISOR).sqrt().floor()
@@ -446,6 +471,20 @@ export function crumbProgress(state: GameState): { fraction: number; remaining: 
   const to = nextCrumbAt(state)
   const fraction = state.stats.earned.sub(from).div(to.sub(from)).toNumber()
   return { fraction: Math.min(1, Math.max(0, fraction)), remaining: to.sub(state.stats.earned).max(0) }
+}
+
+/**
+ * Mum's “best moment”: the sale triples your lifetime crumbs (BEST_SALE_EARLY), or how fast this run grows your lifetime crumbs has
+ * peaked and dropped a little (crumbGrowth), and the sale adds at least BEST_SALE_MIN_SHARE of lifetime crumbs.
+ */
+export function bestMomentToSell(state: GameState): boolean {
+  const pending = pendingCrumbs(state)
+  const lifetime = Decimal.max(1, state.prestige.totalCrumbs)
+  // Early on, a sale that triples a small pile is always worth it.
+  if (pending.gte(lifetime.mul(BEST_SALE_EARLY))) return true
+  const peak = state.run.growthPeak
+  if (!(peak > 0) || crumbGrowth(state) >= peak * CRUMB_RATE_DROP) return false
+  return pending.gte(lifetime.mul(BEST_SALE_MIN_SHARE))
 }
 
 export function canFranchise(state: GameState): boolean {
