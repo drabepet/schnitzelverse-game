@@ -174,6 +174,7 @@ describe('format', () => {
     expect(fmt(1.234)).toBe('1.23')
     expect(fmt(1234)).toBe('1.23K')
     expect(fmt(5_600_000)).toBe('5.60M')
-    expect(fmt(D('1e50'))).toBe('1.00e50')
+    expect(fmt(D('1e50'))).toBe('100.00Qid')
+    expect(fmt(D('1e70'))).toBe('1.00e70')
   })
 })

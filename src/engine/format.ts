@@ -1,6 +1,6 @@
 import { D, type Num } from './decimal'
 
-const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc']
+const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc', 'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg']
 
 /** 'short' = 1.23M; 'scientific' = 1.23e6. Set from the player's settings. */
 let notation: 'short' | 'scientific' = 'short'
@@ -78,8 +78,17 @@ export function fmtTime(seconds: number): string {
   return `${s}s`
 }
 
-/** Distances: 20 m, 6 km, 2,500 km. */
+/** A light year in km. */
+export const LIGHT_YEAR_KM = 9.461e12
+
+/** Distances: 20 m, 6 km, 2,500 km, then 4.2 light years, 2.5 million light years, everywhere. */
 export function fmtKm(km: number): string {
+  if (!Number.isFinite(km) || km >= 1e29) return 'everywhere at once'
+  if (km >= LIGHT_YEAR_KM / 10) {
+    const ly = km / LIGHT_YEAR_KM
+    const n = ly < 10 ? Number(ly.toFixed(1)).toString() : ly < 1e6 ? Math.round(ly).toLocaleString('en-US') : fmtCompact(ly)
+    return `${n} light year${ly === 1 ? '' : 's'}`
+  }
   if (km < 1) return `${Math.round(km * 1000)} m`
   return `${Math.round(km).toLocaleString('en-US')} km`
 }

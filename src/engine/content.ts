@@ -203,8 +203,30 @@ export type Effect =
   /** One kind of farm building (farm gear, see farmGear.ts). */
   | { kind: 'building'; facility: FacilityId; mult: number }
 
+/** The corner shop grows with every place you reach (from the country on), like the farm gear. */
+export const SHOP_PLACES = [
+  'country',
+  'continent',
+  'planet',
+  'orbit',
+  'moon',
+  'mars',
+  'belt',
+  'jupiter',
+  'solar',
+  'nextStar',
+  'cluster',
+  'milkyWay',
+  'nextGalaxy',
+  'localGroup',
+  'universe',
+  'schnitzelverse',
+] as const satisfies readonly RegionId[]
+export type ShopRungId = `shop_${(typeof SHOP_PLACES)[number]}`
+
 export type UpgradeId =
   | FarmGearId
+  | ShopRungId
   | 'heavyMallet'
   | 'chalkboard'
   | 'biggerVan'
@@ -275,6 +297,21 @@ export type UpgradeId =
   | 'combineHarvesters'
   | 'megaBarns'
   | 'automatedPlants'
+  // Chapter 5: the Schnitzelverse
+  | 'singularityTenderizer'
+  | 'crumbGalaxy'
+  | 'supernovaFryers'
+  | 'stasisCrates'
+  | 'warpCoils'
+  | 'constellationAds'
+  | 'pigPlanets'
+  | 'wheatWorlds'
+  | 'nebulaMills'
+  | 'quantumCrunch'
+  | 'neutronStarFryer'
+  | 'faceInTheStars'
+  | 'michelinStars'
+  | 'intergalacticGrocer'
 
 export interface UpgradeDef {
   id: UpgradeId
@@ -287,6 +324,8 @@ export interface UpgradeDef {
   quality?: true
   /** Only shown in Chapter 4 (the stars). */
   space?: true
+  /** Only shown in Chapter 5 (beyond the Solar System). Also set `space`. */
+  deep?: true
   /** Farm gear for one building (shown on its card). */
   building?: FacilityId
   /** A farm hand for one chain (shown on the chain's card). */
@@ -311,12 +350,14 @@ export interface CrewUpgrade {
   cost: number
   requires: Requirement
   space?: true
+  deep?: true
 }
 
 const LEVEL_A = { franchises: 2, reputation: 100_000 }
 const LEVEL_B = { franchises: 3, reputation: 2_000_000 }
 const LEVEL_C = { franchises: 5, reputation: 50_000_000 }
 const LEVEL_D = { reputation: 5_000_000_000 }
+const LEVEL_E = { reputation: 2e18 }
 
 export const CREW_UPGRADES: CrewUpgrade[] = [
   // Pound
@@ -340,6 +381,11 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     description: 'Bends spacetime until the cutlet is exactly 4 mm thin. Pounding ×8',
     crew: { name: 'Graviton flattener', emoji: '🌀', flavor: 'Bends spacetime until the cutlet is exactly 4 mm thin.' },
   },
+  {
+    id: 'singularityTenderizer', name: 'Singularity tenderizer', task: 'pound', mult: 8, cost: 2e19, requires: LEVEL_E, space: true, deep: true,
+    description: 'A tiny black hole, on a leash. Cutlets come out one atom thin. Pounding ×8',
+    crew: { name: 'Singularity tenderizer', emoji: '🕳️', flavor: 'A pet black hole. Uncle feeds it the bones.' },
+  },
   // Bread
   {
     id: 'breadingLine', name: 'Breading line', task: 'bread', mult: 3, cost: 2_500_000, requires: LEVEL_A,
@@ -360,6 +406,11 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     id: 'crumbNebula', name: 'Zero-g crumb nebula', task: 'bread', mult: 8, cost: 70_000_000_000, requires: LEVEL_D, space: true,
     description: 'Cutlets drift through a cloud of crumbs in zero g. Breading ×8',
     crew: { name: 'Zero-g crumb nebula', emoji: '🌌', flavor: 'Cutlets drift through a cloud of crumbs and come out perfect.' },
+  },
+  {
+    id: 'crumbGalaxy', name: 'Crumb galaxy', task: 'bread', mult: 8, cost: 2.5e19, requires: LEVEL_E, space: true, deep: true,
+    description: 'A spiral arm made entirely of breadcrumbs. Cutlets orbit through it. Breading ×8',
+    crew: { name: 'Crumb galaxy', emoji: '💫', flavor: 'A spiral arm of breadcrumbs, a hundred light years wide. Grandma still sifts it.' },
   },
   // Fry
   {
@@ -382,6 +433,11 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     description: 'Fries at the temperature of a small star; still 170 °C inside. Frying ×8',
     crew: { name: 'Plasma fryer', emoji: '☄️', flavor: 'Fries at the temperature of a small star. Still 170 °C inside.' },
   },
+  {
+    id: 'supernovaFryers', name: 'Supernova fryers', task: 'fry', mult: 8, cost: 3e19, requires: LEVEL_E, space: true, deep: true,
+    description: 'Every exploding star is now a fryer. The cutlets are timed to the second. Frying ×8',
+    crew: { name: 'Supernova fryer', emoji: '💥', flavor: 'One exploding star, one perfect batch. The cousins wear very dark sunglasses.' },
+  },
 ]
 
 export const UPGRADES: UpgradeDef[] = [
@@ -394,6 +450,7 @@ export const UPGRADES: UpgradeDef[] = [
       cost: c.cost,
       requires: c.requires,
       space: c.space,
+      deep: c.deep,
       effects: [{ kind: 'speed', task: c.task, mult: c.mult }],
     }),
   ),
@@ -595,6 +652,17 @@ export const UPGRADES: UpgradeDef[] = [
     cost: 50_000_000_000,
     requires: { reputation: 1_000_000_000 },
     space: true,
+    effects: [{ kind: 'shopSupply', mult: 1.5 }],
+  },
+  {
+    id: 'intergalacticGrocer',
+    name: 'Intergalactic grocer',
+    emoji: '🌌',
+    description: 'A corner shop on every corner of the universe. Mrs. Horáková has never been prouder, or more tired. Shop supply ×1.5',
+    cost: 5e19,
+    requires: { reputation: 5e18 },
+    space: true,
+    deep: true,
     effects: [{ kind: 'shopSupply', mult: 1.5 }],
   },
   {
@@ -960,6 +1028,118 @@ export const UPGRADES: UpgradeDef[] = [
     requires: { reputation: 500_000_000_000 },
     effects: [{ kind: 'kitchen', mult: 5 }],
   },
+
+  // Chapter 5: the Schnitzelverse.
+  {
+    id: 'stasisCrates',
+    name: 'Stasis crates',
+    emoji: '🧊',
+    description: 'Time stops inside the box. A schnitzel fried today arrives in another galaxy still sizzling. Cooling on the way ÷100',
+    cost: 3e18,
+    space: true,
+    deep: true,
+    requires: { reputation: 5e17 },
+    effects: [{ kind: 'cooling', mult: 0.01 }],
+  },
+  {
+    id: 'warpCoils',
+    name: 'Warp coils',
+    emoji: '🌀',
+    description: 'Space folds, the van does not. Fleet ×3',
+    cost: 1e19,
+    space: true,
+    deep: true,
+    requires: { reputation: 1e18 },
+    effects: [{ kind: 'fleet', mult: 3 }],
+  },
+  {
+    id: 'constellationAds',
+    name: 'A constellation shaped like a schnitzel',
+    emoji: '✨',
+    description: 'Astronomers moved a few stars. Now everyone in the galaxy looks up and gets hungry. Orders ×3',
+    cost: 2e20,
+    space: true,
+    deep: true,
+    requires: { reputation: 2e19 },
+    effects: [{ kind: 'orders', mult: 3 }],
+  },
+  {
+    id: 'pigPlanets',
+    name: 'Pig planets',
+    emoji: '🐖',
+    description: 'Whole planets of happy pigs and hens. Each one has a name. Animals ×5',
+    cost: 5e19,
+    space: true,
+    deep: true,
+    requires: { reputation: 5e18 },
+    effects: [{ kind: 'facility', group: 'animal', mult: 5 }],
+  },
+  {
+    id: 'wheatWorlds',
+    name: 'Wheat worlds',
+    emoji: '🌾',
+    description: 'Planets that are one big field. The harvest takes a thousand years and never stops. Fields ×5',
+    cost: 8e19,
+    space: true,
+    deep: true,
+    requires: { reputation: 8e18 },
+    effects: [{ kind: 'facility', group: 'field', mult: 5 }],
+  },
+  {
+    id: 'nebulaMills',
+    name: 'Nebula mills',
+    emoji: '🌫️',
+    description: 'A nebula spun into flour, oil and crumbs by the gravity of a dozen stars. Processing ×5',
+    cost: 1.5e20,
+    space: true,
+    deep: true,
+    requires: { reputation: 1.5e19 },
+    effects: [{ kind: 'facility', group: 'processor', mult: 5 }],
+  },
+  {
+    id: 'quantumCrunch',
+    name: 'Quantum crunch',
+    emoji: '⚛️',
+    description: 'Every crumb is crispy and not crispy until you bite. Then it is very crispy. Crispness skill +0.3',
+    cost: 1e21,
+    space: true,
+    deep: true,
+    requires: { reputation: 1e20 },
+    effects: [{ kind: 'crisp', add: 0.3 }],
+  },
+  {
+    id: 'neutronStarFryer',
+    name: 'Neutron star fryer',
+    emoji: '🌟',
+    description: 'A teaspoon of it weighs a billion tonnes and fries a billion schnitzels. Kitchen ×5',
+    cost: 1e22,
+    space: true,
+    deep: true,
+    requires: { reputation: 1e21 },
+    effects: [{ kind: 'kitchen', mult: 5 }],
+  },
+  {
+    id: 'faceInTheStars',
+    name: 'Your face in the night sky',
+    emoji: '🌠',
+    description: 'A nebula that looks exactly like you holding a lemon. Every civilisation has heard of you. Reputation ×3',
+    cost: 5e22,
+    space: true,
+    deep: true,
+    requires: { reputation: 5e21 },
+    effects: [{ kind: 'reputation', mult: 3 }],
+  },
+  {
+    id: 'michelinStars',
+    name: 'Three Michelin stars (actual stars)',
+    emoji: '⭐',
+    description: 'The inspectors gave you three stars. Real ones, from the next galaxy. Prices ×2',
+    cost: 5e23,
+    space: true,
+    deep: true,
+    requires: { reputation: 5e22 },
+    effects: [{ kind: 'price', mult: 2 }],
+  },
 ]
 
 // ---------------------------------------------------------------- crispness
@@ -1006,6 +1186,13 @@ export type RegionId =
   | 'belt'
   | 'jupiter'
   | 'solar'
+  | 'nextStar'
+  | 'cluster'
+  | 'milkyWay'
+  | 'nextGalaxy'
+  | 'localGroup'
+  | 'universe'
+  | 'schnitzelverse'
 
 export interface RegionDef {
   id: RegionId
@@ -1024,6 +1211,8 @@ export interface RegionDef {
   distance: number
   /** Off the planet (Chapter 4): only space vehicles get there. */
   space?: true
+  /** Beyond the Solar System (Chapter 5): opens once the Solar System has been reached. Also set `space`. */
+  deep?: true
 }
 
 /** Ordered from closest to farthest. Each one is the next step outward. */
@@ -1227,8 +1416,8 @@ export const REGIONS: RegionDef[] = [
     population: 20_000_000,
     orderRate: 600_000,
     price: 400,
-    unlockCost: 1.5e16,
-    unlockReputation: 2e15,
+    unlockCost: 2.25e16,
+    unlockReputation: 3e15,
     distance: 400_000_000,
     space: true,
   },
@@ -1240,8 +1429,8 @@ export const REGIONS: RegionDef[] = [
     population: 300_000_000,
     orderRate: 2_000_000,
     price: 1000,
-    unlockCost: 6e17,
-    unlockReputation: 8e16,
+    unlockCost: 1.5e18,
+    unlockReputation: 2e17,
     distance: 630_000_000,
     space: true,
   },
@@ -1253,10 +1442,109 @@ export const REGIONS: RegionDef[] = [
     population: 20_000_000_000,
     orderRate: 8_000_000,
     price: 3000,
-    unlockCost: 6e19,
-    unlockReputation: 8e18,
+    unlockCost: 1.2e19,
+    unlockReputation: 1.5e18,
     distance: 6_000_000_000,
     space: true,
+  },
+  // Chapter 5: the Schnitzelverse. Distances in km (a light year is 9.461e+12 km).
+  {
+    id: 'nextStar',
+    name: 'The next-door star',
+    emoji: '⭐',
+    flavor: 'Alpha Centauri: three suns, one planet, and not one of them has ever had a schnitzel.',
+    population: 1e11,
+    orderRate: 25_000_000,
+    price: 10_000,
+    unlockCost: 9.6e19,
+    unlockReputation: 1.2e19,
+    distance: 3.97362e13,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'cluster',
+    name: 'Your star cluster',
+    emoji: '✨',
+    flavor: 'A few hundred stars that all know each other. Word of a good schnitzel gets around fast.',
+    population: 1e12,
+    orderRate: 80_000_000,
+    price: 30_000,
+    unlockCost: 1.1e21,
+    unlockReputation: 1.4e20,
+    distance: 4.7305e14,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'milkyWay',
+    name: 'The whole Milky Way',
+    emoji: '🌀',
+    flavor: 'Four hundred billion stars, and every single one can smell the frying.',
+    population: 1e14,
+    orderRate: 250_000_000,
+    price: 100_000,
+    unlockCost: 6.4e21,
+    unlockReputation: 8e20,
+    distance: 9.461e17,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'nextGalaxy',
+    name: 'The next galaxy over',
+    emoji: '🌫️',
+    flavor: 'Andromeda is heading our way anyway. Might as well feed it first.',
+    population: 1e15,
+    orderRate: 800_000_000,
+    price: 300_000,
+    unlockCost: 1.6e23,
+    unlockReputation: 2e22,
+    distance: 2.36525e19,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'localGroup',
+    name: 'The Local Group',
+    emoji: '🫧',
+    flavor: 'Fifty-odd galaxies, one group chat, one topic: lunch.',
+    population: 1e16,
+    orderRate: 2_500_000_000,
+    price: 1_000_000,
+    unlockCost: 2e24,
+    unlockReputation: 2.5e23,
+    distance: 9.461e19,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'universe',
+    name: 'The whole universe',
+    emoji: '🌌',
+    flavor: 'Every galaxy, every star, every lonely rock. The crust is now cosmic.',
+    population: 1e22,
+    orderRate: 8_000_000_000,
+    price: 3_000_000,
+    unlockCost: 8e24,
+    unlockReputation: 1e24,
+    distance: 4.35206e23,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'schnitzelverse',
+    name: 'The Schnitzelverse',
+    emoji: '🍋',
+    flavor: 'Every table in every universe, all at once. Grandma always said it would come to this.',
+    population: 1e30,
+    orderRate: 25_000_000_000,
+    price: 10_000_000,
+    unlockCost: 3.6e25,
+    unlockReputation: 4.5e24,
+    distance: 1e30,
+    space: true,
+    deep: true,
   },
 ]
 
@@ -1266,10 +1554,15 @@ export const CHAPTERS = [
   { emoji: '🚜', name: 'Grandpa’s farm' },
   { emoji: '🚚', name: 'On the road' },
   { emoji: '🚀', name: 'The stars' },
+  { emoji: '🍋', name: 'The Schnitzelverse' },
 ] as const
 
 /** Chapter 4 starts the first time you reach this place. */
 export const CHAPTER4_REGION: RegionId = 'planet'
+/** Chapter 5 (the Schnitzelverse) starts the first time you reach this place. */
+export const CHAPTER5_REGION: RegionId = 'solar'
+/** The last place: reaching it shows the finale. */
+export const FINAL_REGION: RegionId = 'schnitzelverse'
 
 /** Your own delivery helpers (the "kid on a bike", later with vans) reach this far. */
 export const HELPER_RANGE_KM = 400
@@ -1452,7 +1745,7 @@ export const FARM_GOOD_BUFFER = 50
 /** The fleet arrives with this many franchises. */
 export const CHAPTER3_FRANCHISES = 5
 
-export type VehicleId = 'van' | 'truck' | 'train' | 'plane' | 'rocket' | 'cruiser' | 'ark'
+export type VehicleId = 'van' | 'truck' | 'train' | 'plane' | 'rocket' | 'cruiser' | 'ark' | 'warp' | 'wormhole'
 
 export interface VehicleDef {
   id: VehicleId
@@ -1469,6 +1762,8 @@ export interface VehicleDef {
   freshKm?: number
   /** Flies only to space places (Chapter 4). */
   space?: true
+  /** Only in Chapter 5 (beyond the Solar System). Also set `space`. */
+  deep?: true
   baseCost: number
   costGrowth: number
 }
@@ -1557,6 +1852,34 @@ export const VEHICLES: VehicleDef[] = [
     baseCost: 2_000_000_000_000,
     costGrowth: 1.1,
   },
+  {
+    id: 'warp',
+    name: 'Warp freighter',
+    emoji: '🌠',
+    flavor: 'Folds space, unfolds lunch. Needs stasis crates past the nearby stars.',
+    capacity: 1_000_000,
+    range: 1e18,
+    speed: 1e13,
+    freshKm: 1e16,
+    space: true,
+    deep: true,
+    baseCost: 5e17,
+    costGrowth: 1.1,
+  },
+  {
+    id: 'wormhole',
+    name: 'Wormhole gate',
+    emoji: '🕳️',
+    flavor: 'In one side hot, out the other side hot. Anywhere, instantly. Mind the gap.',
+    capacity: 30_000_000,
+    range: 1e31,
+    speed: 1e30,
+    freshKm: Infinity,
+    space: true,
+    deep: true,
+    baseCost: 1e21,
+    costGrowth: 1.1,
+  },
 ]
 
 /**
@@ -1608,7 +1931,25 @@ export type PerkId =
   | 'dispatcher'
   | 'crispMaster'
   | 'launchContracts'
+  | 'warpContracts'
   | 'nightShift'
+  // The family tree: forks (pick one of two) and capstones
+  | 'thinAndFast'
+  | 'thickAndGolden'
+  | 'uncleKitchen'
+  | 'uncleRoad'
+  | 'gossipQueen'
+  | 'pressDarling'
+  | 'pigFarmer'
+  | 'cropFarmer'
+  | 'speedDemon'
+  | 'heavyHauler'
+  | 'lardSecret'
+  | 'unclesWorkshop'
+  | 'statue'
+  | 'farmEmpire'
+  | 'galacticCourier'
+  | 'oldFriends'
 
 export interface PerkDef {
   id: PerkId
@@ -1623,9 +1964,92 @@ export interface PerkDef {
   manager?: true
   /** Effects at a given level (≥ 1). Start-of-run bonuses are handled in the reset. */
   effects?: (level: number) => Effect[]
+  /** Other perks you need first, at least at these levels (see TREE below). */
+  requires?: { perk: PerkId; level: number }[]
+  /** One of a pair: owning one side blocks the other (you may swap once per run). */
+  fork?: ForkId
+  /** The big reward at the bottom of a branch. */
+  capstone?: true
+  /** Endless perks: the highest level per chapter (index 0 = Chapter 1). */
+  chapterCaps?: readonly number[]
 }
 
+export type BranchId = 'kitchen' | 'stores' | 'fame' | 'farm' | 'delivery'
+export type ForkId = 'grandmaFork' | 'uncleFork' | 'mumFork' | 'grandpaFork' | 'kidFork'
+
+/**
+ * The family tree on the Franchise tab: one branch per family member, the
+ * manager (their promotion) at the top, then the perks row by row. A row with
+ * two perks of the same fork is a pick-one choice.
+ */
+export interface BranchDef {
+  id: BranchId
+  person: string
+  emoji: string
+  /** What this branch is about. */
+  title: string
+  manager: PerkId
+  /** One entry per TREE_ROWS row below the manager (same count in every branch, so the rows line up). */
+  rows: PerkId[][]
+}
+
+/** The rows of the tree, the same in every branch: the manager on top, then these. */
+export const TREE_ROWS = ['First step', 'Second step', 'Third step', 'Pick one', 'Capstone'] as const
+
+export const BRANCHES: BranchDef[] = [
+  {
+    id: 'kitchen',
+    person: 'Grandma',
+    emoji: '👵',
+    title: 'The kitchen',
+    manager: 'familyManager',
+    rows: [['familyRecipe'], ['loyalFamily', 'betterPans'], ['fastHands', 'crispMaster'], ['thinAndFast', 'thickAndGolden'], ['lardSecret']],
+  },
+  {
+    id: 'stores',
+    person: 'Uncle',
+    emoji: '🔨',
+    title: 'Stores and money',
+    manager: 'quartermaster',
+    rows: [['headStart'], ['auntieRemembers', 'nightShift'], ['bulkContracts'], ['uncleKitchen', 'uncleRoad'], ['unclesWorkshop']],
+  },
+  {
+    id: 'fame',
+    person: 'Mum',
+    emoji: '👩',
+    title: 'Fame and places',
+    manager: 'estateAgent',
+    rows: [['wordOfMouth'], ['localLegend'], ['oldConnections'], ['gossipQueen', 'pressDarling'], ['statue']],
+  },
+  {
+    id: 'farm',
+    person: 'Grandpa',
+    emoji: '👴',
+    title: 'The farm',
+    manager: 'farmManager',
+    rows: [['farmDeeds'], ['greenThumb'], ['oldFriends'], ['pigFarmer', 'cropFarmer'], ['farmEmpire']],
+  },
+  {
+    id: 'delivery',
+    person: 'The kid',
+    emoji: '🚲',
+    title: 'Deliveries',
+    manager: 'dispatcher',
+    rows: [['thermos'], ['fleetContracts', 'logisticsDegree'], ['launchContracts', 'warpContracts'], ['speedDemon', 'heavyHauler'], ['galacticCourier']],
+  },
+]
+
+/** Endless perks stop at these levels per chapter: far beyond normal play, only a wall for grinding one chapter forever. */
+export const CHAPTER_CAPS = [10, 20, 40, 75, 150] as const
+/** Endless perks get dearer faster past this level (each level costs 1.5× more again), so late-game crumbs don't run away. */
+export const PERK_SOFT_LEVEL = 25
+export const PERK_SOFT_GROWTH = 1.5
+
 /** Permanent upgrades bought with Golden Crumbs. They survive every franchise. */
+/** Manager ranks (perk levels 1–3). Each rank costs this many times the one before. */
+export const MANAGER_RANKS = ['On the job', 'Old hand', 'Runs the show'] as const
+export const MANAGER_RANK_COST_GROWTH = 1000
+
 export const PERKS: PerkDef[] = [
   {
     id: 'familyRecipe',
@@ -1796,6 +2220,213 @@ export const PERKS: PerkDef[] = [
     costGrowth: 3,
     maxLevel: 3,
   },
+  {
+    id: 'warpContracts',
+    name: 'Warp contracts',
+    emoji: '🌠',
+    description: 'Start each run with +1 warp freighter per level',
+    baseCost: 1_000_000,
+    costGrowth: 5,
+    maxLevel: 3,
+  },
+  // The family tree: forks (pick one of two; both sides cost the same) …
+  {
+    id: 'thinAndFast',
+    name: 'Thin and fast',
+    emoji: '🥢',
+    description: 'Grandma’s way, part one: pound them thinner, fry them quicker. Kitchen ×1.1 per level',
+    baseCost: 200,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'grandmaFork',
+    effects: (l) => [{ kind: 'kitchen', mult: 1.1 ** l }],
+  },
+  {
+    id: 'thickAndGolden',
+    name: 'Thick and golden',
+    emoji: '🥇',
+    description: 'Grandma’s way, part two: a proper cutlet, crust like armour. Prices ×1.08 per level',
+    baseCost: 200,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'grandmaFork',
+    effects: (l) => [{ kind: 'price', mult: 1.08 ** l }],
+  },
+  {
+    id: 'uncleKitchen',
+    name: 'Uncle stays in the kitchen',
+    emoji: '🔨',
+    description: 'He swings the mallet and keeps everyone in rhythm. Kitchen ×1.08 per level',
+    baseCost: 100,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'uncleFork',
+    effects: (l) => [{ kind: 'kitchen', mult: 1.08 ** l }],
+  },
+  {
+    id: 'uncleRoad',
+    name: 'Uncle takes the van',
+    emoji: '🚐',
+    description: 'He knows every shortcut and every pothole. Helpers deliver ×1.2 and fleet ×1.05 per level',
+    baseCost: 100,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'uncleFork',
+    effects: (l) => [
+      { kind: 'speed', task: 'deliver', mult: 1.2 ** l },
+      { kind: 'fleet', mult: 1.05 ** l },
+    ],
+  },
+  {
+    id: 'gossipQueen',
+    name: 'Gossip queen',
+    emoji: '🗣️',
+    description: 'Mum tells everyone. Then everyone tells everyone. Orders ×1.1 per level',
+    baseCost: 150,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'mumFork',
+    effects: (l) => [{ kind: 'orders', mult: 1.1 ** l }],
+  },
+  {
+    id: 'pressDarling',
+    name: 'Darling of the press',
+    emoji: '📰',
+    description: 'Mum does interviews. The papers love her. Reputation ×1.15 per level',
+    baseCost: 150,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'mumFork',
+    effects: (l) => [{ kind: 'reputation', mult: 1.15 ** l }],
+  },
+  {
+    id: 'pigFarmer',
+    name: 'Pig farmer at heart',
+    emoji: '🐖',
+    description: 'Grandpa’s favourite: the animals. Pigs and hens ×1.15, processing ×1.05 per level',
+    baseCost: 250,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'grandpaFork',
+    effects: (l) => [
+      { kind: 'facility', group: 'animal', mult: 1.15 ** l },
+      { kind: 'facility', group: 'processor', mult: 1.05 ** l },
+    ],
+  },
+  {
+    id: 'cropFarmer',
+    name: 'Crop farmer at heart',
+    emoji: '🌾',
+    description: 'Grandpa’s other favourite: the fields. Fields ×1.15, processing ×1.05 per level',
+    baseCost: 250,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'grandpaFork',
+    effects: (l) => [
+      { kind: 'facility', group: 'field', mult: 1.15 ** l },
+      { kind: 'facility', group: 'processor', mult: 1.05 ** l },
+    ],
+  },
+  {
+    id: 'speedDemon',
+    name: 'Speed demon',
+    emoji: '💨',
+    description: 'The kid rides like the wind. Schnitzel cools 10% slower on the way, per level',
+    baseCost: 400,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'kidFork',
+    effects: (l) => [{ kind: 'cooling', mult: 0.9 ** l }],
+  },
+  {
+    id: 'heavyHauler',
+    name: 'Heavy hauler',
+    emoji: '📦',
+    description: 'The kid packs the vans like a game of Tetris. Fleet ×1.1 per level',
+    baseCost: 400,
+    costGrowth: 5,
+    maxLevel: 5,
+    fork: 'kidFork',
+    effects: (l) => [{ kind: 'fleet', mult: 1.1 ** l }],
+  },
+  {
+    id: 'oldFriends',
+    name: 'Grandpa’s old friends',
+    emoji: '🧑‍🌾',
+    description: 'Start each run with the family farm hands already on the farm (Pavel, Jarmila, Franta and Bára)',
+    baseCost: 50,
+    costGrowth: 1,
+    maxLevel: 1,
+  },
+  // … and capstones: the big reward at the bottom of each branch.
+  {
+    id: 'lardSecret',
+    name: 'Grandma’s lard secret',
+    emoji: '🫙',
+    description: 'She finally writes it down. Prices ×2.5',
+    baseCost: 100_000_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    capstone: true,
+    effects: () => [{ kind: 'price', mult: 2.5 }],
+  },
+  {
+    id: 'unclesWorkshop',
+    name: 'Uncle’s workshop',
+    emoji: '🧰',
+    description: 'A shed full of tools he built himself. Kitchen ×2, corner shop ×3',
+    baseCost: 100_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    capstone: true,
+    effects: () => [
+      { kind: 'kitchen', mult: 2 },
+      { kind: 'shopSupply', mult: 3 },
+    ],
+  },
+  {
+    id: 'statue',
+    name: 'A statue in the town square',
+    emoji: '🗽',
+    description: 'You, holding a schnitzel, cast in bronze. Reputation ×3, orders ×1.5',
+    baseCost: 10_000_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    capstone: true,
+    effects: () => [
+      { kind: 'reputation', mult: 3 },
+      { kind: 'orders', mult: 1.5 },
+    ],
+  },
+  {
+    id: 'farmEmpire',
+    name: 'Grandpa’s farm empire',
+    emoji: '🏰',
+    description: 'The farm has its own flag now. Every farm building ×3',
+    baseCost: 300_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    capstone: true,
+    effects: () => [
+      { kind: 'facility', group: 'field', mult: 3 },
+      { kind: 'facility', group: 'animal', mult: 3 },
+      { kind: 'facility', group: 'processor', mult: 3 },
+    ],
+  },
+  {
+    id: 'galacticCourier',
+    name: 'The galactic courier',
+    emoji: '🛰️',
+    description: 'The kid’s company, with your name on every hull. Fleet ×3, cooling ÷2',
+    baseCost: 1_000_000_000,
+    costGrowth: 1,
+    maxLevel: 1,
+    capstone: true,
+    effects: () => [
+      { kind: 'fleet', mult: 3 },
+      { kind: 'cooling', mult: 0.5 },
+    ],
+  },
   // Managers: they keep buying while you're away. Each one buys only what
   // costs at most MANAGER_SPEND_SHARE of your money, so they never empty the till.
   {
@@ -1805,18 +2436,19 @@ export const PERKS: PerkDef[] = [
     description:
       'Hires helpers for whichever step is slowest, while customers want more. If equipment for that step does more per dollar, she buys that instead (or saves for it when it’s a few minutes away)',
     baseCost: 2,
-    costGrowth: 1,
-    maxLevel: 1,
+    costGrowth: MANAGER_RANK_COST_GROWTH,
+    maxLevel: MANAGER_RANKS.length,
     manager: true,
   },
   {
     id: 'quartermaster',
     name: 'Uncle, the quartermaster',
     emoji: '🧔',
-    description: 'Buys equipment, cheapest first',
+    description:
+      'Goes through all the equipment from the cheapest up and buys whatever is ready, for the kitchen, the shop, the farm and the fleet, as long as it costs at most a quarter of your money. Nothing useful stays on the shelf for long',
     baseCost: 3,
-    costGrowth: 1,
-    maxLevel: 1,
+    costGrowth: MANAGER_RANK_COST_GROWTH,
+    maxLevel: MANAGER_RANKS.length,
     manager: true,
   },
   {
@@ -1826,8 +2458,8 @@ export const PERKS: PerkDef[] = [
     description:
       'Unlocks the next place as soon as you can. When it’s only a few minutes of income away, she asks the others to wait so the money gets there sooner',
     baseCost: 4,
-    costGrowth: 1,
-    maxLevel: 1,
+    costGrowth: MANAGER_RANK_COST_GROWTH,
+    maxLevel: MANAGER_RANKS.length,
     manager: true,
   },
   {
@@ -1837,18 +2469,19 @@ export const PERKS: PerkDef[] = [
     description:
       'Builds whichever farm building holds back the shortest ingredient. If farm equipment for it does more per dollar, he buys that instead (or saves for it when it’s a few minutes away)',
     baseCost: 10,
-    costGrowth: 1,
-    maxLevel: 1,
+    costGrowth: MANAGER_RANK_COST_GROWTH,
+    maxLevel: MANAGER_RANKS.length,
     manager: true,
   },
   {
     id: 'dispatcher',
     name: 'The kid, now a dispatcher',
     emoji: '🧑‍💼',
-    description: 'Buys vehicles to reach every place and keep up with the kitchen',
+    description:
+      'First makes sure a vehicle can reach every place you deliver to. Then, while deliveries fall behind the kitchen, adds whichever vehicle carries the most per dollar, so hot schnitzel never waits for a ride',
     baseCost: 40,
-    costGrowth: 1,
-    maxLevel: 1,
+    costGrowth: MANAGER_RANK_COST_GROWTH,
+    maxLevel: MANAGER_RANKS.length,
     manager: true,
   },
 ]
@@ -1860,7 +2493,7 @@ export const KNOCK_COOLDOWN = 5
 export const OFFLINE_CAP_HOURS = 8
 export const NIGHT_SHIFT_HOURS = 4
 
-/** Managers buy only things that cost at most this share of your money. */
+/** Managers buy only things that cost at most this share of your money (at the Normal setting). */
 export const MANAGER_SPEND_SHARE = 0.1
 /** Equipment is a one-off, so the Quartermaster may spend more on it. */
 export const QUARTERMASTER_SPEND_SHARE = 0.25
@@ -1868,6 +2501,8 @@ export const QUARTERMASTER_SPEND_SHARE = 0.25
 export const MANAGER_INTERVAL = 1
 /** Mum asks the others to save up only when the money still missing is at most this many seconds of recent income. */
 export const SAVE_FOR_PLACE_SECONDS = 300
+/** …and three times that from rank 2 on. */
+export const SAVE_FOR_PLACE_SECONDS_RANK2 = 900
 
 /** Places Old connections unlocks at the start of a run, one per level. */
 export const START_REGIONS: RegionId[] = ['friends', 'street', 'block']
@@ -1877,12 +2512,76 @@ export const DEFAULT_AUTO_BUY_RESERVE = 25
 
 export const HEAD_START_BASE = 50
 
+
+/** How boldly a manager spends: a multiple of their usual share, and the rank that allows it. */
+export type SpendLevel = 'careful' | 'normal' | 'bold' | 'allIn'
+export const SPEND_LEVELS: { id: SpendLevel; name: string; mult: number; rank: number }[] = [
+  { id: 'careful', name: 'Careful', mult: 0.5, rank: 1 },
+  { id: 'normal', name: 'Normal', mult: 1, rank: 1 },
+  { id: 'bold', name: 'Bold', mult: 2.5, rank: 2 },
+  { id: 'allIn', name: 'All in', mult: 5, rank: 3 },
+]
+
+/** What each rank adds, per manager (rank 1 is the perk's own description). */
+export const MANAGER_RANK_TEXT: Partial<Record<PerkId, [string, string]>> = {
+  familyManager: ['Hires ten at a time when she can, and may spend boldly', 'May go all in'],
+  quartermaster: ['Buys the biggest piece he can afford first, instead of the cheapest, and may spend boldly', 'May go all in'],
+  estateAgent: [
+    'Asks the others to save for a place up to 15 minutes away (not 5), and may spend boldly',
+    'Can sell the business for you when a rule you set is met (off until you switch it on)',
+  ],
+  farmManager: ['Builds ten at a time when he can, and may spend boldly', 'May go all in'],
+  dispatcher: ['Buys ten vehicles at a time when he can, and may spend boldly', 'May go all in'],
+}
+
+const need = (...pairs: [PerkId, number][]) => pairs.map(([perk, level]) => ({ perk, level }))
+/** What each perk in the family tree needs first. Two cross-links join branches: crisp needs the farm, the statue needs the recipe. */
+const TREE_REQUIRES: Partial<Record<PerkId, { perk: PerkId; level: number }[]>> = {
+  loyalFamily: need(['familyRecipe', 1]),
+  fastHands: need(['familyRecipe', 1]),
+  betterPans: need(['familyRecipe', 2]),
+  crispMaster: need(['betterPans', 3], ['greenThumb', 1]),
+  thinAndFast: need(['familyRecipe', 10], ['betterPans', 10]),
+  thickAndGolden: need(['familyRecipe', 10], ['betterPans', 10]),
+  lardSecret: need(['familyRecipe', 25], ['betterPans', 25], ['crispMaster', 10]),
+  auntieRemembers: need(['headStart', 1]),
+  nightShift: need(['headStart', 2]),
+  bulkContracts: need(['auntieRemembers', 1]),
+  uncleKitchen: need(['bulkContracts', 3], ['headStart', 4]),
+  uncleRoad: need(['bulkContracts', 3], ['headStart', 4]),
+  unclesWorkshop: need(['headStart', 6], ['bulkContracts', 3], ['nightShift', 4]),
+  localLegend: need(['wordOfMouth', 2]),
+  oldConnections: need(['localLegend', 1]),
+  gossipQueen: need(['wordOfMouth', 10], ['localLegend', 10]),
+  pressDarling: need(['wordOfMouth', 10], ['localLegend', 10]),
+  statue: need(['wordOfMouth', 25], ['localLegend', 25], ['oldConnections', 3], ['familyRecipe', 15]),
+  greenThumb: need(['farmDeeds', 1]),
+  oldFriends: need(['greenThumb', 3]),
+  pigFarmer: need(['greenThumb', 8], ['farmDeeds', 5]),
+  cropFarmer: need(['greenThumb', 8], ['farmDeeds', 5]),
+  farmEmpire: need(['greenThumb', 25], ['farmDeeds', 10]),
+  fleetContracts: need(['thermos', 1]),
+  logisticsDegree: need(['thermos', 2]),
+  speedDemon: need(['logisticsDegree', 8]),
+  heavyHauler: need(['logisticsDegree', 8]),
+  launchContracts: need(['fleetContracts', 3]),
+  warpContracts: need(['launchContracts', 3]),
+  galacticCourier: need(['logisticsDegree', 25], ['fleetContracts', 5]),
+}
+for (const perk of PERKS) {
+  perk.requires = TREE_REQUIRES[perk.id]
+  // Endless perks get chapter caps.
+  if (perk.maxLevel === undefined) perk.chapterCaps = CHAPTER_CAPS
+}
+
 /** Perks that only appear once the farm (Chapter 2) is unlocked. */
-export const CHAPTER2_PERKS: PerkId[] = ['farmDeeds', 'greenThumb', 'farmManager']
+export const CHAPTER2_PERKS: PerkId[] = ['farmDeeds', 'greenThumb', 'farmManager', 'oldFriends', 'pigFarmer', 'cropFarmer', 'farmEmpire']
 /** Perks that only appear once the fleet (Chapter 3) is unlocked. */
-export const CHAPTER3_PERKS: PerkId[] = ['fleetContracts', 'logisticsDegree', 'dispatcher']
+export const CHAPTER3_PERKS: PerkId[] = ['fleetContracts', 'logisticsDegree', 'dispatcher', 'speedDemon', 'heavyHauler', 'galacticCourier']
 /** Perks that only appear in Chapter 4 (the stars). */
 export const CHAPTER4_PERKS: PerkId[] = ['launchContracts']
+/** Perks that only appear in Chapter 5 (the Schnitzelverse). */
+export const CHAPTER5_PERKS: PerkId[] = ['warpContracts']
 export const HEAD_START_GROWTH = 5
 
 export const FRANCHISE_MESSAGES = [
@@ -2008,9 +2707,83 @@ export const MILESTONES: Milestone[] = [
   {
     id: 'solar',
     check: (s) => s.regions.solar.unlocked,
-    text: 'The whole Solar System eats your schnitzel. Grandma looks up at the night sky and nods. (The galaxy is next. Some day.)',
+    text: 'The whole Solar System eats your schnitzel. Grandma looks up at the night sky and points further. Chapter 5: the Schnitzelverse.',
+  },
+  {
+    id: 'nextStar',
+    check: (s) => s.regions.nextStar.unlocked,
+    text: 'The next-door star. Three suns rise over a plate of schnitzel. Nobody there has ever been this happy.',
+  },
+  {
+    id: 'cluster',
+    check: (s) => s.regions.cluster.unlocked,
+    text: 'Your whole star cluster orders lunch. The group chat is just photos of crust.',
+  },
+  {
+    id: 'milkyWay',
+    check: (s) => s.regions.milkyWay.unlocked,
+    text: 'The whole Milky Way. Four hundred billion stars, one menu.',
+  },
+  {
+    id: 'nextGalaxy',
+    check: (s) => s.regions.nextGalaxy.unlocked,
+    text: 'The next galaxy over. Andromeda stops heading our way and starts queueing politely.',
+  },
+  {
+    id: 'localGroup',
+    check: (s) => s.regions.localGroup.unlocked,
+    text: 'The Local Group. Fifty galaxies agree on one thing for the first time in history.',
+  },
+  {
+    id: 'universe',
+    check: (s) => s.regions.universe.unlocked,
+    text: 'The whole universe eats your schnitzel. Only one table left to lay.',
+  },
+  {
+    id: 'schnitzelverse',
+    check: (s) => s.regions.schnitzelverse.unlocked,
+    text: 'The Schnitzelverse. Every table in every universe. Grandma takes off her apron, just for a minute.',
   },
 ]
 
 // Farm gear (farmGear.ts) needs the places and buildings above, so it joins UPGRADES last.
 UPGRADES.push(...buildFarmGear(REGIONS, FACILITIES, CHAPTER2_FRANCHISES))
+
+/** Shop rungs: the supply multiplier each one adds, and its price as a share of its place's price. */
+export const SHOP_RUNG_MULT = 3
+const SHOP_RUNG_COST_SHARE = 0.3
+const SHOP_RUNGS: Record<(typeof SHOP_PLACES)[number], [emoji: string, name: string, flavor: string]> = {
+  country: ['🚚', 'Horáková Express', 'Her own lorries, painted the colour of rye bread.'],
+  continent: ['🚢', 'Container ships', 'Breadcrumbs by the shipload. The captain is her nephew.'],
+  planet: ['🌐', 'Horáková worldwide', 'A shop in every time zone. She phones each one at opening time.'],
+  orbit: ['🛰️', 'Orbital warehouse', 'Shelves in zero g. The tins float to the till.'],
+  moon: ['🌕', 'Lunar pantry', 'Moon-dust-free flour. She checks every bag personally.'],
+  mars: ['🔴', 'Red planet depot', 'Martian eggs: slightly dusty, very fresh.'],
+  belt: ['🪨', 'Asteroid cash and carry', 'A hollowed-out asteroid with aisles a kilometre long.'],
+  jupiter: ['🟠', 'Jupiter moon market', 'Open on all 95 moons. Closed for lunch on all 95.'],
+  solar: ['☀️', 'Solar supply chain', 'Every planet’s pantry, joined up. She keeps all the receipts.'],
+  nextStar: ['⭐', 'Starlight stock room', 'Four light years of shelves. The stock check takes a while.'],
+  cluster: ['✨', 'Cluster co-op', 'A hundred stars, one loyalty card.'],
+  milkyWay: ['🌀', 'Galactic wholesale', 'The whole galaxy shops here. The trolleys have warp drives.'],
+  nextGalaxy: ['🌫️', 'Andromeda branch', 'Same prices, different galaxy. She insisted.'],
+  localGroup: ['🫧', 'Local Group logistics', 'Fifty galaxies of shelves and one very long receipt.'],
+  universe: ['🌌', 'Universal pantry', 'Everything, everywhere, always in stock. Except lemons, sometimes.'],
+  schnitzelverse: ['🍋', 'The shop at the end of everything', 'Every universe’s corner shop, all run by one Mrs. Horáková. She knows your name.'],
+}
+UPGRADES.push(
+  ...SHOP_PLACES.map((place): UpgradeDef => {
+    const [emoji, name, flavor] = SHOP_RUNGS[place]
+    const region = REGIONS.find((r) => r.id === place)!
+    return {
+      id: `shop_${place}`,
+      name,
+      emoji,
+      description: `${flavor} Shop supply ×${SHOP_RUNG_MULT}`,
+      cost: Math.round(region.unlockCost * SHOP_RUNG_COST_SHARE),
+      requires: { place },
+      space: region.space,
+      deep: region.deep,
+      effects: [{ kind: 'shopSupply', mult: SHOP_RUNG_MULT }],
+    }
+  }),
+)

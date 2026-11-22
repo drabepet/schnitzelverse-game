@@ -74,6 +74,8 @@ export interface Goal {
   money: number
   /** Seconds until both requirements are met at current rates, or null if not moving. */
   eta: number | null
+  /** The requirement that takes longest to meet (the one to work on), or null when both are met. */
+  slowest: 'rep' | 'money' | null
 }
 
 export function nextGoal(game: GameStore): Goal | null {
@@ -87,10 +89,12 @@ export function nextGoal(game: GameStore): Goal | null {
   const money = region.unlockCost > 0 ? Math.min(1, moneyNow / region.unlockCost) : 1
   // Smoothed rates decay towards zero but never reach it: treat crumbs of a rate as none.
   const wait = (missing: number, rate: number) => (missing <= 0 ? 0 : rate > 1e-3 ? missing / rate : Infinity)
-  const t = Math.max(
-    wait(region.unlockReputation - repNow, game.reputationRate),
-    wait(region.unlockCost - moneyNow, game.rates.income),
-  )
+  const repWait = wait(region.unlockReputation - repNow, game.reputationRate)
+  const moneyWait = wait(region.unlockCost - moneyNow, game.rates.income)
+  const t = Math.max(repWait, moneyWait)
+  // The slower one holds you back; if neither is moving, the one further from done.
+  const slowest =
+    rep >= 1 && money >= 1 ? null : repWait === moneyWait ? (rep <= money ? 'rep' : 'money') : repWait > moneyWait ? 'rep' : 'money'
   // More than a month away at this pace is "not yet", not a number.
-  return { region, locked, rep, money, eta: locked || !Number.isFinite(t) || t > 30 * 86400 ? null : t }
+  return { region, locked, rep, money, eta: locked || !Number.isFinite(t) || t > 30 * 86400 ? null : t, slowest }
 }

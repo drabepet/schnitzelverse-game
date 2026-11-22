@@ -34,10 +34,12 @@ import {
 import { addLog, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale } from './state'
 import {
   canBuyPerk,
+  canSwapFork,
+  forkPartner,
   canBuyUpgrade,
   canFranchise,
   chapter2Unlocked,
-  chapter4Unlocked,
+  chapterOpenFor,
   clickAmount,
   earningsCrumbs,
   furthestPlace,
@@ -102,7 +104,7 @@ export function canUnlockRegion(state: GameState, id: RegionId): boolean {
   const def = REGIONS.find((r) => r.id === id)!
   return (
     !state.regions[id].unlocked &&
-    (!def.space || chapter4Unlocked(state)) &&
+    chapterOpenFor(state, def) &&
     state.prestige.franchises >= (def.requiresFranchises ?? 0) &&
     meets(state, { reputation: def.unlockReputation }) &&
     state.money.gte(def.unlockCost)
@@ -154,7 +156,7 @@ function unlockStartRegions(state: GameState, level: number): void {
   for (const id of START_REGIONS.slice(0, level)) state.regions[id].unlocked = true
 }
 
-function headStartMoney(level: number): number {
+export function headStartMoney(level: number): number {
   return level > 0 ? HEAD_START_BASE * HEAD_START_GROWTH ** (level - 1) : 0
 }
 
@@ -168,8 +170,15 @@ function applyStartPerks(state: GameState): void {
   for (const f of FACILITIES) state.facilities[f.id] += deeds
   const fleet = perkLevel(state, 'fleetContracts')
   const launch = perkLevel(state, 'launchContracts')
-  for (const v of VEHICLES) state.vehicles[v.id] += v.space ? launch : fleet
+  const warp = perkLevel(state, 'warpContracts')
+  for (const v of VEHICLES) state.vehicles[v.id] += v.id === 'warp' ? warp : v.deep ? 0 : v.space ? launch : fleet
   unlockStartRegions(state, perkLevel(state, 'oldConnections'))
+  if (perkLevel(state, 'oldFriends') > 0) hireFarmHands(state)
+}
+
+/** Grandpa's old friends: the family farm hands start on the farm. */
+function hireFarmHands(state: GameState): void {
+  for (const u of UPGRADES) if (u.chain) state.upgrades[u.id] = true
 }
 
 /**
@@ -223,7 +232,9 @@ export function buyPerk(state: GameState, id: PerkId): boolean {
   if (id === 'oldConnections') unlockStartRegions(state, level)
   if (id === 'farmDeeds') for (const f of FACILITIES) state.facilities[f.id]++
   if (id === 'fleetContracts') for (const v of VEHICLES) if (!v.space) state.vehicles[v.id]++
-  if (id === 'launchContracts') for (const v of VEHICLES) if (v.space) state.vehicles[v.id]++
+  if (id === 'launchContracts') for (const v of VEHICLES) if (v.space && !v.deep) state.vehicles[v.id]++
+  if (id === 'warpContracts') state.vehicles.warp++
+  if (id === 'oldFriends') hireFarmHands(state)
   return true
 }
 
@@ -301,6 +312,30 @@ export function setIntroSeen(state: GameState, seen: boolean): void {
   state.introSeen = seen
   // A new player has nothing to catch up on in "What's new".
   if (seen && !state.newsSeen) state.newsSeen = GAME_VERSION
+}
+
+/** Switch a family-tree choice to this side, keeping the levels. Once per choice per run. */
+export function swapFork(state: GameState, id: PerkId): boolean {
+  const perk = PERKS.find((p) => p.id === id)!
+  const other = forkPartner(perk)
+  if (!other || !perk.fork || !canSwapFork(state, perk)) return false
+  state.prestige.perks[id] = perkLevel(state, other.id)
+  delete state.prestige.perks[other.id]
+  state.run.forkSwaps[perk.fork] = true
+  addLog(state, `${perk.emoji} Change of plan: ${perk.name.toLowerCase()} instead of ${other.name.toLowerCase()}.`)
+  return true
+}
+
+/** Mum's selling rule (rank 3): switch, rule, minutes for the time rule, and whether Auntie spends the crumbs. */
+export function setAutoSell(state: GameState, change: Partial<GameState['autoSell']>): void {
+  const next = { ...state.autoSell, ...change }
+  next.minutes = Math.min(1440, Math.max(10, Math.round(Number.isFinite(next.minutes) ? next.minutes : 120)))
+  state.autoSell = next
+}
+
+/** The finale screen has been read. */
+export function setFinaleSeen(state: GameState): void {
+  state.finaleSeen = true
 }
 
 /** The player opened About & what's new for this version. */

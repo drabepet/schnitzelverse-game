@@ -54,6 +54,13 @@ export const TIERS: Record<Pillar, Tier[]> = {
       flavor: 'Grandpa asked for “a bit more land”. He got Ganymede.',
       reached: (s) => !!s.upgrades.terraforming,
     },
+    {
+      name: 'Galactic farms',
+      emoji: '🐖',
+      goal: 'Put pigs on whole planets (Pig planets)',
+      flavor: 'Old MacSchnitzel had a galaxy. E-I-E-I-O.',
+      reached: (s) => !!s.upgrades.pigPlanets,
+    },
   ],
   making: [
     { name: 'Garage', emoji: '🏚️', goal: 'Start out', flavor: '', reached: () => true },
@@ -99,6 +106,13 @@ export const TIERS: Record<Pillar, Tier[]> = {
       flavor: 'Astronomers named a nebula after your fryer. It is shaped like a lemon wedge.',
       reached: (s) => kitchenSpeed(s) >= 1_000_000,
     },
+    {
+      name: 'Cosmic kitchen',
+      emoji: '💫',
+      goal: 'Kitchen makes 1 billion schnitzels per second',
+      flavor: 'The kitchen has its own gravity. Small moons orbit the fryer.',
+      reached: (s) => kitchenSpeed(s) >= 1e9,
+    },
   ],
   distribution: [
     { name: 'On foot', emoji: '🚶', goal: 'Start out', flavor: '', reached: () => true },
@@ -143,6 +157,20 @@ export const TIERS: Record<Pillar, Tier[]> = {
       goal: 'Own a crust cruiser or a schnitzel ark',
       flavor: 'Delivery times now quoted in light-minutes.',
       reached: (s) => owns(s, 'cruiser') || owns(s, 'ark'),
+    },
+    {
+      name: 'Warp logistics',
+      emoji: '🌠',
+      goal: 'Own a warp freighter',
+      flavor: 'Delivery times are now quoted in “don’t ask”.',
+      reached: (s) => owns(s, 'warp'),
+    },
+    {
+      name: 'Wormhole network',
+      emoji: '🕳️',
+      goal: 'Open a wormhole gate',
+      flavor: 'Ordered in Andromeda, delivered before you finish saying Andromeda.',
+      reached: (s) => owns(s, 'wormhole'),
     },
   ],
 }

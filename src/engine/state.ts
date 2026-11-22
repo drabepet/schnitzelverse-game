@@ -11,6 +11,8 @@ import {
   VEHICLES,
   WORKERS,
   type FacilityId,
+  type ForkId,
+  type SpendLevel,
   type IngredientId,
   type ItemId,
   type PerkId,
@@ -67,7 +69,16 @@ export interface RunState {
   /** Seconds the player has been broke and unable to cook (Mum's fridge). */
   stuckFor: number
   /** This run only. */
-  run: { earned: Decimal; time: number; served: Decimal; servedCold: Decimal }
+  run: {
+    earned: Decimal
+    time: number
+    served: Decimal
+    servedCold: Decimal
+    /** Family-tree choices already switched this run (one switch per choice per run). */
+    forkSwaps: Partial<Record<ForkId, true>>
+    /** Money each manager spent this run. */
+    managerSpent: Partial<Record<PerkId, number>>
+  }
 }
 
 /**
@@ -83,6 +94,8 @@ export interface GameState extends RunState {
   introSeen: boolean
   /** The newest version whose "What's new" the player has seen ('' = none yet). */
   newsSeen: string
+  /** The finale (reaching the Schnitzelverse) has been shown. */
+  finaleSeen: boolean
   /** Crispness: unlocked once (for good), fryer temperature and oil changes. */
   crisp: { unlocked: boolean; temperature: number; oil: number }
   /** Auntie's shopping list: restock up to `target`, never spending below `reserve`. */
@@ -104,6 +117,12 @@ export interface GameState extends RunState {
   history: { clock: number; earned: Decimal; points: HistoryPoint[] }
   /** Managers the player switched off (bought managers are on by default). */
   managersOff: Partial<Record<PerkId, true>>
+  /** How boldly each manager spends (default Normal). */
+  managerSpend: Partial<Record<PerkId, SpendLevel>>
+  /** What the managers bought lately, newest last (see automation.ts). */
+  managerLog: ManagerLogEntry[]
+  /** Mum sells the business for you (manager rank 3). Off until the player switches it on. */
+  autoSell: { enabled: boolean; rule: AutoSellRule; minutes: number; spendCrumbs: boolean }
   /** Seconds since the managers last looked around. */
   managerClock: number
   milestones: Record<string, true>
@@ -162,6 +181,21 @@ export const RUNS_LIMIT = 100
 
 export const LOG_LIMIT = 40
 
+/** When Mum sells the business: the sale doubles or triples your lifetime crumbs, or the run has lasted long enough. */
+export type AutoSellRule = 'double' | 'triple' | 'time'
+
+/** One line of the managers' log: a manager's purchases, merged while they keep buying. */
+export interface ManagerLogEntry {
+  /** Play time (s) of the latest purchase in this entry. */
+  t: number
+  who: PerkId
+  /** What was bought: "emoji name" → how many. */
+  items: Record<string, number>
+  /** Money spent. */
+  cost: number
+}
+export const MANAGER_LOG_LIMIT = 40
+
 /** Income history for the Records chart: one point per HISTORY_STEP seconds of play. */
 export const HISTORY_STEP = 60
 export const HISTORY_LENGTH = 480
@@ -200,7 +234,7 @@ export function freshRun(): RunState {
       INGREDIENT_IDS.map((id) => [id, D(SHOP_SUPPLY_RATE * SHOP_SHELF_SECONDS)]),
     ) as Record<IngredientId, Decimal>,
     stuckFor: 0,
-    run: { earned: D(0), time: 0, served: D(0), servedCold: D(0) },
+    run: { earned: D(0), time: 0, served: D(0), servedCold: D(0), forkSwaps: {}, managerSpent: {} },
   }
 }
 
@@ -211,12 +245,16 @@ export function newGame(now = Date.now()): GameState {
     settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto' },
     introSeen: false,
     newsSeen: '',
+    finaleSeen: false,
     knockReadyAt: 0,
     crisp: { unlocked: false, temperature: CRISP_TEMP_BEST, oil: 0 },
     autoBuy: { enabled: true, target: 20, reserve: DEFAULT_AUTO_BUY_RESERVE },
     prestige: { unlocked: false, franchises: 0, crumbs: D(0), totalCrumbs: D(0), bonusCrumbs: D(0), perks: {} },
     history: { clock: 0, earned: D(0), points: [] },
     managersOff: {},
+    managerSpend: {},
+    managerLog: [],
+    autoSell: { enabled: false, rule: 'double', minutes: 120, spendCrumbs: false },
     managerClock: 0,
     milestones: {},
     badges: {},

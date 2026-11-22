@@ -128,6 +128,10 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'recipe25', emoji: '🧙', name: 'Grand Master of the Recipe', goal: 'Get The family recipe to level 25', flavor: 'You can now make a schnitzel by thinking about it very hard.', check: (s) => (s.prestige.perks.familyRecipe ?? 0) >= 25 },
     { id: 'allPerks', emoji: '📚', name: 'Read the Whole Book', goal: 'Own every perk in the recipe book', flavor: 'The last page just says: “Now go and feed someone.”', check: (s) => PERKS.every((p) => (s.prestige.perks[p.id] ?? 0) > 0) },
     { id: 'allManagers', emoji: '🗂️', name: 'Middle Management', goal: 'Promote every manager', flavor: 'The family now holds meetings about meetings. With schnitzel.', check: (s) => PERKS.filter((p) => p.manager).every((p) => (s.prestige.perks[p.id] ?? 0) > 0) },
+    { id: 'firstFork', emoji: '🍴', name: 'A Fork in the Road', goal: 'Pick a side in the family tree', flavor: 'Thin or thick, pigs or wheat. There is no wrong answer. (There is. Grandma knows.)', check: (s) => PERKS.some((p) => p.fork && (s.prestige.perks[p.id] ?? 0) > 0) },
+    { id: 'forkSwap', emoji: '🔄', name: 'Changed My Mind', goal: 'Switch a choice in the family tree', flavor: 'Grandma pretends not to notice. She noticed.', check: (s) => Object.keys(s.run.forkSwaps ?? {}).length > 0 },
+    { id: 'capstone1', emoji: '🌳', name: 'Top of the Tree', goal: 'Get a capstone in the family tree', flavor: 'The whole branch, done. The family is unbearably proud.', check: (s) => PERKS.some((p) => p.capstone && (s.prestige.perks[p.id] ?? 0) > 0) },
+    { id: 'capstonesAll', emoji: '🏡', name: 'The Whole Family Tree', goal: 'Get all five capstones', flavor: 'Grandma’s lard, Uncle’s shed, Mum’s statue, Grandpa’s empire, the kid’s starships. Christmas will be unbearable.', check: (s) => PERKS.filter((p) => p.capstone).every((p) => (s.prestige.perks[p.id] ?? 0) > 0) },
     { id: 'crumbMiser', emoji: '🐉', name: 'Scrooge McCrumb', goal: 'Secret', flavor: 'A thousand Golden Crumbs unspent in your pocket. They’re not for spending. They’re for looking at.', secret: true, check: (s) => s.prestige.crumbs.gte(1e3) },
   ]),
 
@@ -169,6 +173,30 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'rocket100', emoji: '🎆', name: 'Fireworks Lunch', goal: 'Own 100 schnitzel rockets', flavor: 'Every launch looks like New Year’s Eve. Every landing smells like Sunday.', check: vehicles('rocket', 100) },
     { id: 'ark10', emoji: '🚢', name: 'Armada of Abundance', goal: 'Own 10 schnitzel arks', flavor: 'Ten arks. Not a single animal on board. Just schnitzel.', check: vehicles('ark', 10) },
     { id: 'bestSolar', emoji: '🪐', name: 'Hello From the Other Side (of the Sun)', goal: 'Have reached the whole Solar System at least once', flavor: 'The Sun is the only thing hotter than your fryer. For now.', check: (s) => s.stats.bestPlace >= REGIONS.findIndex((r) => r.id === 'solar') },
+  ]),
+
+  // ------------------------------------------------------------ beyond (Chapter 5)
+  ...cat('beyond', [
+    { id: 'placeNextStar', emoji: '⭐', name: 'Neighbourly Light Years', goal: 'Deliver to the next-door star', flavor: 'Four light years for a schnitzel. Still hot. Still worth it.', check: place('nextStar') },
+    { id: 'placeCluster', emoji: '✨', name: 'Star Struck', goal: 'Deliver to your star cluster', flavor: 'A few hundred suns, one golden crust.', check: place('cluster') },
+    { id: 'placeMilkyWay', emoji: '🌀', name: 'Milky Way, Extra Crispy', goal: 'Deliver to the whole Milky Way', flavor: 'The galaxy was named after milk. It should have waited for you.', check: place('milkyWay') },
+    { id: 'placeNextGalaxy', emoji: '🌫️', name: 'The Andromeda Strain (Breaded)', goal: 'Deliver to the next galaxy over', flavor: 'Highly contagious. Symptoms: craving crust.', check: place('nextGalaxy') },
+    { id: 'placeLocalGroup', emoji: '🫧', name: 'Group Hug', goal: 'Deliver to the Local Group', flavor: 'Fifty galaxies, one big family lunch.', check: place('localGroup') },
+    { id: 'placeUniverse', emoji: '🌌', name: 'Universal Lunch Break', goal: 'Deliver to the whole universe', flavor: 'Everywhere there is anything, there is now schnitzel.', check: place('universe') },
+    { id: 'placeSchnitzelverse', emoji: '🍋', name: 'The End (of the Pan)', goal: 'Deliver to the Schnitzelverse', flavor: 'Thin. Golden. Never soggy. Everywhere. Grandma was right all along.', check: place('schnitzelverse') },
+    { id: 'warp1', emoji: '🌠', name: 'Warp Factor Lunch', goal: 'Buy a warp freighter', flavor: 'Engage. (The schnitzel, not the engines. Well, both.)', check: vehicles('warp', 1) },
+    { id: 'warp100', emoji: '🚀', name: 'Warp Armada', goal: 'Own 100 warp freighters', flavor: 'Space bends around your delivery route out of respect.', check: vehicles('warp', 100) },
+    { id: 'wormhole1', emoji: '🕳️', name: 'Down the Wormhole', goal: 'Open a wormhole gate', flavor: 'In one side in the garage, out the other side in another galaxy. Still sizzling.', check: vehicles('wormhole', 1) },
+    { id: 'wormhole25', emoji: '🧀', name: 'Swiss Cheese Spacetime', goal: 'Own 25 wormhole gates', flavor: 'Physicists say spacetime now has more holes than it should. They’re eating while they say it.', check: vehicles('wormhole', 25) },
+    { id: 'stasis', emoji: '🧊', name: 'Frozen in Time, Still Sizzling', goal: 'Get stasis crates', flavor: 'Fried today, eaten in a thousand years, still too hot to touch.', check: (s) => !!s.upgrades.stasisCrates },
+    { id: 'cosmicCrew', emoji: '💥', name: 'The Kitchen at the End of the Universe', goal: 'Own all three Chapter 5 kitchen crews in one run', flavor: 'A black hole pounds, a galaxy breads, supernovas fry. Grandma supervises.', check: (s) => !!s.upgrades.singularityTenderizer && !!s.upgrades.crumbGalaxy && !!s.upgrades.supernovaFryers },
+    { id: 'michelin', emoji: '⭐', name: 'Starred Review', goal: 'Earn three Michelin stars (actual stars)', flavor: 'The inspector cried. Then asked for seconds. Then for the recipe. No.', check: (s) => !!s.upgrades.michelinStars },
+    { id: 'warpContractsMax', emoji: '📝', name: 'Signed, Sealed, Warped', goal: 'Get Warp contracts to the top level', flavor: 'Three warp freighters waiting at the garage every morning. The neighbours have complained about the parking.', check: (s) => (s.prestige.perks.warpContracts ?? 0) >= 3 },
+    { id: 'speedMilkyWay', emoji: '🏎️', name: 'Galactic Speedrun', goal: 'Reach the whole Milky Way within 2 hours of a run', flavor: 'From an empty garage to four hundred billion stars before lunch.', check: speedrun('milkyWay', 120) },
+    { id: 'speedUniverse', emoji: '⏱️', name: 'The Universe in a Lunch Break', goal: 'Reach the whole universe within 2 hours of a run', flavor: 'Big Bang to big lunch in two hours flat.', check: speedrun('universe', 120) },
+    { id: 'gearSchnitzelverse', emoji: '👴', name: 'Grandpa of Everything', goal: 'Own a piece of Schnitzelverse farm gear', flavor: 'Grandpa now has a farm in every universe. He still wears the same hat.', check: (s) => farmGear().some((u) => u.requires?.place === 'schnitzelverse' && s.upgrades[u.id]) },
+    { id: 'bestSchnitzelverse', emoji: '🏁', name: 'Been There, Fried That', goal: 'Have reached the Schnitzelverse at least once', flavor: 'You fed everything. Everything says thank you. Everything wants seconds.', check: (s) => s.stats.bestPlace >= REGIONS.findIndex((r) => r.id === 'schnitzelverse') },
+    { id: 'fiveChapters', emoji: '📚', name: 'The Whole Story', goal: 'Reach Chapter 5', flavor: 'A garage, a farm, a road, the stars, and then everything else.', check: (s) => !!s.milestones.solar || s.regions.solar.unlocked },
   ]),
 
   // ------------------------------------------------------------ shame

@@ -18,6 +18,7 @@ import { StatusSidebar } from './ui/StatusSidebar'
 import { QualityPanel } from './ui/QualityPanel'
 import { RecordsTop } from './ui/RecordsTop'
 import { IntroDialog } from './ui/IntroDialog'
+import { FinaleDialog } from './ui/FinaleDialog'
 import { TabBar, visibleTabs, type TabId } from './ui/Tabs'
 import { chapter2Unlocked } from './engine/rules'
 import { useGame } from './game/store'
@@ -120,6 +121,7 @@ export default function App() {
       <BadgeToasts />
       <OfflineDialog />
       <IntroDialog />
+      <FinaleDialog />
     </div>
   )
 }

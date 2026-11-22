@@ -307,7 +307,7 @@ interface FranchiseProfile {
 }
 
 /** Places whose first arrival the summary reports. */
-const PLACES = ['nextTown', 'city', 'region', 'country', 'continent', 'planet', 'orbit', 'moon', 'mars', 'belt', 'jupiter', 'solar'] as const
+const PLACES = REGIONS.slice(REGIONS.findIndex((r) => r.id === 'nextTown')).map((r) => r.id)
 
 export function runFranchises(p: FranchiseProfile): void {
   farmEnabled = !p.noFarm

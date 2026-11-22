@@ -43,6 +43,15 @@ Challenges: Lent (no meat), Oil Crisis, Health Inspector Week, Breadcrumb Shorta
 - Golden Crumbs come from **lifetime earnings**: you are worth **floor(√(lifetime money earned / 2,500))** crumbs in total, and selling pays out the ones you haven't collected yet (the Cookie Clicker model). Resetting early gives nothing extra; the way to more crumbs is earning faster: better perks and going deeper (the next town, the city).
 - Resets money, reputation, stock, helpers, equipment and places. Keeps crumbs, perks, settings, statistics and the story log.
 - The **recipe book** (collapsed by default, opens after you sell) has 11 perks: price, orders, kitchen speed, clicks, pack size, cooling, reputation, plus start-of-run bonuses (money, helpers, Auntie's list, pre-unlocked places). Start-of-run perks also apply the moment you buy them.
+- **The family tree** (replaces the flat recipe book and manager list): one branch per family member, each a vertical column (`BRANCHES` in content.ts, `FamilyTree.tsx`). The manager (that person's promotion) sits on top and needs nothing; below it the perks, row by row, each needing levels in the ones above (`TREE_REQUIRES`). Two cross-links join branches: Crisp master needs Green thumb, the statue needs the family recipe.
+  - 👵 Grandma, the kitchen: recipe → loyal family / fast hands → better everything → crisp master → pick one: thin and fast (kitchen ×1.2/level) or thick and golden (prices ×1.15/level) → capstone: Grandma's lard secret (prices ×2.5).
+  - 🔨 Uncle, stores and money: head start → Auntie remembers / night shift → bulk contracts → pick one: Uncle stays in the kitchen (kitchen ×1.15) or takes the van (helper delivery ×1.3, fleet ×1.1) → capstone: Uncle's workshop (kitchen ×2, shop ×3).
+  - 👩 Mum, fame and places: word of mouth → local legend → old connections → pick one: gossip queen (orders ×1.2) or darling of the press (reputation ×1.3) → capstone: a statue in the town square (reputation ×3, orders ×1.5).
+  - 👴 Grandpa, the farm (Chapter 2): farm deeds → green thumb → pick one: pig farmer (animals ×1.3) or crop farmer (fields ×1.3), both processing ×1.1 → capstone: the farm empire (farm ×3).
+  - 🚲 The kid, deliveries: thermos → fleet contracts / logistics degree → pick one: speed demon (cooling ×0.8) or heavy hauler (fleet ×1.2) → launch contracts → warp contracts → capstone: the galactic courier (fleet ×3, cooling ÷2).
+  - **Pick one:** both sides cost the same (5 levels); owning one blocks the other. You can switch once per choice per run (`swapFork`), levels carried over, so a choice is a plan for the run, not a trap.
+  - **Chapter caps:** endless perks top out at 10 / 20 / 40 / 75 / 150 levels in chapters 1–5 (`CHAPTER_CAPS`), far beyond normal play (the bot has ~25 at 64 h, ~41 at 14 days); only a wall against grinding one chapter forever.
+  - Perks bought before the tree keep their levels; you just can't level them further until their prerequisites are met. Badges: A Fork in the Road, Changed My Mind, Top of the Tree, The Whole Family Tree.
 - Auntie's shopping list keeps a cash reserve ($25 by default) so a fresh run can still hire; if an ingredient runs out completely she buys one pack anyway.
 - **The next town over** needs 1 franchise; **the city** needs 3.
 
@@ -137,6 +146,13 @@ The family runs the business; the staff does the work. Helpers and farm building
 
 Buying: ×1 / ×10 / Max for helpers, farm buildings and vehicles (one shared setting).
 
+### Ranks, the dial, the log and Mum's sale
+
+- **Ranks:** every manager is a perk with 3 levels at the top of their family-tree branch: 1 On the job, 2 Old hand, 3 Runs the show. Each rank costs 1,000× the one before (Grandma 2 → 2,000 → 2M crumbs; the kid 40 → 40K → 40M). Rank 2: Grandma, Grandpa and the kid buy ten at a time when that's still cheap enough; Uncle buys the biggest piece he can afford first (not the cheapest); Mum asks the others to save for a place up to 15 minutes away (not 5). Rank 2 also opens the Bold setting, rank 3 All in. Rank 3 Mum can sell the business (below).
+- **How boldly** (a dial per manager): Careful ×0.5, Normal ×1, Bold ×2.5 (rank 2), All in ×5 (rank 3) of their usual share of your money per purchase, at most 90% (`spendShare`).
+- **The family at work** (Franchise tab, under the tree): a card per manager with rank, on/off, what they're doing now, money spent this run, their last three purchases and the dial. Purchases are logged by comparing what the business owns before and after each manager's turn, merged while they keep buying (`managerLog`, last 40). The sidebar's rotating box shows the newest manager purchase (from the last 3 minutes) every other turn with the badge jokes.
+- **Mum sells the business** (rank 3, **off by default**): a switch with a rule (the sale doubles / triples your lifetime crumbs, or after N minutes of a run) and an option for Auntie to spend the crumbs on the cheapest perks right after, never on a pick-one choice (`autoSell`).
+
 ## Crispness (built)
 
 Unlocks for good the first time you reach the next town. Prices × (1 + crispness), reputation × (1 + crispness / 4).
@@ -170,6 +186,32 @@ Space pays far more per schnitzel than Earth (orbit $30 → Solar System $3K): t
 
 Vehicles: 🚀 Schnitzel rocket (2K/s, Moon range, $1B), 🛸 Crust cruiser (12K/s, to Jupiter, $50B), 🌌 Schnitzel ark (80K/s, whole system, $2T). Space freshness uses each vehicle's own `freshKm`.
 Upgrades: Zero-g fryer (kitchen ×3), Hydroponic domes (farm ×3), Teleport pantry (shop packs ×10), Orbital sun mirrors (fields ×3), Cutlet cloning vats (animals ×3), Matter replicators (processing ×3), Terraforming (farm ×5, new promotion "Terraformed worlds"), Space elevator (fleet ×2), Billboard on the Moon (orders ×2), Cosmic crumbs (crisp +0.5), Dyson fryer (kitchen ×5). Perk: Launch contracts. New promotions: Space farms, Orbital kitchen (20K/s), Space program, Interplanetary.
+
+## Chapter 5: the Schnitzelverse (built)
+
+Starts for good the first time you reach the whole Solar System (`CHAPTER5_REGION`). The places echo Chapter 1 at cosmic size and the game ends at the last one (`FINAL_REGION`): there is no second reset layer.
+
+| Place | Distance | Orders/s | Price | Cost | ⭐ | Echoes |
+|---|---|---|---|---|---|---|
+| ⭐ The next-door star | 4.2 ly | 25M | $10K | $12Qi | 1.5Qi | the neighbours |
+| ✨ Your star cluster | 50 ly | 80M | $30K | $240Qi | 30Qi | your street |
+| 🌀 The whole Milky Way | 100,000 ly | 250M | $100K | $4Sx | 500Qi | the whole town |
+| 🌫️ The next galaxy over | 2.5M ly | 800M | $300K | $21Sx | 2.6Sx | the next town over |
+| 🫧 The Local Group | 10M ly | 2.5B | $1M | $800Sx | 100Sx | the city |
+| 🌌 The whole universe | 46B ly | 8B | $3M | $7.2Sp | 900Sx | the whole planet |
+| 🍋 The Schnitzelverse | everywhere at once | 25B | $10M | $20Sp | 2.5Sp | the finale |
+
+The Solar System got cheaper with it ($4Qi, 500Qa ⭐; was $60Qi, 8Qi ⭐), so it arrives at about 2¼ days instead of never in the bot's 64 hours.
+
+- **Vehicles** (`deep`: only in Chapter 5): 🌠 Warp freighter (1M/s, reaches the Milky Way, $500Qa; arrives cold past the nearby stars without stasis crates), 🕳️ Wormhole gate (30M/s, any distance, no cooling, $1Sx). Perk: Warp contracts (start runs with warp freighters, up to 3).
+- **Equipment:** stasis crates (cooling ÷100), warp coils (fleet ×3), a constellation shaped like a schnitzel (orders ×3), pig planets / wheat worlds / nebula mills (farm groups ×5), quantum crunch (crisp +0.3), neutron star fryer (kitchen ×5), your face in the night sky (reputation ×3), three Michelin stars (prices ×2), the intergalactic grocer (shop ×1.5, renames the shop “Horáková’s universe”). A fifth kitchen crew on every step (singularity tenderizer, crumb galaxy, supernova fryers), and a farm-gear rung per building at every new place (56 pieces).
+- **Promotions:** Galactic farms, Cosmic kitchen (1B/s), Warp logistics, Wormhole network.
+- **Badges:** a new section, The Schnitzelverse (20 badges: every place, the vehicles, the crews, speedruns, the final one). Place and promotion badges add +3% like the space ones.
+- **Finale:** reaching the Schnitzelverse shows a closing screen once (`finaleSeen`): the story's ending, your numbers, credits for the family, then “Keep frying”: the game goes on with badges, perks and records.
+- **Display:** numbers get suffixes up to Vg (1e63) before going scientific; far distances are in light years.
+- **Sidebar:** when the next place is more than 3 hours away and a sale would pay at least a quarter of your lifetime crumbs, it suggests franchising instead of waiting.
+
+Bot (sells when crumbs double, 2 h runs, `PLAYTEST_HOURS=340 PLAYTEST_IDLE_STEP=4`): Solar System 2d 5h, next-door star 3d 13h, star cluster 4d 9h, Milky Way 5d 23h, next galaxy 8d 7h, Local Group 9d 9h, universe 11d 17h, the Schnitzelverse 12d 23h.
 
 ## Interface
 
@@ -221,3 +263,4 @@ The tabs follow the game's own loop: **prep → making → distribution**, then 
 - [ ] **M6 Cuisine layer** and challenges
 - [ ] **M7 Schnitzel OS** scripting
 - [x] **M8 Space (Chapter 4)**: six space places, three space vehicles, six upgrades
+- [x] **M9 The Schnitzelverse (Chapter 5)**: seven places to the end of everything, warp freighters and wormhole gates, stasis crates, 56 farm-gear rungs, a fifth kitchen crew, 20 badges, the finale

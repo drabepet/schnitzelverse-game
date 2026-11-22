@@ -803,6 +803,21 @@ input[type='number'] {
 }
 .sb-progress > span:last-child {
   text-align: right;
+  white-space: nowrap;
+}
+.sb-progress {
+  grid-template-columns: 1.2em 1fr 4.2em;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.4rem;
+}
+/* The requirement that holds you back. */
+.sb-progress.slowest {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+  font-weight: 700;
+}
+.sb-progress.slowest .mini-bar > div {
+  background: var(--warn);
 }
 
 /* ---------- business dashboard */
@@ -959,6 +974,15 @@ input[type='number'] {
   line-height: 1.4;
   white-space: normal;
   text-align: left;
+}
+.sb-sell-hint {
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .sb-chatter {
   font-size: 0.8rem;
@@ -2580,6 +2604,9 @@ button.about-close:hover {
 .zone-3 {
   --zone: #9b6bd6;
 }
+.zone-4 {
+  --zone: #d64f8f;
+}
 .swatch[class*='zone-'] {
   background: var(--zone);
 }
@@ -2723,4 +2750,393 @@ button.about-close:hover {
   border-radius: 0.7rem;
   background: var(--panel-2);
   border: 1px solid var(--border);
+}
+
+/* ---------- Finale: reaching the Schnitzelverse */
+
+.finale-hero {
+  background:
+    radial-gradient(circle at 80% 20%, rgb(255 255 255 / 20%), transparent 40%),
+    radial-gradient(circle at 15% 80%, rgb(255 220 120 / 25%), transparent 45%),
+    linear-gradient(135deg, #3a1f6b, #7a2f6b 45%, #d9541e 80%, #e3a33a);
+}
+.finale-story p {
+  margin: 0 0 0.6rem;
+  line-height: 1.55;
+}
+.finale-story blockquote {
+  margin: 0.2rem 0 0;
+  padding: 0.5rem 0.9rem;
+  border-left: 4px solid var(--accent);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: var(--panel);
+  font-size: 1.2rem;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--accent-2);
+}
+.finale-numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.7rem;
+}
+.finale-numbers > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.8rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.finale-numbers b {
+  font-size: 1.3rem;
+}
+.finale-credits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.4rem 1.2rem;
+}
+.finale-credits li {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+/* ---------- Franchise: the family tree (a grid: a column per family member, a row per step) */
+
+.family-tree-scroll {
+  overflow-x: auto;
+  margin-top: 0.6rem;
+  padding-bottom: 0.3rem;
+}
+.family-tree {
+  display: grid;
+  gap: 1.1rem 0.6rem;
+  align-items: stretch;
+  min-width: 60rem;
+}
+.tree-branch-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: 0.8rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.tree-branch-head > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.tree-branch-emoji {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.2rem;
+  border-radius: 0.6rem;
+  background: var(--tile);
+}
+.tree-branch-count {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tree-row-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 5.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--accent-2);
+}
+.tree-row-num {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  color: var(--accent-text);
+  background: var(--accent);
+}
+.tree-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+/* The trunk: a line up to the step above in the same column. */
+.tree-cell.linked::before {
+  content: '';
+  position: absolute;
+  top: -1.1rem;
+  left: 50%;
+  height: 1.1rem;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.tree-cell.fork {
+  padding: 0.45rem;
+  border: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 0.8rem;
+}
+.tree-cell > .tree-node {
+  flex: 1 1 0;
+}
+.tree-node {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.tree-node-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.tree-node-emoji {
+  font-size: 1.15rem;
+}
+.tree-node-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.tree-node-level {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0.05rem 0.45rem;
+  border-radius: 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--tile);
+  font-variant-numeric: tabular-nums;
+}
+.tree-node-text {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.tree-node-next {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.tree-node-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.tree-node-needs {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--warn);
+}
+/* Buttons sit at the bottom of every card, so they line up across a row. */
+.tree-node-actions {
+  margin-top: auto;
+  padding-top: 0.2rem;
+}
+.tree-node-actions .small-btn,
+.tree-node-actions .hint-btn,
+.tree-node-actions .mgr-chip {
+  width: 100%;
+}
+.tree-node-actions .hint-btn button {
+  width: 100%;
+}
+.tree-node-done {
+  display: block;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--good);
+}
+.tree-node.owned,
+.tree-node.maxed {
+  border-color: color-mix(in srgb, var(--good) 55%, var(--border));
+  background: color-mix(in srgb, var(--good) 8%, var(--panel));
+}
+.tree-node.buyable {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.tree-node.locked,
+.tree-node.hidden {
+  opacity: 0.55;
+}
+.tree-node.hidden .tree-node-name {
+  font-weight: 600;
+}
+.tree-node.other-side {
+  opacity: 0.7;
+  border-style: dashed;
+}
+.tree-node.manager {
+  background: var(--brand-line) top / 100% 3px no-repeat, var(--panel);
+}
+.tree-node.capstone {
+  border: 2px solid #9b6bd6;
+  background: color-mix(in srgb, #9b6bd6 10%, var(--panel));
+}
+.tree-node.capstone.maxed {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #9b6bd6 25%, transparent);
+}
+
+/* Franchise: what all the perks add up to (closed by default) */
+.perk-bonuses {
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--panel-2);
+}
+.perk-bonuses > summary {
+  cursor: pointer;
+  padding: 0.7rem 0.9rem;
+  font-weight: 700;
+}
+.perk-bonuses[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.perk-bonuses > .hint {
+  margin: 0.6rem 0.9rem 0;
+}
+.perk-bonus-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.6rem 1.4rem;
+  padding: 0.6rem 0.9rem 0.9rem;
+  font-size: 0.88rem;
+}
+.perk-bonus-group h4 {
+  margin: 0.3rem 0 0.25rem;
+  font-size: 0.92rem;
+}
+.perk-bonus-group .sb-row b {
+  font-variant-numeric: tabular-nums;
+}
+.perk-bonus-from {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+/* Franchise: the family at work (a card per manager) */
+.family-office {
+  margin-top: 1rem;
+}
+.office-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
+  gap: 0.6rem;
+}
+.office-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--brand-line) top / 100% 3px no-repeat, var(--panel);
+}
+.office-card.off {
+  opacity: 0.7;
+}
+.office-card.not-yet {
+  background: var(--panel-2);
+  border-style: dashed;
+}
+.office-card header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.office-card header > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.office-card header .mgr-chip {
+  margin-left: auto;
+}
+.office-emoji {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 1.2rem;
+  border-radius: 0.6rem;
+  background: var(--tile);
+}
+.office-now {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.office-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.office-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.office-empty {
+  margin: 0;
+}
+.office-dial button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.office-sell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+}
+.office-sell p {
+  margin: 0;
+}
+.office-minutes input {
+  width: 5rem;
+}
+.office-sell .setting-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+}
+.office-card .buy-amount {
+  flex-wrap: wrap;
+}
+.office-card .buy-amount button {
+  flex: 1 1 auto;
 }

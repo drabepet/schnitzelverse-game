@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
 import { BADGE_BY_ID } from '../engine/badges'
+import { PERKS } from '../engine/content'
+import { describeManagerItems } from '../engine/automation'
+import { fmtMoney, fmtTime } from '../engine/format'
 import { useGame } from '../game/store'
 
 /** Seconds each badge stays in the sidebar. */
 const EVERY = 10
 /** A log line newer than this (seconds of play) is shown first, so news isn't missed. */
 const FRESH = 12
+/** Family news: what a manager bought in the last few minutes takes every other turn with the badges. */
+const NEWS = 180
 
 /**
  * The bottom of the sidebar: the joke from one of your badges, a different
@@ -27,6 +32,22 @@ export function BadgeQuote() {
       <div className="sb-section sb-detail sb-chatter" title="Garage chatter: see Records">
         💬 {latest.text}
       </div>
+    )
+  }
+  // Every other turn: the latest thing a manager bought, if it's recent.
+  const news = [...state.managerLog].reverse().find((e) => state.stats.playtime - e.t < NEWS)
+  if (news && (pick % 2 === 1 || !earned.length)) {
+    const who = PERKS.find((p) => p.id === news.who)!
+    return (
+      <button className="sb-section sb-detail sb-quote" onClick={() => setPick((p) => p + 1)} title="Family news: what the managers did lately. Click for a badge.">
+        <span className="sb-quote-head">
+          <span aria-hidden>{who.emoji}</span> {who.name}
+        </span>
+        <span className="sb-quote-text">
+          {describeManagerItems(news.items)}
+          {news.cost > 0 ? ` for ${fmtMoney(news.cost)}` : ''} · {fmtTime(Math.max(0, state.stats.playtime - news.t))} ago
+        </span>
+      </button>
     )
   }
   if (!earned.length) return null

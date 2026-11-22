@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { REGIONS } from '../engine/content'
 import { BADGE_BY_ID, BADGES } from '../engine/badges'
 import { fmtCompact, fmtTime } from '../engine/format'
@@ -12,15 +12,17 @@ const placeIndex = (id: string) => REGIONS.findIndex((r) => r.id === id)
 const TOWN = placeIndex('town')
 const COUNTRY = placeIndex('country')
 const PLANET = placeIndex('planet')
+const SOLAR = placeIndex('solar')
 
 /** Which stretch of the map a place is in, for colouring the run history. */
 function zone(place: number): { id: number; name: string } {
   if (place <= TOWN) return { id: 0, name: 'Up to the town' }
   if (place <= COUNTRY) return { id: 1, name: 'Up to the country' }
   if (place <= PLANET) return { id: 2, name: 'Up to the planet' }
-  return { id: 3, name: 'The stars' }
+  if (place <= SOLAR) return { id: 3, name: 'The stars' }
+  return { id: 4, name: 'The Schnitzelverse' }
 }
-const ZONES = [0, TOWN + 1, COUNTRY + 1, PLANET + 1].map(zone)
+const ZONES = [0, TOWN + 1, COUNTRY + 1, PLANET + 1, SOLAR + 1].map(zone)
 
 const placeName = (i: number) => `${REGIONS[i].emoji} ${REGIONS[i].name}`
 
@@ -253,6 +255,13 @@ const STORY: { badge: string; text: string; emoji: string }[] = [
   { badge: 'placeBelt', emoji: '🪨', text: 'The asteroid belt' },
   { badge: 'placeJupiter', emoji: '🟠', text: 'Jupiter’s moons' },
   { badge: 'placeSolar', emoji: '☀️', text: 'The whole Solar System' },
+  { badge: 'placeNextStar', emoji: '⭐', text: 'The next-door star' },
+  { badge: 'placeCluster', emoji: '✨', text: 'Your star cluster' },
+  { badge: 'placeMilkyWay', emoji: '🌀', text: 'The Milky Way' },
+  { badge: 'placeNextGalaxy', emoji: '🌫️', text: 'The next galaxy' },
+  { badge: 'placeLocalGroup', emoji: '🫧', text: 'The Local Group' },
+  { badge: 'placeUniverse', emoji: '🌌', text: 'The whole universe' },
+  { badge: 'placeSchnitzelverse', emoji: '🍋', text: 'The Schnitzelverse' },
 ]
 
 /** When you first got to each big step (from the badges' timestamps), and what's still ahead. */
@@ -260,6 +269,13 @@ function Journey() {
   const { state: s } = useGame()
   const next = STORY.findIndex((m) => s.badges[m.badge] === undefined)
   const done = next === -1 ? STORY.length : next
+  // The timeline is wider than most screens: start with the latest step in view.
+  const list = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    const el = list.current
+    const item = el?.children[Math.max(0, (next === -1 ? STORY.length : next) - 1)] as HTMLElement | undefined
+    if (el && item) el.scrollLeft = Math.max(0, item.offsetLeft - el.clientWidth / 2 + item.clientWidth)
+  }, [next])
   return (
     <section className="panel journey">
       <div className="journey-head">
@@ -268,7 +284,7 @@ function Journey() {
           {done} of {STORY.length} · hours of play when you first got there
         </span>
       </div>
-      <ol>
+      <ol ref={list}>
         {STORY.map((m, i) => {
           const at = s.badges[m.badge]
           const state = at !== undefined ? 'done' : i === next ? 'next' : 'later'

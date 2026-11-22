@@ -87,6 +87,7 @@ describe('the fleet', () => {
     s.prestige.crumbs = D(1000)
     expect(buyPerk(s, 'fleetContracts')).toBe(false) // hidden before Chapter 3
     s.prestige.franchises = CHAPTER3_FRANCHISES
+    s.prestige.perks.thermos = 1 // its prerequisite in the family tree
     expect(buyPerk(s, 'fleetContracts')).toBe(true)
     expect(s.vehicles.plane).toBe(1)
   })

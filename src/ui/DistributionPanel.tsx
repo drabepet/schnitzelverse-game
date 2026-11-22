@@ -1,7 +1,7 @@
 import { KNOCK_COOLDOWN, REGIONS } from '../engine/content'
 import { fmt, fmtInt, fmtKm, fmtMoney } from '../engine/format'
 import { canKnock, canUnlockRegion, clickDeliver, knockOnDoors, knockWait, unlockRegion } from '../engine/actions'
-import { canReach, getMods, helperReaches, orderCap, orderRate, regionPrice } from '../engine/rules'
+import { canReach, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, regionPrice } from '../engine/rules'
 import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
@@ -151,7 +151,9 @@ export function DistributionPanel() {
                   : firstReason(
                       needRequirement(s, { franchises: next.requiresFranchises, reputation: next.unlockReputation }),
                       needMoney(s, next.unlockCost, game.rates.income),
-                      next.space && 'Space places open once you have reached the whole planet.',
+                      next.deep
+                        ? 'Places beyond the Solar System open once you have reached the whole Solar System.'
+                        : next.space && 'Space places open once you have reached the whole planet.',
                     )
               }
               onClick={() => game.act((st) => unlockRegion(st, next.id))}
@@ -162,7 +164,12 @@ export function DistributionPanel() {
         )}
       </ul>
 
-      {hidden > 0 && <p className="hint">…and {hidden} more places hungry for schnitzel. Then the world. Then the stars.</p>}
+      {hidden > 0 && (
+        <p className="hint">
+          …and {hidden} more places hungry for schnitzel.{' '}
+          {chapter5Unlocked(s) ? 'All the way to the edge of everything.' : chapter4Unlocked(s) ? 'Then the Sun. Then further.' : 'Then the world. Then the stars.'}
+        </p>
+      )}
     </section>
   )
 }

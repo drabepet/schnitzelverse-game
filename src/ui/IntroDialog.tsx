@@ -73,6 +73,7 @@ const JOURNEY: { emoji: string; chapter: string; text: string }[] = [
   { emoji: '🚜', chapter: 'Chapter 2 · Grandpa’s farm', text: 'Grow your own pigs, wheat, eggs and sunflowers.' },
   { emoji: '🚚', chapter: 'Chapter 3 · On the road', text: 'Vans, trains and planes: the country, then the planet.' },
   { emoji: '🚀', chapter: 'Chapter 4 · The stars', text: 'Orbit, the Moon, Mars… Grandma says the stars look hungry.' },
+  { emoji: '🍋', chapter: 'Chapter 5 · The Schnitzelverse', text: 'Beyond the Sun. Grandma won’t say more.' },
 ]
 
 /** The welcome page: a little story, where it all goes, how it works, and how to start. */

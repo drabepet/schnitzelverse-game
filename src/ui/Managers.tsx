@@ -4,7 +4,7 @@ import { perkLevel } from '../engine/rules'
 import { useGame } from '../game/store'
 
 /** On/off chips for the managers you own, and what they are saving for. */
-export function ManagerToggles({ compact = false }: { compact?: boolean }) {
+export function ManagerToggles({ compact = false, statusOnly = false }: { compact?: boolean; statusOnly?: boolean }) {
   const game = useGame()
   const s = game.state
   const owned = MANAGERS.filter((m) => perkLevel(s, m.id) > 0)
@@ -14,24 +14,26 @@ export function ManagerToggles({ compact = false }: { compact?: boolean }) {
   const farm = managerActive(s, 'farmManager') && !saving ? farmNextStep(s) : null
   return (
     <div className="managers">
-      <div className="manager-chips">
-        {owned.map((m) => {
-          const on = managerActive(s, m.id)
-          return (
-            <button
-              key={m.id}
-              className={`mgr-chip ${on ? 'on' : ''}`}
-              aria-pressed={on}
-              title={`${m.name}: ${on ? 'working' : 'off'}. ${m.description}`}
-              onClick={() => game.act((st) => setManager(st, m.id, !on))}
-            >
-              {m.emoji}
-              {!compact && ` ${m.name}`}
-              <span className="mgr-state">{on ? 'on' : 'off'}</span>
-            </button>
-          )
-        })}
-      </div>
+      {!statusOnly && (
+        <div className="manager-chips">
+          {owned.map((m) => {
+            const on = managerActive(s, m.id)
+            return (
+              <button
+                key={m.id}
+                className={`mgr-chip ${on ? 'on' : ''}`}
+                aria-pressed={on}
+                title={`${m.name}: ${on ? 'working' : 'off'}. ${m.description}`}
+                onClick={() => game.act((st) => setManager(st, m.id, !on))}
+              >
+                {m.emoji}
+                {!compact && ` ${m.name}`}
+                <span className="mgr-state">{on ? 'on' : 'off'}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
       {family?.kind === 'wait' && (
         <div className="muted small">
           👵 Grandma is saving for {family.upgrade.emoji} {family.upgrade.name.toLowerCase()} ({fmtMoney(family.remaining)} to

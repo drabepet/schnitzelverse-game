@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.011',
+    date: '22 Nov 2026',
+    emoji: '🍋',
+    title: 'Beyond the Sun',
+    items: [
+      'Chapter 5, the Schnitzelverse: seven new places past the Solar System, from the next-door star to the end of everything.',
+      'Warp freighters, wormhole gates and stasis crates, so schnitzel arrives hot even in another galaxy.',
+      'The Franchise tab is now a family tree: every perk opens the next, pick-one choices and a big capstone per family member.',
+      'Managers have ranks, their own cards with what they bought lately, and Mum can even sell the business for you (only if you switch it on).',
+      'Mrs. Horáková’s shop grows with every place you reach, the Solar System comes sooner, and the sidebar shows what holds you back.',
+    ],
+  },
+  {
     version: '0.010',
     date: '21 Nov 2026',
     emoji: '🏅',

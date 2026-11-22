@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CRUMB_DIVISOR, FRONTIER_CRUMB_SHARE, PERKS, REGIONS } from '../engine/content'
 import { fmt, fmtMoney, fmtTime } from '../engine/format'
-import { buyPerk, franchise } from '../engine/actions'
+import { franchise } from '../engine/actions'
 import {
   atFrontier,
   canBuyPerk,
@@ -12,15 +12,13 @@ import {
   furthestPlace,
   nextCrumbAt,
   pendingCrumbs,
-  perkCost,
-  perkLevel,
-  perkMaxed,
-  perkVisible,
 } from '../engine/rules'
 import { useGame } from '../game/store'
 import { ManagerToggles } from './Managers'
+import { FamilyTree } from './FamilyTree'
+import { PerkBonuses } from './PerkBonuses'
+import { FamilyOffice } from './FamilyOffice'
 import { HintButton } from './HintButton'
-import type { PerkDef } from '../engine/content'
 
 export function FranchisePanel() {
   const game = useGame()
@@ -108,19 +106,18 @@ export function FranchisePanel() {
       </div>
 
       <h3 className="book-title">
-        📜 Recipe book {affordable > 0 && <span className="pill">{affordable} affordable</span>}
+        🌳 The family tree {affordable > 0 && <span className="pill">{affordable} affordable</span>}
       </h3>
-      <p className="hint">Permanent. Perks survive every franchise.</p>
-      <PerkGrid perks={PERKS.filter((perk) => !perk.manager && perkVisible(s, perk))} />
-
-      <h3 className="book-title">🤖 Managers: promote the family</h3>
       <p className="hint">
-        The staff does the work; the family runs the business. Promoted family members do the buying for you, also
-        while you’re away. Each buys only things that cost at most a tenth of your money
-        (equipment: a quarter). Switch them on and off any time.
+        Spend Golden Crumbs here: everything stays through every franchise. Each family member has a branch. At the top, promote them to
+        manager: they do the buying for you, also while you’re away (each spends at most a tenth of your money, equipment a quarter).
+        Below, perks open one another as you level them. Near the bottom of each branch you pick one of two ways (you can switch once per
+        run), and the capstone at the very bottom is the big one. Endless perks top out per chapter, far beyond normal play.
       </p>
-      <ManagerToggles />
-      <PerkGrid perks={PERKS.filter((perk) => perk.manager && perkVisible(s, perk))} />
+      <ManagerToggles statusOnly />
+      <FamilyTree />
+      <FamilyOffice />
+      <PerkBonuses />
 
       {confirming && (
         <div className="overlay" role="dialog" aria-modal="true">
@@ -153,47 +150,5 @@ export function FranchisePanel() {
         </div>
       )}
     </section>
-  )
-}
-
-function PerkGrid({ perks }: { perks: PerkDef[] }) {
-  const game = useGame()
-  const s = game.state
-  return (
-    <ul className="rows perk-grid">
-      {perks.map((perk) => {
-        const level = perkLevel(s, perk.id)
-        const maxed = perkMaxed(s, perk)
-        return (
-          <li key={perk.id} className="row">
-            <span className="emoji">{perk.emoji}</span>
-            <div className="row-main">
-              <div className="row-title">
-                {perk.name}{' '}
-                <span className="count">
-                  {level}
-                  {perk.maxLevel !== undefined ? `/${perk.maxLevel}` : ''}
-                </span>
-              </div>
-              <div className="row-sub">{perk.description}</div>
-            </div>
-            <HintButton
-              whyNot={
-                canBuyPerk(s, perk)
-                  ? null
-                  : maxed
-                    ? perk.manager
-                      ? 'Already hired. Switch them on or off above.'
-                      : 'Maxed out: this perk can’t go higher.'
-                    : `Costs ${fmt(perkCost(s, perk), 0)} ✨: ${fmt(perkCost(s, perk).sub(s.prestige.crumbs), 0)} more Golden Crumbs to go. Sell a franchise to earn them.`
-              }
-              onClick={() => game.act((st) => buyPerk(st, perk.id))}
-            >
-              {maxed ? (perk.manager ? 'Hired' : 'Max') : `${fmt(perkCost(s, perk), 0)} ✨`}
-            </HintButton>
-          </li>
-        )
-      })}
-    </ul>
   )
 }

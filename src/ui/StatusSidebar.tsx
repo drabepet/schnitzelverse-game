@@ -1,7 +1,7 @@
 import { ITEMS } from '../engine/content'
 import { fmt, fmtCompact, fmtInt, fmtTime } from '../engine/format'
 import { D } from '../engine/decimal'
-import { pendingCrumbs } from '../engine/rules'
+import { canFranchise, pendingCrumbs } from '../engine/rules'
 import { useGame } from '../game/store'
 import { flow, ingredients, nextGoal } from './insights'
 import { ManagerToggles } from './Managers'
@@ -15,6 +15,9 @@ import { crispness, perkLevel } from '../engine/rules'
  * it is a sticky column; on narrow ones it collapses to a strip of key figures.
  * (Buttons live in their panels: Restock in the shop, Cook in the kitchen…)
  */
+/** Longer than this to the next place (s), and the sidebar suggests selling. */
+const LONG_WAIT = 3 * 3600
+
 export function StatusSidebar() {
   const game = useGame()
   const s = game.state
@@ -24,6 +27,11 @@ export function StatusSidebar() {
   const showCrumbs = p.unlocked || p.franchises > 0
 
   const hint = guideHint(s)
+  // A long wait for the next place: selling and coming back is usually quicker.
+  const pending = pendingCrumbs(s)
+  const slow = goal && !goal.locked && !(goal.rep >= 1 && goal.money >= 1) && (goal.eta === null || goal.eta > LONG_WAIT)
+  const sellHint =
+    slow && canFranchise(s) && pending.gte(D(p.totalCrumbs).mul(0.25).max(1)) ? `+${fmtCompact(pending.floor())} Golden Crumbs` : null
 
   return (
     <aside className="sidebar" aria-label="Status">
@@ -79,8 +87,8 @@ export function StatusSidebar() {
             <div className="muted small">🔒 Needs {goal.region.requiresFranchises} franchises</div>
           ) : (
             <>
-              <Progress label="⭐" value={goal.rep} />
-              <Progress label="$" value={goal.money} />
+              <Progress label="⭐" value={goal.rep} slowest={goal.slowest === 'rep'} name="Reputation" />
+              <Progress label="$" value={goal.money} slowest={goal.slowest === 'money'} name="Money" />
               <div className="muted small">
                 {goal.rep >= 1 && goal.money >= 1
                   ? 'Ready to expand!'
@@ -88,8 +96,9 @@ export function StatusSidebar() {
                     ? s.stats.served.lt(1)
                       ? 'Cook and deliver to get going'
                       : 'Not getting closer yet'
-                    : `About ${fmtTime(goal.eta)} at this pace`}
+                    : `About ${fmtTime(goal.eta)} at this pace, waiting on ${goal.slowest === 'rep' ? 'reputation' : 'money'}`}
               </div>
+              {sellHint && <div className="sb-sell-hint">✨ Faster: franchise now ({sellHint}) and spend the crumbs. The next run gets here sooner.</div>}
             </>
           )}
         </div>
@@ -119,14 +128,20 @@ function Row({ label, value, limit }: { label: string; value: string; limit?: bo
   )
 }
 
-function Progress({ label, value }: { label: string; value: number }) {
+function Progress({ label, value, slowest, name }: { label: string; value: number; slowest: boolean; name: string }) {
   return (
-    <div className="sb-progress">
+    <div
+      className={`sb-progress${slowest ? ' slowest' : ''}`}
+      title={slowest ? `${name} is what holds you back: it takes the longest to get there.` : `${name}: ${Math.round(value * 100)}% of what the next place needs.`}
+    >
       <span>{label}</span>
       <div className="mini-bar">
         <div style={{ width: `${Math.round(value * 100)}%` }} />
       </div>
-      <span>{Math.round(value * 100)}%</span>
+      <span>
+        {slowest && <span aria-label="holds you back">🐢 </span>}
+        {Math.round(value * 100)}%
+      </span>
     </div>
   )
 }

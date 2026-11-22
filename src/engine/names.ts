@@ -110,8 +110,8 @@ export function facilityLook(state: GameState, id: FacilityId): Look & { origina
 /** Panel titles that grow with the business. */
 export function staffTitle(state: GameState, pillar: 'making' | 'distribution'): string {
   const t = tierLevel(state, pillar)
-  if (pillar === 'making') return t >= 6 ? '🌌 Galactic crew' : t >= 5 ? '🧑‍🚀 Orbital crew' : t >= 4 ? '🤖 Machines' : t >= 2 ? '👷 Kitchen staff' : '👨‍👩‍👧 Family in the kitchen'
-  return t >= 4 ? '🛸 Courier network' : t >= 2 ? '🛵 Couriers' : '🚲 Delivery helpers'
+  if (pillar === 'making') return t >= 7 ? '💫 Cosmic crew' : t >= 6 ? '🌌 Galactic crew' : t >= 5 ? '🧑‍🚀 Orbital crew' : t >= 4 ? '🤖 Machines' : t >= 2 ? '👷 Kitchen staff' : '👨‍👩‍👧 Family in the kitchen'
+  return t >= 7 ? '🌠 Warp couriers' : t >= 4 ? '🛸 Courier network' : t >= 2 ? '🛵 Couriers' : '🚲 Delivery helpers'
 }
 
 /** Mrs. Horáková's shop, as it grows (each look comes with the upgrade that builds it). */
@@ -122,6 +122,7 @@ export const SHOP_LOOKS: Look[] = [
   { from: 0, upgrade: 'groceryChain', name: 'Horáková & Sons grocery chain', emoji: '🏷️', flavor: 'A shop in every town, all of them smelling faintly of rye bread.' },
   { from: 0, upgrade: 'hypermarket', name: 'Horáková orbital hypermarket', emoji: '🛰️', flavor: 'Aisle 7: zero-g breadcrumbs. Please hold on to your trolley.' },
   { from: 0, upgrade: 'galacticGrocer', name: 'Horáková galactic grocer', emoji: '🛸', flavor: 'Same opening hours on every planet. She still closes for lunch.' },
+  { from: 0, upgrade: 'intergalacticGrocer', name: 'Horáková’s universe', emoji: '🌌', flavor: 'A corner shop on every corner of the universe. The cat came too. All of the cats.' },
 ]
 
 /** What the corner shop has grown into. */

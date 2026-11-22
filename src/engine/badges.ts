@@ -16,6 +16,7 @@ export type BadgeCategory =
   | 'farm'
   | 'fleet'
   | 'space'
+  | 'beyond'
   | 'fame'
   | 'shame'
   | 'byHand'
@@ -46,6 +47,7 @@ export const BADGE_CATEGORIES: { id: BadgeCategory; name: string }[] = [
   { id: 'farm', name: 'The farm' },
   { id: 'fleet', name: 'On the road' },
   { id: 'space', name: 'The stars' },
+  { id: 'beyond', name: 'The Schnitzelverse' },
   { id: 'shame', name: 'Hall of shame' },
   { id: 'byHand', name: 'Made by hand' },
   { id: 'collector', name: 'Badge hunter' },
@@ -173,7 +175,7 @@ export const BADGES: BadgeDef[] = [
   { id: 'clicks100', category: 'misc', emoji: '👆', name: 'Clicky Fingers', goal: 'Click 100 times', flavor: 'Your mouse is starting to smell of oil.', check: (s) => s.stats.clicks >= 100 },
   { id: 'clicks1k', category: 'misc', emoji: '🤕', name: 'Repetitive Schnitzel Injury', goal: 'Click 1,000 times', flavor: 'Doctor’s orders: rest the wrist, hire an uncle.', check: (s) => s.stats.clicks >= 1e3 },
   { id: 'clicks10k', category: 'misc', emoji: '🦾', name: 'The Mallet Is Your Hand Now', goal: 'Click 10,000 times', flavor: 'You have become the tenderizer.', check: (s) => s.stats.clicks >= 1e4 },
-  { id: 'allEquipment', category: 'misc', emoji: '🧰', name: 'Fully Equipped', goal: 'Own every Chapter 1 upgrade in one run', flavor: 'The garage now has more gadgets than a spaceship.', check: (s) => UPGRADES.filter((u) => !u.requires?.franchises && !u.space).every((u) => s.upgrades[u.id]) },
+  { id: 'allEquipment', category: 'misc', emoji: '🧰', name: 'Fully Equipped', goal: 'Own every Chapter 1 upgrade in one run', flavor: 'The garage now has more gadgets than a spaceship.', check: (s) => UPGRADES.filter((u) => !u.requires?.franchises && !u.requires?.place && !u.space).every((u) => s.upgrades[u.id]) },
   { id: 'lard', category: 'misc', emoji: '🤫', name: 'Grandma Approves', goal: 'Fry in lard', flavor: '“Finally,” she whispers. “Finally.”', check: (s) => !!s.upgrades.lard },
   { id: 'hour1', category: 'misc', emoji: '⏳', name: 'One More Click', goal: 'Play for 1 hour', flavor: 'Just one more schnitzel and then bed.', check: (s) => s.stats.playtime >= 3600 },
   { id: 'hour10', category: 'misc', emoji: '🌙', name: 'Just Five More Minutes', goal: 'Play for 10 hours', flavor: 'The sun came up. The fryer never went down.', check: (s) => s.stats.playtime >= 36000 },

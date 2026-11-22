@@ -206,3 +206,66 @@ describe('Grandpa and farm equipment', () => {
     expect(s.facilities.pigFarm).toBe(20)
   })
 })
+
+describe('manager ranks, the log and Mum’s sale', () => {
+  it('write down what they buy and what it cost this run', () => {
+    const s = withManagers('familyManager')
+    s.money = D(10_000)
+    runManagers(s, 1)
+    expect(s.managerLog.length).toBe(1)
+    expect(s.managerLog[0].who).toBe('familyManager')
+    expect(Object.values(s.managerLog[0].items).reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
+    expect(s.run.managerSpent.familyManager).toBeGreaterThan(0)
+    // More buying a moment later goes into the same entry.
+    s.money = s.money.add(10_000)
+    runManagers(s, 1)
+    expect(s.managerLog.length).toBe(1)
+  })
+
+  it('spend more boldly only at a high enough rank', async () => {
+    const { setSpendLevel, spendShare } = await import('./automation')
+    const s = withManagers('familyManager')
+    expect(spendShare(s, 'familyManager')).toBeCloseTo(0.1)
+    expect(setSpendLevel(s, 'familyManager', 'bold')).toBe(false)
+    expect(setSpendLevel(s, 'familyManager', 'careful')).toBe(true)
+    expect(spendShare(s, 'familyManager')).toBeCloseTo(0.05)
+    s.prestige.perks.familyManager = 2
+    expect(setSpendLevel(s, 'familyManager', 'bold')).toBe(true)
+    expect(spendShare(s, 'familyManager')).toBeCloseTo(0.25)
+    expect(setSpendLevel(s, 'familyManager', 'allIn')).toBe(false)
+  })
+
+  it('Mum never sells by herself unless you switch it on, and then only at rank 3', async () => {
+    const { setAutoSell } = await import('./actions')
+    const s = withManagers('estateAgent')
+    s.prestige.unlocked = true
+    s.regions.town.unlocked = true
+    s.stats.earned = D(1e9)
+    s.run.earned = D(1e9)
+    expect(s.autoSell.enabled).toBe(false)
+    s.prestige.perks.estateAgent = 3
+    runManagers(s, 1)
+    expect(s.prestige.franchises).toBe(0)
+    setAutoSell(s, { enabled: true, rule: 'double' })
+    runManagers(s, 1)
+    expect(s.prestige.franchises).toBe(1)
+    expect(s.managerLog.some((e) => Object.keys(e.items).some((k) => k.includes('Sold the business')))).toBe(true)
+  })
+
+  it('Auntie spends the crumbs after Mum sells, but never on a pick-one choice', async () => {
+    const { setAutoSell } = await import('./actions')
+    const { PERKS } = await import('./content')
+    const s = withManagers('estateAgent')
+    s.prestige.perks.estateAgent = 3
+    Object.assign(s.prestige.perks, { familyRecipe: 10, betterPans: 10 })
+    s.prestige.unlocked = true
+    s.regions.town.unlocked = true
+    s.stats.earned = D(1e12)
+    s.run.earned = D(1e12)
+    setAutoSell(s, { enabled: true, rule: 'double', spendCrumbs: true })
+    runManagers(s, 1)
+    expect(s.prestige.franchises).toBe(1)
+    expect(s.prestige.perks.headStart).toBeGreaterThan(0)
+    for (const p of PERKS.filter((x) => x.fork)) expect(s.prestige.perks[p.id] ?? 0).toBe(0)
+  })
+})

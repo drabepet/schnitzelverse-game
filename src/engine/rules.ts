@@ -18,6 +18,10 @@ import {
   CHAPTER3_FRANCHISES,
   CHAPTER3_PERKS,
   CHAPTER4_PERKS,
+  CHAPTER5_PERKS,
+  CHAPTER5_REGION,
+  PERK_SOFT_GROWTH,
+  PERK_SOFT_LEVEL,
   CHAPTER4_REGION,
   FRESHNESS_KM_PER_KMH,
   HELPER_RANGE_KM,
@@ -239,8 +243,9 @@ export function stageInputs(state: GameState, stage: StageId): Partial<Record<It
 function modsKey(state: GameState): string {
   let upgrades = 0
   for (const _ in state.upgrades) upgrades++
-  let perks = 0
-  for (const level of Object.values(state.prestige.perks)) perks += level ?? 0
+  // Ids as well as levels: swapping a choice keeps the total the same.
+  let perks = ''
+  for (const [id, level] of Object.entries(state.prestige.perks)) if (level) perks += `${id}${level},`
   let badges = 0
   for (const _ in state.badges) badges++
   const c = state.crisp
@@ -320,11 +325,45 @@ export function perkLevel(state: GameState, id: PerkId): number {
 }
 
 export function perkCost(state: GameState, perk: PerkDef): Decimal {
-  return D(perk.baseCost).mul(D(perk.costGrowth).pow(perkLevel(state, perk.id))).floor()
+  const level = perkLevel(state, perk.id)
+  const cost = D(perk.baseCost).mul(D(perk.costGrowth).pow(level))
+  // Endless perks: past the soft level each step costs PERK_SOFT_GROWTH× more on top.
+  const over = perk.chapterCaps ? Math.max(0, level - PERK_SOFT_LEVEL) : 0
+  return (over > 0 ? cost.mul(D(PERK_SOFT_GROWTH).pow(over)) : cost).floor()
+}
+
+/** The highest level this perk can reach now: its own cap, or the chapter's cap for endless perks. */
+export function perkMaxLevel(state: GameState, perk: PerkDef): number {
+  if (perk.chapterCaps) return perk.chapterCaps[chapterNumber(state) - 1] ?? Infinity
+  return perk.maxLevel ?? Infinity
 }
 
 export function perkMaxed(state: GameState, perk: PerkDef): boolean {
-  return perk.maxLevel !== undefined && perkLevel(state, perk.id) >= perk.maxLevel
+  return perkLevel(state, perk.id) >= perkMaxLevel(state, perk)
+}
+
+/** Prerequisites still missing (perk and level needed). Empty when it can be bought. */
+export function perkMissing(state: GameState, perk: PerkDef): { perk: PerkDef; level: number }[] {
+  return (perk.requires ?? [])
+    .filter((r) => perkLevel(state, r.perk) < r.level)
+    .map((r) => ({ perk: PERKS.find((p) => p.id === r.perk)!, level: r.level }))
+}
+
+/** The other side of a pick-one choice. */
+export function forkPartner(perk: PerkDef): PerkDef | undefined {
+  return perk.fork ? PERKS.find((p) => p.fork === perk.fork && p.id !== perk.id) : undefined
+}
+
+/** You own the other side of this choice. */
+export function forkTaken(state: GameState, perk: PerkDef): boolean {
+  const other = forkPartner(perk)
+  return !!other && perkLevel(state, other.id) > 0
+}
+
+/** Can the player switch this choice to its other side now (once per run per choice)? */
+export function canSwapFork(state: GameState, perk: PerkDef): boolean {
+  const other = forkPartner(perk)
+  return !!perk.fork && !!other && perkLevel(state, perk.id) === 0 && perkLevel(state, other.id) > 0 && !state.run.forkSwaps?.[perk.fork]
 }
 
 /** Chapter 2 and 3 perks stay hidden until their chapter is unlocked. */
@@ -332,12 +371,19 @@ export function perkVisible(state: GameState, perk: PerkDef): boolean {
   if (CHAPTER2_PERKS.includes(perk.id)) return chapter2Unlocked(state)
   if (CHAPTER3_PERKS.includes(perk.id)) return chapter3Unlocked(state)
   if (CHAPTER4_PERKS.includes(perk.id)) return chapter4Unlocked(state)
+  if (CHAPTER5_PERKS.includes(perk.id)) return chapter5Unlocked(state)
   if (perk.id === 'crispMaster') return state.crisp.unlocked
   return true
 }
 
 export function canBuyPerk(state: GameState, perk: PerkDef): boolean {
-  return perkVisible(state, perk) && !perkMaxed(state, perk) && state.prestige.crumbs.gte(perkCost(state, perk))
+  return (
+    perkVisible(state, perk) &&
+    !perkMaxed(state, perk) &&
+    !forkTaken(state, perk) &&
+    perkMissing(state, perk).length === 0 &&
+    state.prestige.crumbs.gte(perkCost(state, perk))
+  )
 }
 
 /** Golden Crumbs a Franchise would give right now. */
@@ -443,14 +489,26 @@ export function chapter4Unlocked(state: GameState): boolean {
   return !!state.milestones[CHAPTER4_REGION] || state.regions[CHAPTER4_REGION].unlocked
 }
 
-/** The chapter you're in: 1 (the garage) to 4 (the stars). */
-export function chapterNumber(state: GameState): 1 | 2 | 3 | 4 {
-  return chapter4Unlocked(state) ? 4 : chapter3Unlocked(state) ? 3 : chapter2Unlocked(state) ? 2 : 1
+/** Chapter 5 (the Schnitzelverse): once you have reached the whole Solar System, for good. */
+export function chapter5Unlocked(state: GameState): boolean {
+  return !!state.milestones[CHAPTER5_REGION] || state.regions[CHAPTER5_REGION].unlocked
 }
 
-/** Space vehicles only show up in Chapter 4. */
+/** The chapter you're in: 1 (the garage) to 5 (the Schnitzelverse). */
+export function chapterNumber(state: GameState): 1 | 2 | 3 | 4 | 5 {
+  return chapter5Unlocked(state) ? 5 : chapter4Unlocked(state) ? 4 : chapter3Unlocked(state) ? 3 : chapter2Unlocked(state) ? 2 : 1
+}
+
+/** Is this place's chapter open (space places in Chapter 4, deep space in Chapter 5)? */
+export function chapterOpenFor(state: GameState, def: { space?: true; deep?: true }): boolean {
+  if (def.deep) return chapter5Unlocked(state)
+  if (def.space) return chapter4Unlocked(state)
+  return true
+}
+
+/** Space vehicles only show up in Chapter 4, deep-space ones in Chapter 5. */
 export function vehicleVisible(state: GameState, def: VehicleDef): boolean {
-  return def.space ? chapter4Unlocked(state) : chapter3Unlocked(state)
+  return def.space ? chapterOpenFor(state, def) : chapter3Unlocked(state)
 }
 
 /** Helpers (and you) carry schnitzel only to nearby places on Earth. */
@@ -655,7 +713,7 @@ export function canHire(state: GameState, def: WorkerDef): boolean {
 
 /** Crispness upgrades stay hidden until crispness is unlocked. */
 export function upgradeVisible(state: GameState, def: UpgradeDef): boolean {
-  return (!def.quality || state.crisp.unlocked) && (!def.space || chapter4Unlocked(state)) && isTeased(state, def.requires)
+  return (!def.quality || state.crisp.unlocked) && chapterOpenFor(state, def) && isTeased(state, def.requires)
 }
 
 /** Not owned yet and everything but the money is in place. */
@@ -663,7 +721,7 @@ export function upgradeUnlocked(state: GameState, def: UpgradeDef): boolean {
   return (
     !state.upgrades[def.id] &&
     (!def.quality || state.crisp.unlocked) &&
-    (!def.space || chapter4Unlocked(state)) &&
+    chapterOpenFor(state, def) &&
     meets(state, def.requires)
   )
 }

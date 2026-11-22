@@ -24,7 +24,8 @@ describe('fmtCompact', () => {
   })
 
   it('goes scientific past the last suffix and when asked', () => {
-    expect(fmtCompact(D('4.2e40'))).toBe('4.20e40')
+    expect(fmtCompact(D('4.2e40'))).toBe('42Dd')
+    expect(fmtCompact(D('4.2e70'))).toBe('4.20e70')
     setNotation('scientific')
     expect(fmtCompact(123_456)).toBe('1.23e5')
     expect(fmtCompact(9.999e5)).toBe('1.00e6')

@@ -124,6 +124,7 @@ describe('perks', () => {
   it('respect max level', () => {
     const s = newGame(0)
     s.prestige.crumbs = D(100)
+    s.prestige.perks.headStart = 1 // Auntie's branch starts with a head start
     expect(buyPerk(s, 'auntieRemembers')).toBe(true)
     expect(buyPerk(s, 'auntieRemembers')).toBe(false)
     expect(s.upgrades.shoppingList).toBe(true)
@@ -132,6 +133,10 @@ describe('perks', () => {
   it('start-of-run perks apply after a franchise', () => {
     const s = readyToFranchise(CRUMB_DIVISOR * 4)
     s.prestige.crumbs = D(100)
+    // Their prerequisites in the family tree.
+    s.prestige.perks.familyRecipe = 1
+    s.prestige.perks.wordOfMouth = 2
+    s.prestige.perks.localLegend = 1
     buyPerk(s, 'headStart')
     buyPerk(s, 'loyalFamily')
     buyPerk(s, 'oldConnections')
@@ -163,9 +168,11 @@ describe('perks', () => {
     expect(s.money.toNumber()).toBe(20 + HEAD_START_BASE * 5)
   })
 
-  it('Loyal family is affordable with the first crumb', () => {
+  it('Loyal family is affordable with the first two crumbs: the recipe, then the family', () => {
     const s = newGame(0)
-    s.prestige.crumbs = D(1)
+    s.prestige.crumbs = D(2)
+    expect(buyPerk(s, 'loyalFamily')).toBe(false)
+    expect(buyPerk(s, 'familyRecipe')).toBe(true)
     expect(buyPerk(s, 'loyalFamily')).toBe(true)
   })
 })

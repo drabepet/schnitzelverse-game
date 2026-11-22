@@ -8,6 +8,9 @@ import {
   QUARTERMASTER_SPEND_SHARE,
   REGIONS,
   SAVE_FOR_PLACE_SECONDS,
+  SAVE_FOR_PLACE_SECONDS_RANK2,
+  SPEND_LEVELS,
+  type SpendLevel,
   STAGE_IDS,
   UPGRADES,
   VEHICLES,
@@ -21,13 +24,17 @@ import {
   type UpgradeDef,
   type WorkerDef,
 } from './content'
-import { buyFacility, buyUpgrade, buyVehicle, canUnlockRegion, hireWorker, unlockRegion } from './actions'
+import { buyFacility, buyPerk, buyUpgrade, buyVehicle, canUnlockRegion, franchise, hireWorker, unlockRegion } from './actions'
 import {
+  canBuyPerk,
   canBuyUpgrade,
+  canFranchise,
+  pendingCrumbs,
+  perkCost,
   canReach,
   chapter2Unlocked,
   chapter3Unlocked,
-  chapter4Unlocked,
+  chapterOpenFor,
   deliveryCapacity,
   facilityCapacity,
   facilityPlan,
@@ -46,14 +53,37 @@ import {
   type Mods,
   facilitySpeed,
 } from './rules'
-import { D, type Decimal } from './decimal'
-import type { GameState } from './state'
+import { D, Decimal } from './decimal'
+import { MANAGER_LOG_LIMIT, type GameState } from './state'
 
 export const MANAGERS = PERKS.filter((p) => p.manager)
 
 /** Bought and switched on. */
 export function managerActive(state: GameState, id: PerkId): boolean {
   return perkLevel(state, id) > 0 && !state.managersOff[id]
+}
+
+/** A manager's rank: 0 (not promoted) to 3. */
+export const managerRank = (state: GameState, id: PerkId): number => perkLevel(state, id)
+
+/** How boldly this manager spends, never above what their rank allows. */
+export function spendLevel(state: GameState, id: PerkId): SpendLevel {
+  const want = state.managerSpend[id] ?? 'normal'
+  const def = SPEND_LEVELS.find((l) => l.id === want)!
+  return def.rank <= managerRank(state, id) ? want : 'normal'
+}
+
+export function setSpendLevel(state: GameState, id: PerkId, level: SpendLevel): boolean {
+  const def = SPEND_LEVELS.find((l) => l.id === level)
+  if (!def || def.rank > managerRank(state, id)) return false
+  state.managerSpend[id] = level
+  return true
+}
+
+/** The share of your money one purchase may cost for this manager. */
+export function spendShare(state: GameState, id: PerkId, base = MANAGER_SPEND_SHARE): number {
+  const mult = SPEND_LEVELS.find((l) => l.id === spendLevel(state, id))!.mult
+  return Math.min(0.9, base * mult)
 }
 
 export function setManager(state: GameState, id: PerkId, on: boolean): void {
@@ -95,13 +125,14 @@ export function savingStatus(state: GameState): Saving | null {
   if (!managerActive(state, 'estateAgent')) return null
   const next = REGIONS.find((r) => !state.regions[r.id].unlocked)
   if (!next) return null
-  if (next.space && !chapter4Unlocked(state)) return null
+  if (!chapterOpenFor(state, next)) return null
   if (state.prestige.franchises < (next.requiresFranchises ?? 0)) return null
   if (!meets(state, { reputation: next.unlockReputation })) return null
   if (state.money.gte(next.unlockCost)) return null
   const remaining = D(next.unlockCost).sub(state.money).toNumber()
   const income = recentIncome(state)
-  if (income <= 0 || remaining > income * SAVE_FOR_PLACE_SECONDS) return null
+  const window = managerRank(state, 'estateAgent') >= 2 ? SAVE_FOR_PLACE_SECONDS_RANK2 : SAVE_FOR_PLACE_SECONDS
+  if (income <= 0 || remaining > income * window) return null
   return { region: next, remaining, eta: remaining / income }
 }
 
@@ -124,8 +155,11 @@ function estateAgent(state: GameState): void {
 }
 
 function quartermaster(state: GameState): void {
-  for (const u of [...UPGRADES].sort((a, b) => a.cost - b.cost)) {
-    if (canBuyUpgrade(state, u) && cheapEnough(state, D(u.cost), QUARTERMASTER_SPEND_SHARE)) buyUpgrade(state, u.id)
+  const share = spendShare(state, 'quartermaster', QUARTERMASTER_SPEND_SHARE)
+  // Rank 2: the biggest piece he can afford first (bigger pieces usually do more).
+  const order = managerRank(state, 'quartermaster') >= 2 ? (a: UpgradeDef, b: UpgradeDef) => b.cost - a.cost : (a: UpgradeDef, b: UpgradeDef) => a.cost - b.cost
+  for (const u of [...UPGRADES].sort(order)) {
+    if (canBuyUpgrade(state, u) && cheapEnough(state, D(u.cost), share)) buyUpgrade(state, u.id)
   }
 }
 
@@ -191,7 +225,12 @@ function familyManager(state: GameState): void {
       if (!buyUpgrade(state, step.upgrade.id)) return
       continue
     }
-    if (!cheapEnough(state, step.cost) || !hireWorker(state, step.worker.id, 1)) return
+    const share = spendShare(state, 'familyManager')
+    // Rank 2: ten at a time when that is still cheap enough.
+    if (managerRank(state, 'familyManager') >= 2 && cheapEnough(state, workerPlan(state, step.worker.id, 10).cost, share)) {
+      if (hireWorker(state, step.worker.id, 10)) continue
+    }
+    if (!cheapEnough(state, step.cost, share) || !hireWorker(state, step.worker.id, 1)) return
   }
 }
 
@@ -296,7 +335,9 @@ function farmManager(state: GameState): void {
         bought = buyUpgrade(state, step.upgrade.id)
         break
       }
-      if (cheapEnough(state, step.cost) && buyFacility(state, step.facility.id, 1)) {
+      const share = spendShare(state, 'farmManager')
+      const ten = managerRank(state, 'farmManager') >= 2 && cheapEnough(state, facilityPlan(state, step.facility, 10).cost, share)
+      if (ten ? buyFacility(state, step.facility.id, 10) : cheapEnough(state, step.cost, share) && buyFacility(state, step.facility.id, 1)) {
         bought = true
         break
       }
@@ -312,7 +353,7 @@ function dispatcher(state: GameState): void {
   for (const r of REGIONS) {
     if (!state.regions[r.id].unlocked || canReach(state, r)) continue
     const v = VEHICLES.find((x) => vehicleVisible(state, x) && vehicleServes(x, r))
-    if (v && cheapEnough(state, vehiclePlan(state, v, 1).cost, 0.5)) buyVehicle(state, v.id, 1)
+    if (v && cheapEnough(state, vehiclePlan(state, v, 1).cost, Math.max(0.5, spendShare(state, 'dispatcher')))) buyVehicle(state, v.id, 1)
   }
   for (let i = 0; i < GUARD; i++) {
     const kitchen = Math.min(...STAGE_IDS.map((t) => taskCapacity(state, t, mods).toNumber()))
@@ -321,11 +362,15 @@ function dispatcher(state: GameState): void {
     const useful = VEHICLES.filter(
       (v) => vehicleVisible(state, v) && REGIONS.some((r) => state.regions[r.id].unlocked && vehicleServes(v, r)),
     )
+    const share = spendShare(state, 'dispatcher')
     const best = useful
       .map((v) => ({ v, plan: vehiclePlan(state, v, 1) }))
-      .filter((x) => cheapEnough(state, x.plan.cost))
+      .filter((x) => cheapEnough(state, x.plan.cost, share))
       .sort((a, b) => b.v.capacity / b.plan.cost.toNumber() - a.v.capacity / a.plan.cost.toNumber())[0]
-    if (!best || !buyVehicle(state, best.v.id, 1)) return
+    if (!best) return
+    // Rank 2: ten at a time when that is still cheap enough.
+    const ten = managerRank(state, 'dispatcher') >= 2 && cheapEnough(state, vehiclePlan(state, best.v, 10).cost, share)
+    if (!buyVehicle(state, best.v.id, ten ? 10 : 1)) return
   }
 }
 
@@ -335,11 +380,94 @@ export function runManagers(state: GameState, dt: number): void {
   state.managerClock += dt
   if (state.managerClock < MANAGER_INTERVAL) return
   state.managerClock = 0
-  if (managerActive(state, 'estateAgent')) estateAgent(state)
+  if (managerActive(state, 'estateAgent')) {
+    if (autoSellDue(state)) return sellForYou(state)
+    logged(state, 'estateAgent', estateAgent)
+  }
   // A short pause (a few minutes at most, see savingStatus) while Mum saves up.
   if (savingFor(state)) return
-  if (managerActive(state, 'quartermaster')) quartermaster(state)
-  if (managerActive(state, 'farmManager')) farmManager(state)
-  if (managerActive(state, 'dispatcher')) dispatcher(state)
-  if (managerActive(state, 'familyManager')) familyManager(state)
+  if (managerActive(state, 'quartermaster')) logged(state, 'quartermaster', quartermaster)
+  if (managerActive(state, 'farmManager')) logged(state, 'farmManager', farmManager)
+  if (managerActive(state, 'dispatcher')) logged(state, 'dispatcher', dispatcher)
+  if (managerActive(state, 'familyManager')) logged(state, 'familyManager', familyManager)
+}
+
+// ---------------------------------------------------------------- the managers' log
+
+/** Purchases closer together than this (s) go into one log entry. */
+const LOG_MERGE_SECONDS = 60
+
+/** Run one manager and write down what they bought: helpers, buildings, vehicles, equipment, places. */
+function logged(state: GameState, who: PerkId, work: (state: GameState) => void): void {
+  const before = {
+    money: state.money,
+    workers: { ...state.workers },
+    facilities: { ...state.facilities },
+    vehicles: { ...state.vehicles },
+    upgrades: new Set(Object.keys(state.upgrades)),
+    regions: new Set(REGIONS.filter((r) => state.regions[r.id].unlocked).map((r) => r.id)),
+  }
+  work(state)
+  const items: Record<string, number> = {}
+  for (const w of WORKERS) if (state.workers[w.id] > before.workers[w.id]) items[`${w.emoji} ${w.name}`] = state.workers[w.id] - before.workers[w.id]
+  for (const f of FACILITIES)
+    if (state.facilities[f.id] > before.facilities[f.id]) items[`${f.emoji} ${f.name}`] = state.facilities[f.id] - before.facilities[f.id]
+  for (const v of VEHICLES) if (state.vehicles[v.id] > before.vehicles[v.id]) items[`${v.emoji} ${v.name}`] = state.vehicles[v.id] - before.vehicles[v.id]
+  for (const u of UPGRADES) if (state.upgrades[u.id] && !before.upgrades.has(u.id)) items[`${u.emoji} ${u.name}`] = 1
+  for (const r of REGIONS) if (state.regions[r.id].unlocked && !before.regions.has(r.id)) items[`${r.emoji} ${r.name}`] = 1
+  if (!Object.keys(items).length) return
+  const cost = Math.max(0, before.money.sub(state.money).toNumber())
+  recordManagerWork(state, who, items, cost)
+}
+
+/** "25 × 🧑‍🍳 Cousin at the stove, 🔨 Heavier mallet" */
+export function describeManagerItems(items: Record<string, number>): string {
+  return Object.entries(items)
+    .map(([what, n]) => (n > 1 ? `${n} × ${what}` : what))
+    .join(', ')
+}
+
+/** Add to the log (merged into the manager's latest entry while they keep buying) and to this run's spending. */
+export function recordManagerWork(state: GameState, who: PerkId, items: Record<string, number>, cost: number): void {
+  state.run.managerSpent[who] = (state.run.managerSpent[who] ?? 0) + cost
+  const now = state.stats.playtime
+  const log = state.managerLog
+  const last = [...log].reverse().find((e) => e.who === who)
+  if (last && now - last.t < LOG_MERGE_SECONDS && log[log.length - 1] === last) {
+    for (const [k, n] of Object.entries(items)) last.items[k] = (last.items[k] ?? 0) + n
+    last.cost += cost
+    last.t = now
+    return
+  }
+  log.push({ t: now, who, items, cost })
+  if (log.length > MANAGER_LOG_LIMIT) log.splice(0, log.length - MANAGER_LOG_LIMIT)
+}
+
+// ---------------------------------------------------------------- Mum sells the business (rank 3)
+
+/** Rank 3 Mum, switched on, and the player's rule is met. */
+export function autoSellDue(state: GameState): boolean {
+  const a = state.autoSell
+  if (!a.enabled || managerRank(state, 'estateAgent') < 3 || !canFranchise(state)) return false
+  const pending = pendingCrumbs(state)
+  const lifetime = Decimal.max(1, state.prestige.totalCrumbs)
+  if (a.rule === 'double') return pending.gte(lifetime)
+  if (a.rule === 'triple') return pending.gte(lifetime.mul(2))
+  return state.run.time >= a.minutes * 60
+}
+
+/** Mum sells; then, if asked, Auntie spends the crumbs on the cheapest perks (never on a pick-one choice). */
+function sellForYou(state: GameState): void {
+  const gain = pendingCrumbs(state)
+  if (!franchise(state)) return
+  recordManagerWork(state, 'estateAgent', { [`✨ Sold the business: +${gain.floor().toString()} Golden Crumbs`]: 1 }, 0)
+  if (!state.autoSell.spendCrumbs) return
+  const bought: Record<string, number> = {}
+  for (let i = 0; i < 500; i++) {
+    const perk = PERKS.filter((p) => !p.fork && canBuyPerk(state, p)).sort((a, b) => perkCost(state, a).cmp(perkCost(state, b)))[0]
+    if (!perk || !buyPerk(state, perk.id)) break
+    const key = `${perk.emoji} ${perk.name}`
+    bought[key] = (bought[key] ?? 0) + 1
+  }
+  if (Object.keys(bought).length) recordManagerWork(state, 'estateAgent', bought, 0)
 }
