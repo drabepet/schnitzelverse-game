@@ -4,11 +4,10 @@ import { D } from '../engine/decimal'
 import { canFranchise, pendingCrumbs } from '../engine/rules'
 import { useGame } from '../game/store'
 import { flow, ingredients, nextGoal } from './insights'
-import { ManagerToggles } from './Managers'
 import { BadgeQuote } from './BadgeQuote'
+import { SidebarManagers } from './SidebarManagers'
 import { guideHint } from './guide'
-import { MANAGERS } from '../engine/automation'
-import { crispness, perkLevel } from '../engine/rules'
+import { crispness } from '../engine/rules'
 
 /**
  * Always visible, on every tab: the numbers you check most. On wide screens
@@ -50,12 +49,7 @@ export function StatusSidebar() {
         </div>
       )}
 
-      {MANAGERS.some((m) => perkLevel(s, m.id) > 0) && (
-        <div className="sb-section sb-detail">
-          <div className="sb-title">🤖 Managers</div>
-          <ManagerToggles compact />
-        </div>
-      )}
+      <SidebarManagers />
 
       <div className="sb-section sb-detail">
         <div className="sb-title">Per second</div>

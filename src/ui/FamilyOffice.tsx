@@ -1,39 +1,13 @@
 import { BRANCHES, MANAGER_RANKS, PERKS, SPEND_LEVELS, type PerkDef, type PerkId } from '../engine/content'
-import { describeManagerItems as describeItems, familyNextStep, farmNextStep, managerActive, managerRank, savingStatus, setManager, setSpendLevel, spendLevel } from '../engine/automation'
+import { describeManagerItems as describeItems, managerActive, managerRank, setManager, setSpendLevel, spendLevel } from '../engine/automation'
+import { doingNow } from './managerStatus'
 import { setAutoSell } from '../engine/actions'
 import { fmt, fmtMoney, fmtTime } from '../engine/format'
 import { pendingCrumbs } from '../engine/rules'
-import type { AutoSellRule, GameState, ManagerLogEntry } from '../engine/state'
+import type { AutoSellRule, ManagerLogEntry } from '../engine/state'
 import { useGame } from '../game/store'
 
 const PERK = Object.fromEntries(PERKS.map((p) => [p.id, p])) as Record<PerkId, PerkDef>
-
-/** What this manager is busy with right now, in a few words. */
-function doingNow(s: GameState, id: PerkId): string {
-  if (!managerActive(s, id)) return 'Switched off.'
-  const saving = savingStatus(s)
-  if (id === 'estateAgent')
-    return saving
-      ? `Saving for ${saving.region.emoji} ${saving.region.name.toLowerCase()}: ${fmtMoney(saving.remaining)} to go, about ${fmtTime(saving.eta)}.`
-      : 'Opens the next place as soon as you can afford it.'
-  if (saving) return `Waiting: Mum is saving for ${saving.region.emoji} ${saving.region.name.toLowerCase()}.`
-  if (id === 'familyManager') {
-    const step = familyNextStep(s)
-    if (!step) return 'The kitchen keeps up with the customers. Nothing to do.'
-    if (step.kind === 'wait') return `Saving for ${step.upgrade.emoji} ${step.upgrade.name.toLowerCase()} (${fmtMoney(step.remaining)} to go).`
-    if (step.kind === 'equip') return `About to buy ${step.upgrade.emoji} ${step.upgrade.name.toLowerCase()}.`
-    return `Hiring ${step.worker.emoji} ${step.worker.name.toLowerCase()} for the slowest step.`
-  }
-  if (id === 'farmManager') {
-    const step = farmNextStep(s)
-    if (!step) return 'The farm covers what the kitchen needs. Nothing to do.'
-    if (step.kind === 'wait') return `Saving for ${step.upgrade.emoji} ${step.upgrade.name.toLowerCase()} (${fmtMoney(step.remaining)} to go).`
-    if (step.kind === 'equip') return `About to buy ${step.upgrade.emoji} ${step.upgrade.name.toLowerCase()}.`
-    return `Building ${step.facility.emoji} ${step.facility.name.toLowerCase()} for the shortest ingredient.`
-  }
-  if (id === 'quartermaster') return managerRank(s, id) >= 2 ? 'Buying the biggest equipment he can afford.' : 'Buying equipment, cheapest first.'
-  return 'Keeping a vehicle on every route and the fleet up with the kitchen.'
-}
 
 function Recent({ entries }: { entries: ManagerLogEntry[] }) {
   const { state: s } = useGame()
@@ -176,12 +150,15 @@ function ManagerCard({ id }: { id: PerkId }) {
         <span className="muted small">Spent this run</span>
         <b>{fmtMoney(spent)}</b>
       </div>
-      <Recent entries={entries} />
-      <div className="office-sub">
+      <div className="office-dial-wrap">
         <span className="muted small">How boldly</span>
+        <SpendDial id={id} />
       </div>
-      <SpendDial id={id} />
-      {id === 'estateAgent' && <AutoSell />}
+      {id === 'estateAgent' ? <AutoSell /> : <div className="office-extra" />}
+      <div className="office-recent">
+        <span className="muted small">Lately</span>
+        <Recent entries={entries} />
+      </div>
     </section>
   )
 }
@@ -189,7 +166,7 @@ function ManagerCard({ id }: { id: PerkId }) {
 /** Franchise tab, under the family tree: one card per manager. */
 export function FamilyOffice() {
   return (
-    <section className="family-office">
+    <section className="family-office" id="family-at-work">
       <h3 className="book-title">👪 The family at work</h3>
       <p className="hint">
         What each promoted family member is doing now, what they bought lately and how much they spent this run. “How boldly” sets how big

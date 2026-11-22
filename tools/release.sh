@@ -6,6 +6,8 @@
 # Only run this when a release is wanted. Bump src/version.ts first.
 #
 #   tools/release.sh            # release the version in src/version.ts
+#   tools/release.sh --update   # small fixes to the version already out: one more
+#                               # commit "Update v<version>", same version, no new tag
 #   RELEASE_DIR=../somewhere tools/release.sh
 set -euo pipefail
 
@@ -13,6 +15,9 @@ PUBLIC_REPO="drabepet/schnitzelverse-game"
 # Public commits use GitHub's no-reply address, so no private e-mail goes public.
 PUBLIC_NAME="drabepet"
 PUBLIC_EMAIL="103991105+drabepet@users.noreply.github.com"
+
+UPDATE=0
+[ "${1:-}" = "--update" ] && UPDATE=1
 
 cd "$(git rev-parse --show-toplevel)"
 RELEASE_DIR="${RELEASE_DIR:-../schnitzelverse-public}"
@@ -37,8 +42,14 @@ if [ -d "$RELEASE_DIR/.git" ]; then
 else
   gh repo clone "$PUBLIC_REPO" "$RELEASE_DIR"
 fi
-if git -C "$RELEASE_DIR" rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-  echo "$TAG is already released; bump src/version.ts" >&2
+RELEASED=0
+git -C "$RELEASE_DIR" rev-parse -q --verify "refs/tags/$TAG" >/dev/null && RELEASED=1
+if [ "$UPDATE" = 0 ] && [ "$RELEASED" = 1 ]; then
+  echo "$TAG is already released; bump src/version.ts (or use --update for small fixes)" >&2
+  exit 1
+fi
+if [ "$UPDATE" = 1 ] && [ "$RELEASED" = 0 ]; then
+  echo "$TAG isn't released yet: run without --update" >&2
   exit 1
 fi
 
@@ -48,14 +59,25 @@ git archive HEAD | tar -x -C "$STAGE"
 rsync -a --delete --exclude .git "$STAGE"/ "$RELEASE_DIR"/
 rm -rf "$STAGE"
 
-# 5. One commit and a tag per release.
+# 5. One commit and a tag per release (an update: one more commit, the tag stays on the release).
 cd "$RELEASE_DIR"
 git checkout -q -B main
 git add -A
-git -c user.name="$PUBLIC_NAME" -c user.email="$PUBLIC_EMAIL" commit -q -m "Release $TAG" -m "Schnitzelverse $VERSION." \
-  -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-git -c user.name="$PUBLIC_NAME" -c user.email="$PUBLIC_EMAIL" tag -a "$TAG" -m "Schnitzelverse $VERSION"
-git push -q -u origin main
-git push -q origin "$TAG"
-echo "Released $TAG (from $SOURCE_COMMIT) to https://github.com/$PUBLIC_REPO"
+if [ -z "$(git status --porcelain)" ]; then
+  echo "Nothing changed since $TAG was published" >&2
+  exit 1
+fi
+if [ "$UPDATE" = 1 ]; then
+  git -c user.name="$PUBLIC_NAME" -c user.email="$PUBLIC_EMAIL" commit -q -m "Update $TAG" -m "Small fixes to Schnitzelverse $VERSION." \
+    -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+  git push -q -u origin main
+  echo "Updated $TAG (from $SOURCE_COMMIT) at https://github.com/$PUBLIC_REPO"
+else
+  git -c user.name="$PUBLIC_NAME" -c user.email="$PUBLIC_EMAIL" commit -q -m "Release $TAG" -m "Schnitzelverse $VERSION." \
+    -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+  git -c user.name="$PUBLIC_NAME" -c user.email="$PUBLIC_EMAIL" tag -a "$TAG" -m "Schnitzelverse $VERSION"
+  git push -q -u origin main
+  git push -q origin "$TAG"
+  echo "Released $TAG (from $SOURCE_COMMIT) to https://github.com/$PUBLIC_REPO"
+fi
 echo "Game: https://drabepet.github.io/schnitzelverse-game/ (after the Pages workflow finishes)"

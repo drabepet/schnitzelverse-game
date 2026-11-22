@@ -17,6 +17,8 @@ The public repo (`drabepet/schnitzelverse-game`) only changes on a release:
 2. Commit and push to the private `main`.
 3. Run `tools/release.sh`. It copies the committed files (not the history) into the public repo
    as one commit "Release v<version>", tags it, and pushes; GitHub Pages then publishes the game.
+4. Small fixes to the version that's already out (no new version number): commit and push, then
+   `tools/release.sh --update`. It adds one commit "Update v<version>" without a new tag.
 
 ## Run it
 

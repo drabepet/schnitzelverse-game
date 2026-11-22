@@ -23,6 +23,7 @@ import { TabBar, visibleTabs, type TabId } from './ui/Tabs'
 import { chapter2Unlocked } from './engine/rules'
 import { useGame } from './game/store'
 import { setNotation } from './engine/format'
+import { GO_TO_EVENT, type GoTo } from './ui/goTo'
 
 const TAB_KEY = 'schnitzelverse-tab'
 const HOME: TabId = 'making'
@@ -49,6 +50,20 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.scale = scale
   }, [scale])
+
+  // Links elsewhere (the sidebar) can open a tab and scroll to a spot on it.
+  useEffect(() => {
+    const onGoTo = (e: Event) => {
+      const { tab: to, anchor } = (e as CustomEvent<GoTo>).detail
+      setTab(to)
+      if (anchor) {
+        // Wait for the tab to render before scrolling to the spot.
+        window.setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+      }
+    }
+    window.addEventListener(GO_TO_EVENT, onGoTo)
+    return () => window.removeEventListener(GO_TO_EVENT, onGoTo)
+  }, [])
 
   useEffect(() => {
     try {

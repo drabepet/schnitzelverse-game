@@ -3049,10 +3049,13 @@ button.about-close:hover {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
   gap: 0.6rem;
 }
+/* Six slots per card (header, now, spent, dial, Mum's sale, log) on a shared subgrid, so they line up across the row. */
 .office-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  display: grid;
+  grid-row: span 6;
+  grid-template-rows: subgrid;
+  align-content: start;
+  row-gap: 0.45rem;
   padding: 0.75rem 0.85rem;
   border-radius: 0.9rem;
   border: 1px solid var(--border);
@@ -3139,4 +3142,125 @@ button.about-close:hover {
 }
 .office-card .buy-amount button {
   flex: 1 1 auto;
+}
+
+/* A text link in the sidebar (e.g. to The family at work). */
+button.sb-link {
+  align-self: flex-start;
+  padding: 0.15rem 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 0.78rem;
+  color: var(--accent-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+button.sb-link:hover {
+  background: none;
+  color: var(--text);
+}
+#family-at-work {
+  scroll-margin-top: 1rem;
+}
+.office-dial-wrap,
+.office-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.office-recent {
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--border);
+}
+.office-card.not-yet > p {
+  grid-row: span 5;
+}
+
+/* Sidebar managers: a face per manager with a mood dot; details in a pop-up. */
+.sb-mgr-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.sb-mgr-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+button.sb-mgr {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  padding: 0;
+  font-size: 1.15rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--tile);
+}
+button.sb-mgr:hover {
+  border-color: var(--accent);
+}
+/* Greyed on the face only: a filter on the button would also move its pinned pop-up. */
+button.sb-mgr.off {
+  background: var(--panel-2);
+}
+button.sb-mgr.off .sb-mgr-face {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+button.sb-mgr.off::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 50%;
+  border-top: 2px solid var(--muted);
+  transform: rotate(-35deg);
+}
+.sb-mgr-dot {
+  position: absolute;
+  right: -0.2rem;
+  bottom: -0.2rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  background: var(--muted);
+}
+.sb-mgr.busy .sb-mgr-dot {
+  background: var(--good);
+}
+.sb-mgr.saving .sb-mgr-dot {
+  background: #e3a33a;
+}
+.sb-mgr.idle .sb-mgr-dot {
+  background: var(--border);
+}
+.sb-mgr-pop {
+  font-size: 0.82rem;
+}
+button.sb-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  font-size: 0.95rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+button.sb-icon-btn:hover {
+  border-color: var(--accent);
+}
+.sb-mgr-head {
+  align-items: center;
+}
+.sb-mgr-hint {
+  font-size: 0.72rem;
+  color: var(--accent-2);
 }
