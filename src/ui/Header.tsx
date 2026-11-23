@@ -5,7 +5,7 @@ import { SettingsDialog } from './SettingsDialog'
 import { AboutDialog } from './AboutDialog'
 import { SavesDialog } from './SavesDialog'
 import { GAME_VERSION } from '../version'
-import { chapterNumber, furthestPlace } from '../engine/rules'
+import { chapterNumber, furthestPlace, nextChapterGoal } from '../engine/rules'
 import { CHAPTERS, REGIONS } from '../engine/content'
 import { clickLogo, setIntroSeen, setNewsSeen } from '../engine/actions'
 import { useGame } from '../game/store'
@@ -21,6 +21,7 @@ export function Header() {
   const [open, setOpen] = useState<'settings' | 'saves' | 'about' | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const chapter = chapterNumber(s)
+  const nextChapter = nextChapterGoal(s)
   const place = REGIONS[furthestPlace(s)]
   const hasNews = s.introSeen && s.newsSeen !== GAME_VERSION
 
@@ -58,6 +59,14 @@ export function Header() {
           <h1>Schnitzelverse</h1>
           <div className="subtitle">
             Chapter {chapter} · {CHAPTERS[chapter - 1].name}
+            {nextChapter && (
+              <span
+                className="next-chapter"
+                title={`Chapter ${nextChapter.chapter} · ${nextChapter.name} opens ${nextChapter.when}.`}
+              >
+                next: {nextChapter.name} · {nextChapter.text}
+              </span>
+            )}
           </div>
           <div className="subline">
             Run {s.prestige.franchises + 1} · selling to {place.emoji} {inSentence(place.name)}

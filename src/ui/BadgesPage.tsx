@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { BADGE_BY_ID, BADGE_CATEGORIES, BADGES, unseenBadges } from '../engine/badges'
 import { fmtTime } from '../engine/format'
 import { markBadgesSeen } from '../engine/actions'
 import { useGame } from '../game/store'
 import { BADGE_BONUS } from '../engine/badgeBonus'
 import { badgeBonus } from '../engine/rules'
+import type { GameState } from '../engine/state'
 
 export function BadgesPage() {
   const game = useGame()
@@ -60,9 +61,32 @@ export function BadgesPage() {
         </div>
       )}
 
+      <BadgeWall badges={s.badges} earnedCount={earnedCount} newIds={newList.map((b) => b.id).join(' ')} />
+    </section>
+  )
+}
+
+/**
+ * Every badge, by category. It only changes when a badge is earned (or the
+ * “new” set changes), so it skips the many re-renders a second the rest of
+ * the page gets.
+ */
+const BadgeWall = memo(function BadgeWall({
+  badges,
+  newIds,
+}: {
+  badges: GameState['badges']
+  /** Changes whenever a badge is earned: the badges object itself is updated in place. */
+  earnedCount: number
+  newIds: string
+}) {
+  const fresh = new Set(newIds.split(' '))
+  const isNew = (id: string) => fresh.has(id)
+  return (
+    <>
       {BADGE_CATEGORIES.map((cat) => {
         const list = BADGES.filter((b) => b.category === cat.id)
-        const got = list.filter((b) => s.badges[b.id] !== undefined).length
+        const got = list.filter((b) => badges[b.id] !== undefined).length
         return (
           <div key={cat.id} className="badge-group">
             <h3>
@@ -70,7 +94,7 @@ export function BadgesPage() {
             </h3>
             <div className="badge-grid">
               {list.map((b) => {
-                const at = s.badges[b.id]
+                const at = badges[b.id]
                 const earned = at !== undefined
                 const hidden = !earned && b.secret
                 return (
@@ -93,6 +117,6 @@ export function BadgesPage() {
           </div>
         )
       })}
-    </section>
+    </>
   )
-}
+})

@@ -3,6 +3,8 @@ import { D } from './decimal'
 import { managerActive, runManagers, savingFor, setManager } from './automation'
 import { advance } from './tick'
 import { newGame, type GameState } from './state'
+import { businessLimits, canBuyUpgrade, getMods, kitchenCapacity, supplyLimit } from './rules'
+import { CHAPTER3_FRANCHISES, REGIONS, SUPPLY_LEAD, UPGRADES } from './content'
 
 function withManagers(...ids: Parameters<typeof managerActive>[1][]): GameState {
   const s = newGame()
@@ -169,7 +171,7 @@ describe('Grandma and equipment', () => {
 })
 
 describe('Grandpa and farm equipment', () => {
-  /** A big kitchen, a full farm except 20 pig farms: meat is short, Better feed (animals ×2, $400K) is unlocked. */
+  /** A big kitchen, a full farm except 20 pig farms, customers up to the country: meat is short. */
   function shortOfPigs() {
     const s = withManagers('farmManager')
     s.prestige.franchises = 2
@@ -177,6 +179,8 @@ describe('Grandpa and farm equipment', () => {
     Object.assign(s.workers, { uncle: 1000, grandma: 1000, cousin: 1000, kid: 1000 })
     for (const f of Object.keys(s.facilities) as (keyof typeof s.facilities)[]) s.facilities[f] = 200
     s.facilities.pigFarm = 20
+    // Customers for more than the farm can feed: Grandpa builds no further than they want.
+    for (const r of REGIONS.slice(0, REGIONS.findIndex((r) => r.id === 'country') + 1)) s.regions[r.id].unlocked = true
     s.upgrades.shoppingList = true
     // The farm hands are cheaper and better still; already hired here.
     for (const c of ['meat', 'flour', 'oil', 'eggs'] as const) s.upgrades[`hand_${c}`] = true
@@ -184,6 +188,7 @@ describe('Grandpa and farm equipment', () => {
     s.run.earned = D(6e6) // $10K/s
     return s
   }
+  const forPigs = (id: string) => UPGRADES.find((u) => u.id === id)!.effects.some((e) => (e.kind === 'building' && e.facility === 'pigFarm') || (e.kind === 'facility' && e.group === 'animal'))
 
   it('buys farm equipment instead of another building when it does more per dollar', async () => {
     const { farmNextStep } = await import('./automation')
@@ -191,19 +196,106 @@ describe('Grandpa and farm equipment', () => {
     s.money = D(1e6)
     const step = farmNextStep(s)
     expect(step?.kind).toBe('equip')
-    expect(step?.kind === 'equip' && step.upgrade.id).toBe('betterFeed')
+    if (step?.kind !== 'equip') return
+    const id = step.upgrade.id
+    expect(forPigs(id)).toBe(true)
     runManagers(s, 1)
-    expect(s.upgrades.betterFeed).toBe(true)
+    expect(s.upgrades[id]).toBe(true)
     expect(s.facilities.pigFarm).toBe(20)
   })
 
   it('waits for it when it is a few minutes away', async () => {
     const { farmNextStep } = await import('./automation')
     const s = shortOfPigs()
-    s.money = D(100_000)
+    s.money = D(1e6)
+    const want = farmNextStep(s)
+    const cost = want?.kind === 'equip' ? want.upgrade.cost : 0
+    s.money = D(cost / 2)
     expect(farmNextStep(s)?.kind).toBe('wait')
     runManagers(s, 1)
     expect(s.facilities.pigFarm).toBe(20)
+  })
+})
+
+describe('waiting for the farm', () => {
+  /** A big kitchen and fleet, every place open, but only 2 pig farms: meat holds everything back. */
+  function farmIsTheLimit() {
+    const s = withManagers('familyManager', 'farmManager', 'dispatcher')
+    s.prestige.franchises = CHAPTER3_FRANCHISES
+    s.reputation = D(1e12)
+    Object.assign(s.workers, { uncle: 300, grandma: 300, cousin: 300, kid: 300 })
+    for (const f of Object.keys(s.facilities) as (keyof typeof s.facilities)[]) s.facilities[f] = 200
+    s.facilities.pigFarm = 2
+    for (const r of REGIONS) s.regions[r.id].unlocked = true
+    // One of each vehicle, so every place is in reach (the kid always buys that).
+    for (const v of Object.keys(s.vehicles) as (keyof typeof s.vehicles)[]) s.vehicles[v] = 1
+    s.upgrades.shoppingList = true
+    s.run.time = 600
+    s.run.earned = D(6e9)
+    s.money = D(1e9)
+    return s
+  }
+
+  it('Grandma and the kid hold off; the money goes to the farm', async () => {
+    const { familyNextStep, fleetWaitsForSupply } = await import('./automation')
+    const s = farmIsTheLimit()
+    const mods = getMods(s)
+    expect(supplyLimit(s, mods) * SUPPLY_LEAD).toBeLessThan(kitchenCapacity(s, mods))
+    expect(familyNextStep(s)?.kind).toBe('hold')
+    expect(fleetWaitsForSupply(s)).toBe(true)
+    const workers = { ...s.workers }
+    const vehicles = { ...s.vehicles }
+    runManagers(s, 1)
+    expect(s.workers).toEqual(workers)
+    expect(s.vehicles).toEqual(vehicles)
+    expect(s.facilities.pigFarm).toBeGreaterThan(2)
+  })
+
+  it('Uncle skips equipment that would only add idle kitchen capacity', async () => {
+    const { gearUse } = await import('./automation')
+    const s = farmIsTheLimit()
+    s.prestige.perks.quartermaster = 1
+    const mods = getMods(s)
+    const limits = businessLimits(s, mods)
+    expect(limits.bottleneck).toBe('supply')
+    const kitchenOnly = UPGRADES.filter(
+      (u) => canBuyUpgrade(s, u) && u.effects.length > 0 && u.effects.every((e) => e.kind === 'kitchen' || (e.kind === 'speed' && e.task !== 'deliver')),
+    )
+    expect(kitchenOnly.length).toBeGreaterThan(0)
+    for (const u of kitchenOnly) expect(gearUse(s, u, limits, mods)).toBe(0)
+    const farmGear = UPGRADES.filter((u) => canBuyUpgrade(s, u) && u.effects.some((e) => e.kind === 'facility' || e.kind === 'building'))
+    for (const u of farmGear) expect(gearUse(s, u, limits, mods)).toBe(2)
+    // Uncle alone: once Grandpa's new farms catch up, Grandma rightly buys kitchen gear.
+    for (const id of ['familyManager', 'farmManager', 'dispatcher'] as const) setManager(s, id, false)
+    runManagers(s, 1)
+    for (const u of kitchenOnly) expect(s.upgrades[u.id]).toBeFalsy()
+    expect(farmGear.some((u) => s.upgrades[u.id])).toBe(true)
+  })
+
+  it('Mum saves longer for the next place when customers are the limit', async () => {
+    const { savingStatus } = await import('./automation')
+    const s = withManagers('estateAgent')
+    Object.assign(s.workers, { uncle: 300, grandma: 300, cousin: 300, kid: 300 })
+    s.upgrades.shoppingList = true
+    s.reputation = D(1e12)
+    s.run.time = 600
+    s.run.earned = D(600_000) // $1,000/s
+    const next = REGIONS.find((r) => !s.regions[r.id].unlocked && !r.requiresFranchises)!
+    const income = 1000
+    expect(businessLimits(s, getMods(s)).bottleneck).toBe('customers')
+    s.money = D(next.unlockCost - income * 600) // 10 minutes away: past the usual 5
+    const saving = savingStatus(s)
+    expect(saving?.region.id).toBe(next.id)
+    expect(saving?.customers).toBe(true)
+  })
+
+  it('without the farm limit, Grandma hires as before', async () => {
+    const { familyNextStep } = await import('./automation')
+    const s = farmIsTheLimit()
+    for (const f of Object.keys(s.facilities) as (keyof typeof s.facilities)[]) s.facilities[f] = 1e6
+    const mods = getMods(s)
+    expect(supplyLimit(s, mods) * SUPPLY_LEAD).toBeGreaterThan(kitchenCapacity(s, mods))
+    expect(familyNextStep(s)?.kind).not.toBe('hold')
   })
 })
 

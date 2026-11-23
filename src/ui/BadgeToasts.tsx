@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BADGE_BY_ID } from '../engine/badges'
 import { useGame } from '../game/store'
+import { CopyNudge } from './CopyNudge'
 
 /** How long (seconds of play) a new badge stays on screen. */
 const SHOW_FOR = 6
@@ -14,10 +15,11 @@ export function BadgeToasts() {
     .filter(([id, at]) => now - at < SHOW_FOR && !dismissed.has(id) && BADGE_BY_ID[id])
     .slice(-3)
 
-  if (!recent.length || !state.settings.badgePopups) return null
+  const badges = state.settings.badgePopups ? recent : []
   return (
     <div className="toasts" aria-live="polite">
-      {recent.map(([id]) => {
+      <CopyNudge />
+      {badges.map(([id]) => {
         const b = BADGE_BY_ID[id]
         return (
           <button key={id} className="toast" onClick={() => setDismissed((d) => new Set(d).add(id))}>

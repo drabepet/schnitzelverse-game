@@ -29,3 +29,5 @@ playtest-report*.txt
 # browser smoke test output
 test-results
 playwright-report
+bench-report.txt
+perf-report.txt

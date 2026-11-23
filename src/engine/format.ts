@@ -1,18 +1,42 @@
 import { D, type Num } from './decimal'
+import type { Notation } from './state'
 
 const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc', 'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg']
 
-/** 'short' = 1.23M; 'scientific' = 1.23e6. Set from the player's settings. */
-let notation: 'short' | 'scientific' = 'short'
-export function setNotation(n: 'short' | 'scientific'): void {
+/** Names for “1.23 million” and up (each a thousand times the one before). */
+const NAMES = [
+  'million', 'billion', 'trillion', 'quadrillion', 'quintillion', 'sextillion', 'septillion', 'octillion', 'nonillion',
+  'decillion', 'undecillion', 'duodecillion', 'tredecillion', 'quattuordecillion', 'quindecillion', 'sexdecillion',
+  'septendecillion', 'octodecillion', 'novemdecillion', 'vigintillion',
+]
+
+/**
+ * 'short' = 1.23M; 'named' = 1.23 million (full-size numbers only: compact
+ * ones in the sidebar, tiles and buttons stay short); 'scientific' = 1.23e6.
+ * Set from the player's settings.
+ */
+let notation: Notation = 'short'
+export function setNotation(n: Notation): void {
   notation = n
 }
 
-/** Human-friendly number: 12.3, 4.56K, 7.89M … then scientific (1.23e45). */
+/** Human-friendly number: 12.3, 4.56K, 7.89M (or 7.89 million) … then scientific (1.23e45). */
 export function fmt(value: Num, decimals = 2): string {
+  return format(value, decimals, notation)
+}
+
+/** Like fmt, but never named: for small spaces (buttons), where “1.23 quadrillion” won't fit. */
+export function fmtShort(value: Num, decimals = 2): string {
+  return format(value, decimals, notation === 'named' ? 'short' : notation)
+}
+
+/** Money on a button: $1.23M even when numbers are named. */
+export const fmtMoneyShort = (value: Num): string => '$' + fmtShort(value)
+
+function format(value: Num, decimals: number, notation: Notation): string {
   const d = D(value)
   if (d.isNan()) return 'NaN'
-  if (d.lt(0)) return '-' + fmt(d.neg(), decimals)
+  if (d.lt(0)) return '-' + format(d.neg(), decimals, notation)
   if (d.lt(1000)) {
     const n = d.toNumber()
     if (Number.isInteger(n) || decimals === 0) return Math.floor(n).toString()
@@ -21,7 +45,10 @@ export function fmt(value: Num, decimals = 2): string {
   const exp = d.log10().floor().toNumber()
   if (!Number.isFinite(exp) || exp > 1e15) return d.toString()
   const group = Math.floor(exp / 3)
-  if (notation === 'short' && group < SUFFIXES.length) {
+  if (notation === 'named' && group >= 2 && group - 2 < NAMES.length) {
+    return D(d).div(D(10).pow(group * 3)).toNumber().toFixed(2) + ' ' + NAMES[group - 2]
+  }
+  if (notation !== 'scientific' && group < SUFFIXES.length) {
     return D(d).div(D(10).pow(group * 3)).toNumber().toFixed(2) + SUFFIXES[group]
   }
   return D(d).div(D(10).pow(exp)).toNumber().toFixed(2) + 'e' + exp
@@ -30,28 +57,31 @@ export function fmt(value: Num, decimals = 2): string {
 /**
  * Three significant digits, for the headline numbers that must stay short:
  * 7.42, 74.2, 742, 7.42K, 74.2K, 742K, 7.42M … (or 7.42e45 in scientific).
+ * `fixed` keeps trailing zeros from 1K up (24.0M, not 24M), for live rates.
  */
-export function fmtCompact(value: Num): string {
+export function fmtCompact(value: Num, fixed = false): string {
   const d = D(value)
   if (d.isNan()) return 'NaN'
-  if (d.lt(0)) return '-' + fmtCompact(d.neg())
+  if (d.lt(0)) return '-' + fmtCompact(d.neg(), fixed)
   // Rounded to three significant digits (as a number, so "7.50" shows as 7.5).
   const round3 = (m: number) => Number(m.toFixed(m < 10 ? 2 : m < 100 ? 1 : 0))
+  // Fixed: keep the trailing zeros of big numbers ("24.0M"), so a live rate keeps its width.
+  const show = (m: number) => (fixed ? m.toFixed(m < 10 ? 2 : m < 100 ? 1 : 0) : m.toString())
   if (d.lt(1000)) {
     const n = round3(d.toNumber())
     // 999.96 would round up to "1000": show it as 1K instead.
-    return n >= 1000 ? fmtCompact(1000) : n.toString()
+    return n >= 1000 ? fmtCompact(1000, fixed) : n.toString()
   }
   let exp = d.log10().floor().toNumber()
   if (!Number.isFinite(exp) || exp > 1e15) return d.toString()
-  if (notation === 'short' && Math.floor(exp / 3) < SUFFIXES.length) {
+  if (notation !== 'scientific' && Math.floor(exp / 3) < SUFFIXES.length) {
     let group = Math.floor(exp / 3)
     let m = D(d).div(D(10).pow(group * 3)).toNumber()
     if (round3(m) >= 1000) {
       group += 1
       m /= 1000
     }
-    if (group < SUFFIXES.length) return round3(m).toString() + SUFFIXES[group]
+    if (group < SUFFIXES.length) return show(round3(m)) + SUFFIXES[group]
     exp = group * 3
   }
   let m = D(d).div(D(10).pow(exp)).toNumber()

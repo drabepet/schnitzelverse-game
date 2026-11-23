@@ -4,6 +4,7 @@
 import { Decimal } from './decimal'
 import { newGame, SAVE_VERSION, type GameState } from './state'
 import { REGIONS } from './content'
+import { chapterNumber } from './rules'
 
 const DECIMAL_PREFIX = 'D:'
 
@@ -88,7 +89,10 @@ export function serialize(state: GameState): string {
 export function deserialize(json: string): GameState {
   const saved = decode(JSON.parse(json) as Json)
   if (!isPlainObject(saved)) throw new Error('Save data is not an object')
-  return migrate(merge(newGame(), saved) as GameState)
+  const state = migrate(merge(newGame(), saved) as GameState)
+  // Saves from before the keep-a-copy note: start suggesting it from the next chapter on.
+  if (!('copyNudgeChapter' in saved)) state.copyNudgeChapter = chapterNumber(state)
+  return state
 }
 
 // Export strings are base64 so they survive copy/paste through chat apps.

@@ -1,5 +1,5 @@
 // Plain-language lines for what an effect does, for equipment and perk tooltips.
-import { FACILITIES, STAGES, WORKERS, type Effect, type FacilityGroup, type Task } from './content'
+import { type Effect, FACILITIES, FACILITY_BY_ID, type FacilityGroup, STAGES, type Task, WORKERS } from './content'
 import { facilityLook, workerLook } from './names'
 import type { GameState } from './state'
 
@@ -55,7 +55,7 @@ export function describeEffect(e: Effect, state?: GameState): string {
     case 'crisp':
       return `Crispness skill +${e.add} (crisper schnitzel sells for more)`
     case 'building': {
-      const f = state ? facilityLook(state, e.facility) : FACILITIES.find((x) => x.id === e.facility)!
+      const f = state ? facilityLook(state, e.facility) : FACILITY_BY_ID[e.facility]
       return `${f.emoji} ${f.name}: every one works ${times(e.mult)} faster`
     }
   }

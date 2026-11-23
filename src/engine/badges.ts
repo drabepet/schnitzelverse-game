@@ -1,9 +1,10 @@
 // Badges: silly achievements. Earned badges survive every franchise.
 // The hard ones also add a little income (see badgeBonus.ts).
-import { FACILITIES, REGIONS, UPGRADES, VEHICLES, WORKERS, type RegionId, type StageId } from './content'
+import { FACILITIES, REGIONS, UPGRADES, VEHICLES, WORKERS } from './content'
 import { D } from './decimal'
 import { TIERS } from './tiers'
 import { MORE_BADGES } from './badgesExtra'
+import { byHand, earned, place, served, totalFacilities, totalVehicles, workers } from './badgeChecks'
 import type { GameState } from './state'
 
 export type BadgeCategory =
@@ -54,13 +55,6 @@ export const BADGE_CATEGORIES: { id: BadgeCategory; name: string }[] = [
   { id: 'misc', name: 'Odds & ends' },
 ]
 
-const served = (n: number) => (s: GameState) => s.stats.served.gte(n)
-const earned = (n: number) => (s: GameState) => s.stats.earned.gte(n)
-const workers = (id: (typeof WORKERS)[number]['id'], n: number) => (s: GameState) => s.workers[id] >= n
-const place = (id: RegionId) => (s: GameState) => s.regions[id].unlocked
-const byHand = (stage: StageId, n: number) => (s: GameState) => s.stats.byHand[stage] >= n
-const totalFacilities = (s: GameState) => FACILITIES.reduce((n, f) => n + s.facilities[f.id], 0)
-const totalVehicles = (s: GameState) => VEHICLES.reduce((n, v) => n + s.vehicles[v.id], 0)
 
 /** Every level a pipeline tab can reach (beyond the first) is a promotion badge. */
 const PROMOTIONS: BadgeDef[] = (['prep', 'making', 'distribution'] as const).flatMap((pillar) =>

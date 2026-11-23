@@ -2,7 +2,7 @@
 // for each place you reach (the town, the city, … Mars, the Sun), plus a
 // family farm hand for each chain. Most rungs make their own building faster;
 // some help another chain (links), a few make schnitzel worth more (quality).
-// Only data and a builder here: content.ts appends the result to UPGRADES.
+// Only data and a builder here: data/upgrades.ts appends the result to UPGRADES.
 import type { Effect, FacilityDef, FacilityId, RegionDef, RegionId, UpgradeDef } from './content'
 
 /** Places with a rung on every ladder, in the order you reach them. */

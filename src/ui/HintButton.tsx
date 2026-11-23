@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useRef, type CSSProperties, type ReactNode } from 'react'
+import { usePinnedPopup } from './usePinnedPopup'
 
 /** Pop-up width at the normal interface size (15px text). */
 const POP_WIDTH = 260
@@ -19,32 +20,32 @@ export function HintButton(props: {
   className?: string
   /** Native tooltip, for buttons whose label is only an icon or a price. */
   ariaTitle?: string
+  /**
+   * How close you are to affording it (0..1), drawn as a fill inside the
+   * greyed-out button. Pass it only when money (or crumbs) is all that's missing.
+   */
+  progress?: number
   onClick: (e: React.MouseEvent) => void
 }) {
   const ref = useRef<HTMLSpanElement>(null)
-  const timer = useRef<number | undefined>(undefined)
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const popup = usePinnedPopup<true>({ width: POP_WIDTH, delay: 500, gap: 6 })
+  const pos = popup.pos
   const show = () => {
-    window.clearTimeout(timer.current)
-    if (!props.explain && !props.whyNot) return
-    timer.current = window.setTimeout(() => {
-      const r = ref.current?.getBoundingClientRect()
-      if (!r) return
-      // The pop-up grows with the interface size (Settings), like everything else.
-      const width = POP_WIDTH * (parseFloat(getComputedStyle(document.documentElement).fontSize) / 15)
-      const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8)
-      setPos({ top: r.bottom + 6, left, width })
-    }, 500)
+    if (!props.explain && !props.whyNot) return popup.hide()
+    popup.show(true, ref.current)
   }
-  const hide = () => {
-    window.clearTimeout(timer.current)
-    setPos(null)
-  }
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  const hide = popup.hide
+  const fill = props.whyNot !== null && props.progress !== undefined ? Math.min(1, Math.max(0, props.progress)) : undefined
 
   return (
     <span ref={ref} className="hint-btn" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
-      <button className={props.className} disabled={props.whyNot !== null} onClick={props.onClick} title={props.ariaTitle}>
+      <button
+        className={fill === undefined ? props.className : `${props.className ?? ''} afford`}
+        style={fill === undefined ? undefined : ({ '--afford': fill } as CSSProperties)}
+        disabled={props.whyNot !== null}
+        onClick={props.onClick}
+        title={props.ariaTitle}
+      >
         {props.children}
       </button>
       {pos && (

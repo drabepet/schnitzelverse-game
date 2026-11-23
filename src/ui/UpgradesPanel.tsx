@@ -1,25 +1,16 @@
 import { UPGRADES, type UpgradeDef } from '../engine/content'
-import { fmt, fmtMoney } from '../engine/format'
+import { fmt, fmtMoneyShort } from '../engine/format'
 import { buyUpgrade } from '../engine/actions'
-import { describeEffect } from '../engine/describe'
-import { canBuyUpgrade, meets, upgradeVisible } from '../engine/rules'
+import { meets, upgradeVisible } from '../engine/rules'
 import { upgradePillar, type Pillar } from '../engine/tiers'
 import { useGame } from '../game/store'
 import { guideHint } from './guide'
 import { HintButton } from './HintButton'
-import { firstReason, needMoney, needRequirement } from './reasons'
+import { upgradeWhyNot, affordShare } from './reasons'
+import { EffectLines, UpgradeTip } from './UpgradeTip'
 
-/** Exactly what an upgrade changes, one line per effect. */
-function EffectLines({ u }: { u: UpgradeDef }) {
-  const { state } = useGame()
-  return (
-    <ul className="effect-lines">
-      {u.effects.map((e, i) => (
-        <li key={i}>{describeEffect(e, state)}</li>
-      ))}
-    </ul>
-  )
-}
+/** Each upgrade's pipeline tab, worked out once (it reads every effect). */
+const PILLAR_OF = new Map(UPGRADES.map((u) => [u, upgradePillar(u)]))
 
 /**
  * Equipment for one pipeline tab (prep, making or distribution), or with
@@ -46,7 +37,7 @@ export function UpgradesPanel({
     (u) =>
       !u.building &&
       !u.chain &&
-      (quality ? u.quality : !u.quality && upgradePillar(u) === pillar) &&
+      (quality ? u.quality : !u.quality && PILLAR_OF.get(u) === pillar) &&
       (!only || only(u)),
   )
   // Cheapest first: simple and predictable (the best deals are usually near the top).
@@ -72,12 +63,11 @@ export function UpgradesPanel({
             </div>
             <HintButton
               className={u.id === 'shoppingList' && guideHint(s)?.target === 'shoppingList' ? 'pulse' : ''}
-              whyNot={
-                canBuyUpgrade(s, u) ? null : firstReason(needRequirement(s, u.requires), needMoney(s, u.cost, game.rates.income))
-              }
+              whyNot={upgradeWhyNot(s, u, game.rates.income)}
+              progress={meets(s, u.requires) ? affordShare(s.money, u.cost) : undefined}
               onClick={() => game.act((st) => buyUpgrade(st, u.id))}
             >
-              {fmtMoney(u.cost)}
+              {fmtMoneyShort(u.cost)}
             </HintButton>
           </li>
         ))}
@@ -89,13 +79,7 @@ export function UpgradesPanel({
             {owned.map((u) => (
               <span key={u.id} className="chip tip" tabIndex={0}>
                 {u.emoji} {u.name}
-                <span className="tip-pop" role="tooltip">
-                  <b>
-                    {u.emoji} {u.name}
-                  </b>
-                  <span className="muted">{u.description}</span>
-                  <EffectLines u={u} />
-                </span>
+                <UpgradeTip u={u} />
               </span>
             ))}
           </div>

@@ -1,38 +1,36 @@
 import { Fragment } from 'react'
-import { BRANCHES, MANAGER_RANKS, MANAGER_RANK_TEXT, PERK_SOFT_GROWTH, PERK_SOFT_LEVEL, TREE_ROWS, CHAPTER2_PERKS, CHAPTER3_PERKS, CHAPTER4_PERKS, CHAPTER5_PERKS, CHAPTERS, PERKS, type BranchDef, type PerkDef, type PerkId } from '../engine/content'
+import {
+  type BranchDef,
+  BRANCHES,
+  CHAPTERS,
+  MANAGER_RANK_TEXT,
+  MANAGER_RANKS,
+  PERK_BY_ID,
+  PERK_SOFT_GROWTH,
+  PERK_SOFT_LEVEL,
+  type PerkDef,
+  type PerkId,
+  TREE_ROWS,
+} from '../engine/content'
 import { buyPerk, swapFork } from '../engine/actions'
 import { managerActive, setManager } from '../engine/automation'
-import { fmt } from '../engine/format'
-import {
-  canBuyPerk,
-  canSwapFork,
-  chapterNumber,
-  forkPartner,
-  forkTaken,
-  perkCost,
-  perkLevel,
-  perkMaxLevel,
-  perkMaxed,
-  perkMissing,
-  perkVisible,
-} from '../engine/rules'
+import { fmt, fmtShort } from '../engine/format'
+import { canBuyPerk, canSwapFork, chapterNumber, forkPartner, forkTaken, perkCost, perkLevel, perkMaxLevel, perkMaxed, perkMissing, perkVisible, perkOpensWith } from '../engine/rules'
 import type { GameState } from '../engine/state'
 import { useGame } from '../game/store'
 import { HintButton } from './HintButton'
+import { affordShare } from './reasons'
 
-const PERK = Object.fromEntries(PERKS.map((p) => [p.id, p])) as Record<PerkId, PerkDef>
 const BRANCH_OF = Object.fromEntries(
   BRANCHES.flatMap((b) => [b.manager, ...b.rows.flat()].map((id) => [id, b])),
 ) as Record<PerkId, BranchDef>
 
 /** Why a perk is still hidden: which chapter (or feature) opens it. */
 function opensWith(perk: PerkDef): string {
-  if (CHAPTER2_PERKS.includes(perk.id)) return `Chapter 2 · ${CHAPTERS[1].name}`
-  if (CHAPTER3_PERKS.includes(perk.id)) return `Chapter 3 · ${CHAPTERS[2].name}`
-  if (CHAPTER4_PERKS.includes(perk.id)) return `Chapter 4 · ${CHAPTERS[3].name}`
-  if (CHAPTER5_PERKS.includes(perk.id)) return `Chapter 5 · ${CHAPTERS[4].name}`
-  if (perk.id === 'crispMaster') return 'crispness (reach the next town over)'
-  return 'later'
+  const when = perkOpensWith(perk)
+  if (when === 'crisp') return 'crispness (reach the next town over)'
+  if (when === null) return 'later'
+  return `Chapter ${when} · ${CHAPTERS[when - 1].name}`
 }
 
 /** Short name for a perk in requirement lines. */
@@ -68,6 +66,7 @@ function PerkNode({ perk }: { perk: PerkDef }) {
   const cap = perk.chapterCaps ? perkMaxLevel(s, perk) : null
 
   let whyNot: string | null = null
+  const levelLabel = levelText(s, perk)
   if (state === 'hidden') whyNot = `Opens with ${opensWith(perk)}.`
   else if (state === 'other-side') whyNot = `You picked ${other?.name.toLowerCase()} for this choice.`
   else if (state === 'locked')
@@ -87,8 +86,8 @@ function PerkNode({ perk }: { perk: PerkDef }) {
         <span className="tree-node-emoji" aria-hidden>
           {state === 'hidden' ? '🔒' : perk.emoji}
         </span>
-        <span className="tree-node-name">{state === 'hidden' ? perk.name : perk.name}</span>
-        {levelText(s, perk) && <span className="tree-node-level">{levelText(s, perk)}</span>}
+        <span className="tree-node-name">{perk.name}</span>
+        {levelLabel && <span className="tree-node-level">{levelLabel}</span>}
       </div>
       <p className="tree-node-text">{state === 'hidden' ? `Opens with ${opensWith(perk)}.` : perk.description}</p>
       {perk.manager && level > 0 && level < MANAGER_RANKS.length && state !== 'hidden' && (
@@ -138,8 +137,13 @@ function PerkNode({ perk }: { perk: PerkDef }) {
         ) : state === 'maxed' ? (
           <span className="tree-node-done">{perk.manager ? 'Hired' : cap !== null ? `Top for now (${cap})` : 'Max'}</span>
         ) : state === 'hidden' ? null : (
-          <HintButton className="small-btn" whyNot={whyNot} onClick={() => game.act((st) => buyPerk(st, perk.id))}>
-            {perk.manager ? (level > 0 ? `Promote to rank ${level + 1}` : 'Promote') : level > 0 ? 'Level up' : 'Buy'} · {fmt(perkCost(s, perk), 0)} ✨
+          <HintButton
+            className="small-btn"
+            whyNot={whyNot}
+            progress={state === 'open' || state === 'owned' ? affordShare(s.prestige.crumbs, perkCost(s, perk)) : undefined}
+            onClick={() => game.act((st) => buyPerk(st, perk.id))}
+          >
+            {perk.manager ? (level > 0 ? `Promote to rank ${level + 1}` : 'Promote') : level > 0 ? 'Level up' : 'Buy'} · {fmtShort(perkCost(s, perk), 0)} ✨
           </HintButton>
         )}
       </div>
@@ -151,7 +155,7 @@ function BranchHead({ branch }: { branch: BranchDef }) {
   const { state: s } = useGame()
   const ids = [branch.manager, ...branch.rows.flat()]
   const owned = ids.filter((id) => perkLevel(s, id) > 0).length
-  const buyable = ids.filter((id) => canBuyPerk(s, PERK[id])).length
+  const buyable = ids.filter((id) => canBuyPerk(s, PERK_BY_ID[id])).length
   return (
     <header className="tree-branch-head">
       <span className="tree-branch-emoji" aria-hidden>
@@ -196,7 +200,7 @@ export function FamilyTree() {
         <RowLabel n={1} text="Promotion" />
         {BRANCHES.map((b) => (
           <div key={b.id} className="tree-cell">
-            <PerkNode perk={PERK[b.manager]} />
+            <PerkNode perk={PERK_BY_ID[b.manager]} />
           </div>
         ))}
 
@@ -205,11 +209,11 @@ export function FamilyTree() {
             <RowLabel n={i + 2} text={label} />
             {BRANCHES.map((b) => {
               const row = b.rows[i] ?? []
-              const fork = row.length > 1 && !!PERK[row[0]].fork
+              const fork = row.length > 1 && !!PERK_BY_ID[row[0]].fork
               return (
                 <div key={b.id} className={`tree-cell linked${fork ? ' fork' : ''}`}>
                   {row.map((id) => (
-                    <PerkNode key={id} perk={PERK[id]} />
+                    <PerkNode key={id} perk={PERK_BY_ID[id]} />
                   ))}
                 </div>
               )

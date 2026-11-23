@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { REGIONS } from '../engine/content'
+import { REGION_INDEX, type RegionId, REGIONS } from '../engine/content'
 import { BADGE_BY_ID, BADGES } from '../engine/badges'
 import { fmtCompact, fmtTime } from '../engine/format'
 import { badgeBonus, furthestPlace, pendingCrumbs } from '../engine/rules'
@@ -8,7 +8,7 @@ import { useGame } from '../game/store'
 import { IncomeChart } from './IncomeChart'
 import { compare, DISTANCES, HEIGHTS, MASSES, NOTE_THICKNESS, NOTE_VALUE, PORK_PER_SCHNITZEL, SCHNITZEL_LENGTH } from './compare'
 
-const placeIndex = (id: string) => REGIONS.findIndex((r) => r.id === id)
+const placeIndex = (id: string) => REGION_INDEX[id as RegionId] ?? -1
 const TOWN = placeIndex('town')
 const COUNTRY = placeIndex('country')
 const PLANET = placeIndex('planet')

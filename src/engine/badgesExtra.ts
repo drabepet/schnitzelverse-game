@@ -1,30 +1,22 @@
 // The second shelf of badges (0.010): longer goals for players who already
 // have the first hundred, plus fame, the badge hunt itself and a lot of nonsense.
 // Most give no bonus; the few far-away ones are listed in badgeBonus.ts.
-import { FACILITIES, FARM_GOALS, PERKS, REGIONS, UPGRADES, VEHICLES, WORKERS, type FacilityId, type RegionId, type StageId, type UpgradeId, type VehicleId, type WorkerId } from './content'
-import { D } from './decimal'
+import {
+  FACILITIES,
+  type FacilityId,
+  FARM_GOALS,
+  PERKS,
+  REGION_INDEX,
+  REGIONS,
+  type UpgradeId,
+  UPGRADES,
+  VEHICLES,
+  WORKERS,
+} from './content'
 import { crispness } from './rules'
 import type { BadgeDef } from './badges'
-import type { GameState } from './state'
+import { badgeCount, building, byHand, earned, fame, franchises, hours, ownedUpgrades, place, served, speedrun, totalCrumbs, totalVehicles, totalWorkers, totalFacilities, vehicles, workers } from './badgeChecks'
 
-const served = (n: number | string) => (s: GameState) => s.stats.served.gte(D(n))
-const earned = (n: number | string) => (s: GameState) => s.stats.earned.gte(D(n))
-const fame = (n: number | string) => (s: GameState) => s.reputation.gte(D(n))
-const workers = (id: WorkerId, n: number) => (s: GameState) => s.workers[id] >= n
-const building = (id: FacilityId, n: number) => (s: GameState) => s.facilities[id] >= n
-const vehicles = (id: VehicleId, n: number) => (s: GameState) => s.vehicles[id] >= n
-const place = (id: RegionId) => (s: GameState) => s.regions[id].unlocked
-const byHand = (stage: StageId, n: number) => (s: GameState) => s.stats.byHand[stage] >= n
-const hours = (h: number) => (s: GameState) => s.stats.playtime >= h * 3600
-const franchises = (n: number) => (s: GameState) => s.prestige.franchises >= n
-const totalCrumbs = (n: number | string) => (s: GameState) => s.prestige.totalCrumbs.gte(D(n))
-const badgeCount = (n: number) => (s: GameState) => Object.keys(s.badges).length >= n
-const totalWorkers = (s: GameState) => WORKERS.reduce((n, w) => n + s.workers[w.id], 0)
-const totalFacilities = (s: GameState) => FACILITIES.reduce((n, f) => n + s.facilities[f.id], 0)
-const totalVehicles = (s: GameState) => VEHICLES.reduce((n, v) => n + s.vehicles[v.id], 0)
-const ownedUpgrades = (s: GameState) => Object.keys(s.upgrades).length
-/** Reached this place within `minutes` of starting the run. */
-const speedrun = (id: RegionId, minutes: number) => (s: GameState) => s.regions[id].unlocked && s.run.time <= minutes * 60
 
 const SHOP_GEAR: UpgradeId[] = ['biggerVan', 'wholesaleCard', 'secondVan', 'miniMarket', 'nightDeliveries', 'supermarket', 'regionalDepot', 'groceryChain', 'hypermarket', 'galacticGrocer']
 const farmGear = () => UPGRADES.filter((u) => u.building)
@@ -172,7 +164,7 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'cruiser1', emoji: '🛸', name: 'Cruise Control', goal: 'Buy a crust cruiser', flavor: 'It goes faster than light. The schnitzel arrives before you order it.', check: vehicles('cruiser', 1) },
     { id: 'rocket100', emoji: '🎆', name: 'Fireworks Lunch', goal: 'Own 100 schnitzel rockets', flavor: 'Every launch looks like New Year’s Eve. Every landing smells like Sunday.', check: vehicles('rocket', 100) },
     { id: 'ark10', emoji: '🚢', name: 'Armada of Abundance', goal: 'Own 10 schnitzel arks', flavor: 'Ten arks. Not a single animal on board. Just schnitzel.', check: vehicles('ark', 10) },
-    { id: 'bestSolar', emoji: '🪐', name: 'Hello From the Other Side (of the Sun)', goal: 'Have reached the whole Solar System at least once', flavor: 'The Sun is the only thing hotter than your fryer. For now.', check: (s) => s.stats.bestPlace >= REGIONS.findIndex((r) => r.id === 'solar') },
+    { id: 'bestSolar', emoji: '🪐', name: 'Hello From the Other Side (of the Sun)', goal: 'Have reached the whole Solar System at least once', flavor: 'The Sun is the only thing hotter than your fryer. For now.', check: (s) => s.stats.bestPlace >= REGION_INDEX.solar },
   ]),
 
   // ------------------------------------------------------------ beyond (Chapter 5)
@@ -195,7 +187,7 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'speedMilkyWay', emoji: '🏎️', name: 'Galactic Speedrun', goal: 'Reach the whole Milky Way within 2 hours of a run', flavor: 'From an empty garage to four hundred billion stars before lunch.', check: speedrun('milkyWay', 120) },
     { id: 'speedUniverse', emoji: '⏱️', name: 'The Universe in a Lunch Break', goal: 'Reach the whole universe within 2 hours of a run', flavor: 'Big Bang to big lunch in two hours flat.', check: speedrun('universe', 120) },
     { id: 'gearSchnitzelverse', emoji: '👴', name: 'Grandpa of Everything', goal: 'Own a piece of Schnitzelverse farm gear', flavor: 'Grandpa now has a farm in every universe. He still wears the same hat.', check: (s) => farmGear().some((u) => u.requires?.place === 'schnitzelverse' && s.upgrades[u.id]) },
-    { id: 'bestSchnitzelverse', emoji: '🏁', name: 'Been There, Fried That', goal: 'Have reached the Schnitzelverse at least once', flavor: 'You fed everything. Everything says thank you. Everything wants seconds.', check: (s) => s.stats.bestPlace >= REGIONS.findIndex((r) => r.id === 'schnitzelverse') },
+    { id: 'bestSchnitzelverse', emoji: '🏁', name: 'Been There, Fried That', goal: 'Have reached the Schnitzelverse at least once', flavor: 'You fed everything. Everything says thank you. Everything wants seconds.', check: (s) => s.stats.bestPlace >= REGION_INDEX.schnitzelverse },
     { id: 'fiveChapters', emoji: '📚', name: 'The Whole Story', goal: 'Reach Chapter 5', flavor: 'A garage, a farm, a road, the stars, and then everything else.', check: (s) => !!s.milestones.solar || s.regions.solar.unlocked },
   ]),
 

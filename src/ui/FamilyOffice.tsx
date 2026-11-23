@@ -1,4 +1,4 @@
-import { BRANCHES, MANAGER_RANKS, PERKS, SPEND_LEVELS, type PerkDef, type PerkId } from '../engine/content'
+import { BRANCHES, MANAGER_RANKS, PERK_BY_ID, type PerkId, SPEND_LEVELS } from '../engine/content'
 import { describeManagerItems as describeItems, managerActive, managerRank, setManager, setSpendLevel, spendLevel } from '../engine/automation'
 import { doingNow } from './managerStatus'
 import { MoodLegend } from './MoodLegend'
@@ -8,7 +8,6 @@ import { crumbGrowth, crumbRate, pendingCrumbs } from '../engine/rules'
 import { AUTO_SELL_PERCENTS, BEST_SALE_MIN_SHARE, type AutoSellRule, type ManagerLogEntry } from '../engine/state'
 import { useGame } from '../game/store'
 
-const PERK = Object.fromEntries(PERKS.map((p) => [p.id, p])) as Record<PerkId, PerkDef>
 
 function Recent({ entries }: { entries: ManagerLogEntry[] }) {
   const { state: s } = useGame()
@@ -92,7 +91,7 @@ function AutoSell() {
         ))}
       </div>
       {a.rule === 'best' && (
-        <p className="muted small">
+        <p className="muted small office-best">
           {rate > 0
             ? `This run grows your crumbs by ${pct(crumbGrowth(s))} an hour (best so far ${pct(s.run.growthPeak)}). She sells as soon as the sale would triple your crumbs, or once that growth drops a little below the best (if the sale adds at least ${BEST_SALE_MIN_SHARE * 100}%): quick sales while your pile is small, longer runs later.`
             : 'She sells as soon as the sale would triple your crumbs, and from 15 minutes into a run she also watches how fast the run grows them.'}
@@ -142,7 +141,7 @@ function AutoSell() {
 function ManagerCard({ id }: { id: PerkId }) {
   const game = useGame()
   const s = game.state
-  const perk = PERK[id]
+  const perk = PERK_BY_ID[id]
   const rank = managerRank(s, id)
   const branch = BRANCHES.find((b) => b.manager === id)!
   if (rank === 0)

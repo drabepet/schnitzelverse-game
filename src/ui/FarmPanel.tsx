@@ -1,5 +1,5 @@
-import { FACILITIES, FARM_CHAINS, FARM_GOAL_MULT, FARM_GOALS, INGREDIENT_IDS, ITEMS, UPGRADES, type FacilityId, type FarmChain, type IngredientId, type ItemId } from '../engine/content'
-import { fmt, fmtInt } from '../engine/format'
+import { FACILITY_BY_ID, type FacilityId, FARM_CHAINS, FARM_GOAL_MULT, FARM_GOALS, type FarmChain, INGREDIENT_IDS, type IngredientId, type ItemId, ITEMS, UPGRADES, FACILITIES } from '../engine/content'
+import { fmt, fmtCompact } from '../engine/format'
 import { buyFacility } from '../engine/actions'
 import { farmBottleneck } from '../engine/automation'
 import {
@@ -9,11 +9,9 @@ import {
   facilitySpeed,
   farmGoalBonus,
   farmGoalsReached,
-  farmSupply,
   getMods,
   nextFarmGoal,
   shopSupplyRate,
-  supplyNeeds,
   type Mods,
 } from '../engine/rules'
 import type { GameState } from '../engine/state'
@@ -23,10 +21,16 @@ import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
 import { facilityLook, shopLook } from '../engine/names'
 import { HintButton } from './HintButton'
-import { needMoney } from './reasons'
+import { needMoney, affordShare } from './reasons'
 import { UpgradesPanel } from './UpgradesPanel'
 import { isShopGear } from '../engine/tiers'
 import { GearList } from './FarmGear'
+import { useSteady } from './useSteady'
+import { farmSupplyNow, needsNow } from './derived'
+
+/** Farm hands per chain and gear per building: fixed lists, built once. */
+const HANDS_OF = new Map(FARM_CHAINS.map((c) => [c.id, UPGRADES.filter((u) => u.chain === c.id)]))
+const GEAR_OF = new Map(FACILITIES.map((f) => [f.id, UPGRADES.filter((u) => u.building === f.id)]))
 
 const CHAIN_OF: Partial<Record<IngredientId, FarmChain>> = Object.fromEntries(
   FARM_CHAINS.flatMap((c) => c.outputs.map((o) => [o, c])),
@@ -42,13 +46,14 @@ export function FarmPanel() {
   const s = game.state
   if (!chapter2Unlocked(s)) return null
   const mods = getMods(s)
-  const need = supplyNeeds(s, mods)
+  const need = needsNow(s)
+  const supply = farmSupplyNow(s)
 
   // The building holding back each short ingredient.
   const slow = new Map<FacilityId, IngredientId[]>()
   for (const item of INGREDIENT_IDS) {
     const n = need[item] ?? 0
-    if (n <= 0 || farmSupply(s, item, mods) >= n * 0.98) continue
+    if (n <= 0 || supply(item) >= n * 0.98) continue
     const f = farmBottleneck(s, item, mods)
     if (f && s.facilities[f.id] > 0) slow.set(f.id, [...(slow.get(f.id) ?? []), item])
   }
@@ -74,7 +79,7 @@ export function FarmPanel() {
             </span>
           </div>
           {INGREDIENT_IDS.map((item) => (
-            <Coverage key={item} item={item} need={need[item] ?? 0} farm={farmSupply(s, item, mods)} shop={shopSupplyRate(mods)} />
+            <Coverage key={item} item={item} need={need[item] ?? 0} farm={supply(item)} shop={shopSupplyRate(mods)} />
           ))}
         </div>
         <SupplyPanel backup />
@@ -91,21 +96,21 @@ export function FarmPanel() {
       </div>
       <div className="chain-grid">
         {FARM_CHAINS.map((chain) => {
-          const hand = UPGRADES.filter((u) => u.chain === chain.id)
+          const hand = HANDS_OF.get(chain.id) ?? []
           return (
             <div key={chain.id} className="panel chain">
               <div className="chain-head">
                 <h3>
                   {chain.emoji} {chain.name}
                 </h3>
-                <span className="muted small">
+                <span className="muted small chain-nums">
                   {chain.outputs
-                    .map((o) => `${ITEMS[o].emoji} ${fmt(farmSupply(s, o, mods))} of ${fmt(need[o] ?? 0)}/s`)
+                    .map((o) => `${ITEMS[o].emoji} ${fmt(supply(o))} of ${fmt(need[o] ?? 0)}/s`)
                     .join(' · ')}
                 </span>
               </div>
               <GearList gear={hand} />
-              <div className="flow">
+              <div className="flow" style={{ gridTemplateColumns: chain.buildings.map(() => 'minmax(0, 1fr)').join(' var(--flow-arrow) ') }}>
                 {chain.buildings.map((id, i) => (
                   <FlowStep key={id} id={id} first={i === 0} game={game} s={s} mods={mods} holdsBack={slow.get(id)} />
                 ))}
@@ -125,6 +130,8 @@ function Coverage({ item, need, farm, shop }: { item: IngredientId; need: number
   const short = Math.max(0, need - fromFarm - fromShop)
   const pct = (x: number) => (need > 0 ? (x / need) * 100 : 0)
   const chain = CHAIN_OF[item]
+  const showShort = useSteady(short > 0.05)
+  const showSpare = useSteady(farm > need * 1.05 && need > 0)
   return (
     <div className="coverage">
       <div className="coverage-label">
@@ -141,8 +148,8 @@ function Coverage({ item, need, farm, shop }: { item: IngredientId; need: number
       </div>
       <div className="coverage-nums">
         farm {fmt(fromFarm)} · shop {fmt(fromShop)}
-        {short > 0.05 && <b className="warn"> · short {fmt(short)}/s</b>}
-        {farm > need * 1.05 && need > 0 && <span className="muted"> · farm could make {fmt(farm)}</span>}
+        {showShort && <b className="warn"> · short {fmt(short)}/s</b>}
+        {showSpare && <span className="muted"> · farm could make {fmt(farm)}</span>}
       </div>
     </div>
   )
@@ -192,18 +199,18 @@ function FlowStep({
   mods: Mods
   holdsBack?: IngredientId[]
 }) {
-  const f = FACILITIES.find((x) => x.id === id)!
+  const f = FACILITY_BY_ID[id]
   const look = facilityLook(s, id)
   const inputs = Object.entries(f.inputs) as [ItemId, number][]
   const count = s.facilities[f.id]
   const capacity = facilityCapacity(s, f, mods).toNumber() * f.yield
   const actual = game.farmRates[f.id] ?? 0
   const starvedBy = inputs
-    .filter(([item, qty]) => farmSupply(s, item, mods) / qty < (capacity / f.yield) * 0.9)
+    .filter(([item, qty]) => farmSupplyNow(s)(item) / qty < (capacity / f.yield) * 0.9)
     .map(([item]) => item)
   const plan = facilityPlan(s, f)
   const load = capacity > 0 ? Math.min(100, (actual / capacity) * 100) : 0
-  const gear = UPGRADES.filter((u) => u.building === f.id)
+  const gear = GEAR_OF.get(f.id) ?? []
   let status = ''
   let warn = false
   if (count === 0) status = 'Not built yet'
@@ -215,6 +222,7 @@ function FlowStep({
     status = `Needs more ${starvedBy.map((i) => ITEMS[i].emoji).join(' ')}`
     warn = true
   } else status = '⏸ Stock full'
+  const shown = useSteady(`${warn ? '!' : ''}${status}`)
 
   return (
     <>
@@ -223,7 +231,7 @@ function FlowStep({
           <span>→</span>
           {inputs.map(([item]) => (
             <small key={item} title={`${ITEMS[item].name} waiting`}>
-              {ITEMS[item].emoji} {fmtInt(s.items[item])}
+              {ITEMS[item].emoji} {fmtCompact(s.items[item].floor(), true)}
             </small>
           ))}
         </div>
@@ -248,17 +256,20 @@ function FlowStep({
             <div className="mini-bar" title={`${Math.round(load)}% busy`}>
               <div style={{ width: `${load}%` }} />
             </div>
-            <div className="node-rate">
-              {fmt(actual)} / {fmt(capacity)} per s
+            <div className="node-rate" title={`${fmt(actual)} of ${fmt(capacity)} per second`}>
+              {fmtCompact(actual, true)} of {fmtCompact(capacity, true)}/s
             </div>
           </>
         )}
-        <div className={warn ? 'warn small' : 'muted small'}>{status}</div>
+        <div className={`node-status small ${shown.startsWith('!') ? 'warn' : 'muted'}`} title={shown.replace(/^!/, '')}>
+          {shown.replace(/^!/, '')}
+        </div>
         <Goal count={count} name={look.name} />
         <GearList gear={gear} />
         <HintButton
           className="buy-btn"
           whyNot={plan.affordable ? null : needMoney(s, plan.cost, game.rates.income)}
+          progress={affordShare(s.money, plan.cost)}
           onClick={() => game.act((st) => buyFacility(st, f.id, st.settings.buyAmount))}
         >
           <BuyLabel verb="Build" plan={plan} />

@@ -1,7 +1,7 @@
 // The three pipeline tabs (prep → making → distribution) are named after
 // how far you've come in each. Every level is also a "promotion" badge.
-import { STAGE_IDS, VEHICLES, type UpgradeDef } from './content'
-import { chapter2Unlocked, getMods, taskCapacity } from './rules'
+import { type UpgradeDef, VEHICLES } from './content'
+import { chapter2Unlocked, getMods, kitchenCapacity } from './rules'
 import type { GameState } from './state'
 
 export type Pillar = 'prep' | 'making' | 'distribution'
@@ -18,7 +18,7 @@ export interface Tier {
 
 const kitchenSpeed = (s: GameState) => {
   const mods = getMods(s)
-  return Math.min(...STAGE_IDS.map((t) => taskCapacity(s, t, mods).toNumber()))
+  return kitchenCapacity(s, mods)
 }
 const owns = (s: GameState, id: (typeof VEHICLES)[number]['id']) => s.vehicles[id] > 0
 

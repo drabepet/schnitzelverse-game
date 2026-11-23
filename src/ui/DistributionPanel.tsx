@@ -1,12 +1,14 @@
 import { KNOCK_COOLDOWN, REGIONS } from '../engine/content'
-import { fmt, fmtInt, fmtKm, fmtMoney } from '../engine/format'
+import { fmt, fmtCompact, fmtInt, fmtKm, fmtMoney } from '../engine/format'
+import { useSteady } from './useSteady'
+import { LabelStack } from './LabelStack'
 import { canKnock, canUnlockRegion, clickDeliver, knockOnDoors, knockWait, unlockRegion } from '../engine/actions'
-import { canReach, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, regionPrice } from '../engine/rules'
+import { canReach, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, regionPrice, regionRequirementsMet } from '../engine/rules'
 import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
 import { HintButton } from './HintButton'
-import { firstReason, needMoney, needRequirement } from './reasons'
+import { firstReason, needMoney, needRequirement, affordShare } from './reasons'
 import { guideHint } from './guide'
 import { buildLanes, carriers, placeStatus } from '../engine/routes'
 import { RouteCell, RouteLegend } from './RouteMap'
@@ -22,13 +24,15 @@ export function DistributionPanel() {
   const hidden = REGIONS.filter((r) => !s.regions[r.id].unlocked).length - (next ? 1 : 0)
   const all = carriers(s, mods)
   const lanes = buildLanes(all, unlocked, game.routeRates)
-  const kinds = new Set(unlocked.map((r) => placeStatus(s, mods, r, game.routeRates, all).kind))
+  const statuses = new Map(unlocked.map((r) => [r.id, placeStatus(s, mods, r, game.routeRates, all)]))
+  const kinds = new Set([...statuses.values()].map((st) => st.kind))
   const limit = kinds.has('kitchen')
     ? '⏳ Orders are piling up while carriers have room to spare: the kitchen is the limit (or its ingredients). Faraway places get served first.'
     : kinds.has('fleet')
       ? '⏳ Orders are piling up and your carriers are all busy: more vehicles (or helpers) would help.'
       : null
-
+  // Always one line of room: the summary never pushes the list up and down.
+  const summary = useSteady(limit ?? '✅ The kitchen and the carriers keep up with the orders.', 5000)
 
   return (
     <section className="panel panel-distribution">
@@ -49,25 +53,28 @@ export function DistributionPanel() {
             if (game.act((st) => knockOnDoors(st))) floatText(e, '+1 order')
           }}
         >
-          {knockWait(s) > 0 ? `📣 Knock again in ${Math.ceil(knockWait(s))}s` : '📣 Knock on the neighbours’ door'}
+          <LabelStack
+            show={knockWait(s) > 0 ? 1 : 0}
+            labels={['📣 Knock on the neighbours’ door', `📣 Knock again in ${Math.ceil(knockWait(s))}s`]}
+          />
         </HintButton>
       </div>
       <p className="hint">
         Hot schnitzel first. Cold ones sell for less and barely help your reputation.{' '}
-        <span className="chip hot">🔥 {fmtInt(s.items.hot)}</span>{' '}
-        <span className="chip cold">🧊 {fmtInt(s.items.cold)}</span>
+        <span className="chip hot num-chip">🔥 {fmtCompact(s.items.hot.floor(), true)}</span>{' '}
+        <span className="chip cold num-chip">🧊 {fmtCompact(s.items.cold.floor(), true)}</span>
         <Why k="cooling" label="How fast schnitzel cools" />
       </p>
 
 
       <RouteLegend lanes={lanes} rates={game.routeRates} />
-      {limit && <p className="route-summary small warn">{limit}</p>}
+      <p className={`route-summary small ${summary.startsWith('⏳') ? 'warn' : 'muted'}`}>{summary}</p>
       <ul className="rows">
         {unlocked.map((r, j) => {
           const orders = s.regions[r.id].orders
           const cap = orderCap(r, mods)
           const pct = Math.min(100, orders.div(cap).toNumber() * 100)
-          const status = placeStatus(s, mods, r, game.routeRates, all)
+          const status = statuses.get(r.id)!
           return (
             <li key={r.id} className="row region">
               <RouteCell lanes={lanes} row={j} region={r} rates={game.routeRates} />
@@ -156,6 +163,7 @@ export function DistributionPanel() {
                         : next.space && 'Space places open once you have reached the whole planet.',
                     )
               }
+              progress={regionRequirementsMet(s, next) ? affordShare(s.money, next.unlockCost) : undefined}
               onClick={() => game.act((st) => unlockRegion(st, next.id))}
             >
               Expand

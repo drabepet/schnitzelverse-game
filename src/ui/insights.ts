@@ -1,44 +1,72 @@
 // Derived numbers the sidebar and dashboard share: flow, bottleneck,
 // ingredient sources and progress toward the next place.
-import { INGREDIENT_IDS, REGIONS, STAGE_IDS, type IngredientId, type RegionDef } from '../engine/content'
+import { INGREDIENT_IDS, type IngredientId, type RegionDef } from '../engine/content'
 import {
   chapter2Unlocked,
+  customerDemand,
   deliveryCapacity,
-  farmSupply,
   getMods,
+  kitchenCapacity,
   nextRegion,
-  orderRate,
   shopSupplyRate,
-  supplyNeeds,
-  taskCapacity,
 } from '../engine/rules'
 import type { GameStore } from '../game/store'
+import { farmSupplyNow, needsNow } from './derived'
+
+/** What limits the business, in pipeline order: what customers want, ingredients, the kitchen, delivery. */
+export type Bottleneck = 'customers' | 'supply' | 'kitchen' | 'delivery'
 
 export interface Flow {
   demand: number
+  /** Schnitzels per second the farm and shop's ingredients are enough for (Infinity when nothing is needed). */
+  supplyMax: number
   kitchenMax: number
   deliverMax: number
   fry: number
   deliver: number
-  bottleneck: 'customers' | 'kitchen' | 'delivery'
-  advice: string
+  bottleneck: Bottleneck
+  /** The ingredients that hold supply back (when it is the limit). */
+  short: IngredientId[]
 }
 
 export function flow(game: GameStore): Flow {
   const s = game.state
   const mods = getMods(s)
-  const demand = REGIONS.filter((r) => s.regions[r.id].unlocked).reduce((n, r) => n + orderRate(r, mods).toNumber(), 0)
-  const kitchenMax = Math.min(...STAGE_IDS.map((t) => taskCapacity(s, t, mods).toNumber()))
+  const demand = customerDemand(s, mods)
+  const kitchenMax = kitchenCapacity(s, mods)
   const deliverMax = deliveryCapacity(s, mods).toNumber()
-  const limit = Math.min(demand, kitchenMax, deliverMax)
-  const bottleneck = limit === demand ? 'customers' : limit === kitchenMax ? 'kitchen' : 'delivery'
-  const advice =
-    bottleneck === 'customers'
-      ? 'Customers are the limit: expand to a new place to sell more.'
-      : bottleneck === 'kitchen'
-        ? 'The kitchen is the bottleneck: speed up its slowest step.'
-        : 'Delivery is the bottleneck: hire helpers or buy vehicles.'
-  return { demand, kitchenMax, deliverMax, fry: game.rates.fry, deliver: game.rates.deliver, bottleneck, advice }
+  // Ingredients: what the farm and the corner shop deliver per second, against
+  // what one schnitzel needs (supplyNeeds is per second at the kitchen's pace).
+  const pace = Math.min(kitchenMax, deliverMax)
+  const need = needsNow(s)
+  const farm = chapter2Unlocked(s) ? farmSupplyNow(s) : () => 0
+  const enoughFor = INGREDIENT_IDS.map((id) => {
+    const n = need[id] ?? 0
+    return { id, max: n > 0 && pace > 0 ? ((farm(id) + shopSupplyRate(mods)) * pace) / n : Infinity }
+  })
+  const supplyMax = Math.min(...enoughFor.map((x) => x.max))
+  const short = enoughFor.filter((x) => Number.isFinite(x.max) && x.max <= supplyMax * 1.01).map((x) => x.id)
+  // The smallest one is the limit; on a tie, the earliest in the pipeline.
+  const limit = Math.min(demand, supplyMax, kitchenMax, deliverMax)
+  const bottleneck: Bottleneck =
+    limit === demand ? 'customers' : limit === supplyMax ? 'supply' : limit === kitchenMax ? 'kitchen' : 'delivery'
+  return { demand, supplyMax, kitchenMax, deliverMax, fry: game.rates.fry, deliver: game.rates.deliver, bottleneck, short }
+}
+
+/** What to do about a bottleneck, and the tab where you do it. */
+export function adviceFor(bottleneck: Bottleneck, farm: boolean): { text: string; tab: 'prep' | 'making' | 'distribution' } {
+  switch (bottleneck) {
+    case 'customers':
+      return { text: 'Customers are the limit: open the next place to sell more.', tab: 'distribution' }
+    case 'supply':
+      return farm
+        ? { text: 'Ingredients are the limit: grow the farm’s slowest chain (or the shop’s supply).', tab: 'prep' }
+        : { text: 'Ingredients are the limit: the corner shop can’t keep up. Its supply equipment helps.', tab: 'prep' }
+    case 'kitchen':
+      return { text: 'The kitchen is the limit: speed up its slowest step.', tab: 'making' }
+    case 'delivery':
+      return { text: 'Delivery is the limit: hire delivery helpers or buy vehicles.', tab: 'distribution' }
+  }
 }
 
 export type Source = 'farm' | 'farm + shop' | 'shop' | 'short'
@@ -54,12 +82,13 @@ export function ingredients(game: GameStore): IngredientStatus[] {
   const s = game.state
   const mods = getMods(s)
   const farm = chapter2Unlocked(s)
-  const need = supplyNeeds(s, mods)
+  const need = needsNow(s)
+  const supply = farmSupplyNow(s)
   return INGREDIENT_IDS.map((id) => {
     const n = need[id] ?? 0
     let source: Source | null = null
     if (farm) {
-      const fromFarm = farmSupply(s, id, mods)
+      const fromFarm = supply(id)
       source = fromFarm >= n ? 'farm' : fromFarm + shopSupplyRate(mods) < n - 0.05 ? 'short' : fromFarm > 0 ? 'farm + shop' : 'shop'
     }
     return { id, stock: s.items[id].toNumber(), need: n, source }

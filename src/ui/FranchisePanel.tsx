@@ -1,38 +1,31 @@
 import { useState } from 'react'
-import { CRUMB_DIVISOR, FRONTIER_CRUMB_SHARE, PERKS, REGIONS } from '../engine/content'
+import { CRUMB_DIVISOR, FRONTIER_CRUMB_SHARE, PERKS, REGIONS, CRUMB_PRIDE_PER_DECADE } from '../engine/content'
 import { fmt, fmtCompact, fmtMoney, fmtTime } from '../engine/format'
 import { D } from '../engine/decimal'
 import { franchise } from '../engine/actions'
-import {
-  atFrontier,
-  canBuyPerk,
-  crumbRate,
-  crumbProgress,
-  earningsCrumbs,
-  franchiseBlocker,
-  frontierCrumbs,
-  furthestPlace,
-  nextCrumbAt,
-  pendingCrumbs,
-} from '../engine/rules'
+import { atFrontier, canBuyPerk, crumbRate, crumbProgress, earningsCrumbs, franchiseBlocker, frontierCrumbs, furthestPlace, nextCrumbAt, pendingCrumbs, familyPride } from '../engine/rules'
 import { useGame } from '../game/store'
-import { ManagerToggles } from './Managers'
+import { useSteady } from './useSteady'
+import { moment } from './juice'
 import { FamilyTree } from './FamilyTree'
 import { PerkBonuses } from './PerkBonuses'
 import { FamilyOffice } from './FamilyOffice'
 import { HintButton } from './HintButton'
+import { mumSellStatus } from './managerStatus'
 
 export function FranchisePanel() {
   const game = useGame()
   const s = game.state
   const p = s.prestige
   const [confirming, setConfirming] = useState(false)
+  // Held for a few seconds, so they don't blink when income or the frontier wobbles.
+  const showEta = useSteady(game.rates.income > 0, 5000)
+  const frontierSale = useSteady(frontierCrumbs(s).gt(earningsCrumbs(s)), 5000)
   if (!p.unlocked && p.franchises === 0) return null
 
   const pending = pendingCrumbs(s)
   const rate = crumbRate(s)
   const earned = earningsCrumbs(s)
-  const frontier = frontierCrumbs(s)
   const best = REGIONS[s.stats.bestPlace]
   const here = REGIONS[furthestPlace(s)]
   const affordable = PERKS.filter((perk) => canBuyPerk(s, perk)).length
@@ -40,6 +33,10 @@ export function FranchisePanel() {
   const pct = Math.floor(next.fraction * 100)
   const income = game.rates.income
   const eta = income > 0 ? next.remaining.div(income).toNumber() : Infinity
+  const share = p.totalCrumbs.gt(0) ? pending.div(p.totalCrumbs).toNumber() * 100 : 0
+  const saleShare = `${share >= 10 ? fmtCompact(Math.round(share)) : share.toFixed(1)}%`
+  const prideAfter = 1 + CRUMB_PRIDE_PER_DECADE * p.totalCrumbs.add(pending).add(1).log10().toNumber()
+  const mum = mumSellStatus(s)
 
   return (
     <section className="panel panel-franchise">
@@ -53,8 +50,11 @@ export function FranchisePanel() {
         <div className="crumb-tile">
           <span className="crumb-tile-label">🏆 Collected in total</span>
           <b>{fmtCompact(D(p.totalCrumbs).floor())}</b>
-          <span className="muted small">
-            {p.bonusCrumbs.gt(0) ? `${fmtCompact(D(p.bonusCrumbs).floor())} from frontier sales` : 'over all your franchises'}
+          <span
+            className="muted small"
+            title={`Family pride: every Golden Crumb ever collected adds a little income (+${CRUMB_PRIDE_PER_DECADE * 100}% per tenfold).${p.bonusCrumbs.gt(0) ? ` ${fmtCompact(D(p.bonusCrumbs).floor())} of them came from frontier sales.` : ''}`}
+          >
+            family pride: income ×{familyPride(s).toFixed(2)}
           </span>
         </div>
         <div className="crumb-tile">
@@ -78,11 +78,19 @@ export function FranchisePanel() {
       <div className="franchise-box">
         <div>
           Selling now gives <b>+{fmt(pending, 0)} ✨</b>
-          {frontier.gt(earned) && <span className="muted"> (frontier sale)</span>}
+          {frontierSale && <span className="muted"> (frontier sale)</span>}
+          {p.totalCrumbs.gt(0) && (
+            <span className="muted">
+              {' '}
+              · <span className="num">+{saleShare}</span> of all you’ve collected, family pride ×{familyPride(s).toFixed(2)} → ×{prideAfter.toFixed(2)}
+            </span>
+          )}
           <div className="row-sub">
-            Lifetime earnings {fmtMoney(s.stats.earned)}; next crumb at {fmtMoney(nextCrumbAt(s))}. This run:{' '}
-            {fmtMoney(s.run.earned)} in {fmtTime(s.run.time)}.
+            Lifetime earnings <span className="num">{fmtMoney(s.stats.earned)}</span>; next crumb at{' '}
+            <span className="num">{fmtMoney(nextCrumbAt(s))}</span>. This run: <span className="num">{fmtMoney(s.run.earned)}</span> in{' '}
+            <span className="num time">{fmtTime(s.run.time)}</span>.
           </div>
+          {mum && <div className="row-sub franchise-mum">🏷️ {mum}</div>}
         </div>
         <HintButton
           className="primary"
@@ -121,9 +129,9 @@ export function FranchisePanel() {
           <span>
             Next Golden Crumb from earnings: <b>+{fmt(earned.add(1), 0)} ✨</b> if you sell
           </span>
-          <span className="muted">
+          <span className="muted next-crumb-eta">
             {fmtMoney(next.remaining)} to go
-            {Number.isFinite(eta) ? ` · about ${fmtTime(eta)}` : ''}
+            {showEta ? ` · about ${Number.isFinite(eta) ? fmtTime(eta) : '…'}` : ''}
           </span>
         </div>
         <div className="bar next-crumb-bar" title={`${pct}% of the way to the next Golden Crumb`}>
@@ -141,7 +149,6 @@ export function FranchisePanel() {
         Below, perks open one another as you level them. Near the bottom of each branch you pick one of two ways (you can switch once per
         run), and the capstone at the very bottom is the big one. Endless perks top out per chapter, far beyond normal play.
       </p>
-      <ManagerToggles statusOnly />
       <FamilyTree />
       <FamilyOffice />
       <PerkBonuses />
@@ -162,7 +169,10 @@ export function FranchisePanel() {
               <button
                 className="primary"
                 onClick={() => {
-                  game.act((st) => franchise(st))
+                  const gain = pending
+                  if (game.act((st) => franchise(st))) {
+                    moment('✨', 'Sold!', `+${fmtCompact(gain.floor())} Golden Crumbs. Run ${game.state.prestige.franchises + 1} starts in an empty garage.`)
+                  }
                   game.save()
                   setConfirming(false)
                 }}

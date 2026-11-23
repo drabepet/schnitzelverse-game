@@ -12,14 +12,17 @@ import { FarmPanel } from './ui/FarmPanel'
 import { FleetPanel } from './ui/FleetPanel'
 import { BadgesPage } from './ui/BadgesPage'
 import { BadgeToasts } from './ui/BadgeToasts'
+import { Moments } from './ui/Moments'
+import { setEffectsLevel } from './ui/juice'
 import { StatsPanel } from './ui/StatsPanel'
 import { StatusSidebar } from './ui/StatusSidebar'
 import { QualityPanel } from './ui/QualityPanel'
 import { RecordsTop } from './ui/RecordsTop'
 import { IntroDialog } from './ui/IntroDialog'
 import { FinaleDialog } from './ui/FinaleDialog'
-import { TabBar, visibleTabs, type TabId } from './ui/Tabs'
-import { chapter2Unlocked } from './engine/rules'
+import { TabBar } from './ui/Tabs'
+import { visibleTabs, type TabId } from './ui/tabList'
+import { chapter2Unlocked, chapterNumber } from './engine/rules'
 import { useGame } from './game/store'
 import { setNotation } from './engine/format'
 import { GO_TO_EVENT, type GoTo } from './ui/goTo'
@@ -49,6 +52,19 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.scale = scale
   }, [scale])
+
+  // Effects (Settings): the juice functions and CSS (sizzle, pulse) follow it.
+  const effects = game.state.settings.effects
+  setEffectsLevel(effects)
+  useEffect(() => {
+    document.documentElement.dataset.effects = effects
+  }, [effects])
+
+  // Chapter skins (Settings): the page takes the colours of the chapter you're in.
+  const skin = game.state.settings.chapterColours ? chapterNumber(game.state) : 1
+  useEffect(() => {
+    document.documentElement.dataset.chapter = String(skin)
+  }, [skin])
 
   // Links elsewhere (the sidebar) can open a tab and scroll to a spot on it.
   useEffect(() => {
@@ -132,6 +148,7 @@ export default function App() {
       </div>
 
       <BadgeToasts />
+      <Moments />
       <OfflineDialog />
       <IntroDialog />
       <FinaleDialog />

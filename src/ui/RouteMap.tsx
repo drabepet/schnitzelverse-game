@@ -56,7 +56,7 @@ export function RouteLegend({ lanes, rates }: { lanes: Lane[]; rates: RouteRates
         return (
           <span key={l.carrier.id} className="route-key" style={{ '--lane': laneColor(l) } as CSSProperties} title={`${l.carrier.name}: can carry ${fmt(l.carrier.capacity)}/s, using ${Math.round(load * 100)}%`}>
             <span className="swatch" />
-            {l.carrier.emoji} <span className={load >= 0.95 ? 'warn' : 'muted'}>{Math.round(load * 100)}%</span>
+            {l.carrier.emoji} <span className={`route-pct ${load >= 0.95 ? 'warn' : 'muted'}`}>{Math.round(load * 100)}%</span>
           </span>
         )
       })}

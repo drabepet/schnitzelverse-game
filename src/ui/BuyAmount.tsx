@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { setBuyAmount } from '../engine/actions'
-import { fmtMoney } from '../engine/format'
+import { fmtMoneyShort } from '../engine/format'
 import type { BulkPlan } from '../engine/rules'
 import type { BuyAmount } from '../engine/state'
 import { useGame } from '../game/store'
@@ -52,7 +52,7 @@ export function BuyLabel({ verb, plan }: { verb: string; plan: BulkPlan }) {
       <span className="buy-verb">
         {verb} ×{plan.count}
       </span>
-      <span className="buy-price">{fmtMoney(plan.cost)}</span>
+      <span className="buy-price">{fmtMoneyShort(plan.cost)}</span>
     </>
   )
 }

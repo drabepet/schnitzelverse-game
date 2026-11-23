@@ -1,5 +1,11 @@
-import { setBadgePopups, setNotationSetting, setUiScale } from '../engine/actions'
-import type { UiScale } from '../engine/state'
+import { setBadgePopups, setChapterColours, setEffects, setNotationSetting, setUiScale, setUpdateRate } from '../engine/actions'
+import { UPDATE_RATES, type EffectsLevel, type UiScale } from '../engine/state'
+
+const EFFECTS: { value: EffectsLevel; label: string; hint: string }[] = [
+  { value: 'full', label: 'Full', hint: 'Crumbs, sizzles and a big moment for each new chapter.' },
+  { value: 'calm', label: 'Calm', hint: 'Only the big moments: a new chapter and selling the business.' },
+  { value: 'off', label: 'Off', hint: 'No effects at all.' },
+]
 
 const SCALES: { value: UiScale; label: string }[] = [
   { value: 'auto', label: 'Fit to window' },
@@ -42,7 +48,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="setting">
           <span>Numbers</span>
           <div className="buy-amount" role="radiogroup" aria-label="Number format">
-            {(['short', 'scientific'] as const).map((n) => (
+            {(['short', 'named', 'scientific'] as const).map((n) => (
               <button
                 key={n}
                 role="radio"
@@ -50,12 +56,58 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 className={s.notation === n ? 'on' : ''}
                 onClick={() => game.act((st) => setNotationSetting(st, n))}
               >
-                {n === 'short' ? 'Short' : 'Scientific'}
+                {n === 'short' ? 'Short' : n === 'named' ? 'Named' : 'Scientific'}
               </button>
             ))}
           </div>
-          <span className="muted small">For example {fmt(1_234_567)}</span>
+          <span className="muted small">
+            For example {fmt(1_234_567)} and {fmt(4.56e15)}.{s.notation === 'named' && ' Small spaces (the sidebar, tiles, buttons) keep short numbers.'}
+          </span>
         </div>
+
+        <div className="setting">
+          <span>Display speed</span>
+          <div className="buy-amount" role="radiogroup" aria-label="Display speed">
+            {UPDATE_RATES.map((r) => (
+              <button
+                key={r}
+                role="radio"
+                aria-checked={s.updateRate === r}
+                className={s.updateRate === r ? 'on' : ''}
+                onClick={() => game.act((st) => setUpdateRate(st, r))}
+              >
+                {r === 20 ? 'Smooth' : r === 10 ? 'Relaxed' : 'Calm'}
+              </button>
+            ))}
+          </div>
+          <span className="muted small">
+            How often numbers update: {s.updateRate} times a second. The game runs just as fast either way; slower is easier on your
+            eyes and battery.
+          </span>
+        </div>
+
+        <div className="setting">
+          <span>Effects</span>
+          <div className="buy-amount" role="radiogroup" aria-label="Effects">
+            {EFFECTS.map((o) => (
+              <button
+                key={o.value}
+                role="radio"
+                aria-checked={s.effects === o.value}
+                className={s.effects === o.value ? 'on' : ''}
+                onClick={() => game.act((st) => setEffects(st, o.value))}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <span className="muted small">{EFFECTS.find((o) => o.value === s.effects)?.hint} Your system’s “reduce motion” setting is respected too.</span>
+        </div>
+
+        <label className="setting setting-check">
+          <input type="checkbox" checked={s.chapterColours} onChange={(e) => game.act((st) => setChapterColours(st, e.target.checked))} />
+          <span>Each chapter gives the game its own colours</span>
+        </label>
 
         <label className="setting setting-check">
           <input

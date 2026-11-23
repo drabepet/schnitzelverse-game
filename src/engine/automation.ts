@@ -1,49 +1,59 @@
 // Managers: perks that play the buying part of the game for you. Each runs
 // once per MANAGER_INTERVAL of game time, so they also work offline.
 import {
+  type Effect,
   FACILITIES,
-  MANAGER_INTERVAL,
-  MANAGER_SPEND_SHARE,
-  PERKS,
-  QUARTERMASTER_SPEND_SHARE,
-  REGIONS,
-  SAVE_FOR_PLACE_SECONDS,
-  SAVE_FOR_PLACE_SECONDS_RANK2,
-  SPEND_LEVELS,
-  type SpendLevel,
-  STAGE_IDS,
-  UPGRADES,
-  VEHICLES,
-  WORKERS,
   type FacilityDef,
   type IngredientId,
   type ItemId,
+  MANAGER_INTERVAL,
+  MANAGER_SPEND_SHARE,
   type PerkId,
+  PERKS,
+  QUARTERMASTER_SPEND_SHARE,
   type RegionDef,
+  REGIONS,
+  SAVE_FOR_PLACE_SECONDS,
+  SAVE_FOR_PLACE_SECONDS_RANK2,
+  SAVE_FOR_PLACE_CUSTOMERS,
+  SPEND_LEVELS,
+  SUPPLY_LEAD,
+  type SpendLevel,
   type Task,
   type UpgradeDef,
+  UPGRADES,
+  VEHICLES,
   type WorkerDef,
+  WORKERS,
+  INGREDIENT_SET,
 } from './content'
 import { buyFacility, buyPerk, buyUpgrade, buyVehicle, canUnlockRegion, franchise, hireWorker, unlockRegion } from './actions'
 import {
+  bestMomentToSell,
+  businessLimits,
+  type Limits,
+  type Pillar,
   canBuyPerk,
   canBuyUpgrade,
-  bestMomentToSell,
   canFranchise,
-  pendingCrumbs,
-  perkCost,
   canReach,
   chapter2Unlocked,
   chapter3Unlocked,
-  chapterOpenFor,
+  customerDemand,
   deliveryCapacity,
   facilityCapacity,
   facilityPlan,
+  facilitySpeed,
   farmSupply,
   getMods,
+  kitchenCapacity,
   meets,
-  orderRate,
+  type Mods,
+  pendingCrumbs,
+  perkCost,
   perkLevel,
+  stepCapacity,
+  supplyLimit,
   supplyNeeds,
   taskCapacity,
   upgradeUnlocked,
@@ -51,8 +61,8 @@ import {
   vehicleServes,
   vehicleVisible,
   workerPlan,
-  type Mods,
-  facilitySpeed,
+  nextRegion,
+  regionRequirementsMet,
 } from './rules'
 import { D, Decimal } from './decimal'
 import { MANAGER_LOG_LIMIT, type GameState } from './state'
@@ -92,11 +102,6 @@ export function setManager(state: GameState, id: PerkId, on: boolean): void {
   else state.managersOff[id] = true
 }
 
-/** Customers' orders per second over all unlocked places. */
-export function demand(state: GameState, mods: Mods): number {
-  return REGIONS.filter((r) => state.regions[r.id].unlocked).reduce((n, r) => n + orderRate(r, mods).toNumber(), 0)
-}
-
 /**
  * Income per second over the last few minutes of this run (from the income
  * history), or this run's average while the run is younger than that.
@@ -114,6 +119,8 @@ export interface Saving {
   remaining: number
   /** Seconds until it's there at recent income. */
   eta: number
+  /** Customers are the limit, so she saves longer (SAVE_FOR_PLACE_CUSTOMERS). */
+  customers: boolean
 }
 
 /**
@@ -124,17 +131,15 @@ export interface Saving {
  */
 export function savingStatus(state: GameState): Saving | null {
   if (!managerActive(state, 'estateAgent')) return null
-  const next = REGIONS.find((r) => !state.regions[r.id].unlocked)
-  if (!next) return null
-  if (!chapterOpenFor(state, next)) return null
-  if (state.prestige.franchises < (next.requiresFranchises ?? 0)) return null
-  if (!meets(state, { reputation: next.unlockReputation })) return null
-  if (state.money.gte(next.unlockCost)) return null
+  const next = nextRegion(state)?.region
+  if (!next || !regionRequirementsMet(state, next) || state.money.gte(next.unlockCost)) return null
   const remaining = D(next.unlockCost).sub(state.money).toNumber()
   const income = recentIncome(state)
-  const window = managerRank(state, 'estateAgent') >= 2 ? SAVE_FOR_PLACE_SECONDS_RANK2 : SAVE_FOR_PLACE_SECONDS
+  const base = managerRank(state, 'estateAgent') >= 2 ? SAVE_FOR_PLACE_SECONDS_RANK2 : SAVE_FOR_PLACE_SECONDS
+  const customers = businessLimits(state, getMods(state)).bottleneck === 'customers'
+  const window = customers ? base * SAVE_FOR_PLACE_CUSTOMERS : base
   if (income <= 0 || remaining > income * window) return null
-  return { region: next, remaining, eta: remaining / income }
+  return { region: next, remaining, eta: remaining / income, customers }
 }
 
 /** The place Mum is saving for, if any. */
@@ -155,29 +160,81 @@ function estateAgent(state: GameState): void {
   for (const r of REGIONS) if (canUnlockRegion(state, r.id)) unlockRegion(state, r.id)
 }
 
-function quartermaster(state: GameState): void {
-  const share = spendShare(state, 'quartermaster', QUARTERMASTER_SPEND_SHARE)
-  // Rank 2: the biggest piece he can afford first (bigger pieces usually do more).
-  const order = managerRank(state, 'quartermaster') >= 2 ? (a: UpgradeDef, b: UpgradeDef) => b.cost - a.cost : (a: UpgradeDef, b: UpgradeDef) => a.cost - b.cost
-  for (const u of [...UPGRADES].sort(order)) {
-    if (canBuyUpgrade(state, u) && cheapEnough(state, D(u.cost), share)) buyUpgrade(state, u.id)
+/** Which part of the business an effect adds capacity to; null for ones that always help (prices, reputation, crispness…). */
+function effectPillar(e: Effect): { pillar: Pillar; task?: Task } | null {
+  switch (e.kind) {
+    case 'speed':
+      return e.task === 'deliver' ? { pillar: 'delivery' } : { pillar: 'kitchen', task: e.task }
+    case 'kitchen':
+      return { pillar: 'kitchen' }
+    case 'facility':
+    case 'building':
+    case 'shopSupply':
+      return { pillar: 'supply' }
+    case 'fleet':
+      return { pillar: 'delivery' }
+    case 'orders':
+      return { pillar: 'customers' }
+    default:
+      return null
   }
 }
 
 /**
- * Equipment that speeds up a step, and how much work per second it adds per
- * dollar (its multiplier applied to what the helpers on that step do now).
+ * How much a piece of equipment helps right now: 2 adds to what holds the
+ * business back, 1 always helps (prices, reputation, crispness, Auntie…),
+ * 0 only adds capacity where there is already plenty (more than SUPPLY_LEAD
+ * past the limit), so it would stand idle.
  */
-function bestUpgradeFor(state: GameState, task: Task, mods: Mods): { u: UpgradeDef; perDollar: number } | null {
-  const now = taskCapacity(state, task, mods).toNumber()
-  let best: { u: UpgradeDef; perDollar: number } | null = null
+export function gearUse(state: GameState, u: UpgradeDef, limits: Limits, mods: Mods): 0 | 1 | 2 {
+  // Equipment that only opens something (no effect of its own) always helps.
+  let use: 0 | 1 | 2 = u.effects.length ? 0 : 1
+  for (const e of u.effects) {
+    const p = effectPillar(e)
+    if (!p) {
+      use = Math.max(use, 1) as 0 | 1 | 2
+      continue
+    }
+    // A kitchen step's own speed counts against that step, not the whole kitchen.
+    const cap = p.task ? taskCapacity(state, p.task, mods).toNumber() : limits[p.pillar]
+    if (p.pillar === limits.bottleneck && (!p.task || cap <= limits.limit * SUPPLY_LEAD)) return 2
+    if (cap < limits.limit * SUPPLY_LEAD) use = Math.max(use, 1) as 0 | 1 | 2
+  }
+  return use
+}
+
+/**
+ * Uncle buys equipment: what helps the bottleneck first, then what always
+ * helps; never what would only add idle capacity. Within each, cheapest
+ * first (rank 2: the biggest piece he can afford, bigger pieces usually do more).
+ */
+function quartermaster(state: GameState): void {
+  const share = spendShare(state, 'quartermaster', QUARTERMASTER_SPEND_SHARE)
+  const mods = getMods(state)
+  const limits = businessLimits(state, mods)
+  const big = managerRank(state, 'quartermaster') >= 2
+  const list = UPGRADES.filter((u) => canBuyUpgrade(state, u) && cheapEnough(state, D(u.cost), share))
+    .map((u) => ({ u, use: gearUse(state, u, limits, mods) }))
+    .filter((x) => x.use > 0)
+    .sort((a, b) => b.use - a.use || (big ? b.u.cost - a.u.cost : a.u.cost - b.u.cost))
+  for (const { u } of list) if (canBuyUpgrade(state, u) && cheapEnough(state, D(u.cost), share)) buyUpgrade(state, u.id)
+}
+
+/** A piece of equipment and how much output per second it adds per dollar. */
+interface GearPick {
+  u: UpgradeDef
+  perDollar: number
+}
+
+/**
+ * The open equipment that adds the most per dollar: `now` is what the step or
+ * building makes per second, `multOf` how much a piece multiplies that.
+ */
+function bestGear(state: GameState, now: number, multOf: (u: UpgradeDef) => number): GearPick | null {
+  let best: GearPick | null = null
   for (const u of UPGRADES) {
     if (!upgradeUnlocked(state, u)) continue
-    let mult = 1
-    for (const e of u.effects) {
-      if (e.kind === 'speed' && e.task === task) mult *= e.mult
-      if (e.kind === 'kitchen' && task !== 'deliver') mult *= e.mult
-    }
+    const mult = multOf(u)
     if (mult <= 1) continue
     const perDollar = (now * (mult - 1)) / u.cost
     if (!best || perDollar > best.perDollar) best = { u, perDollar }
@@ -185,43 +242,65 @@ function bestUpgradeFor(state: GameState, task: Task, mods: Mods): { u: UpgradeD
   return best
 }
 
-/** What Grandma does next for the slowest step: hire, buy equipment, or wait for it. */
-export type FamilyStep =
-  | { kind: 'hire'; worker: WorkerDef; cost: Decimal }
-  | { kind: 'equip'; upgrade: UpgradeDef }
-  | { kind: 'wait'; upgrade: UpgradeDef; remaining: number }
+/** Equipment instead of buying more: get it now, or wait for it. */
+export type GearStep = { kind: 'equip'; upgrade: UpgradeDef } | { kind: 'wait'; upgrade: UpgradeDef; remaining: number }
+
+/**
+ * Grandma's and Grandpa's rule: equipment that does more per dollar than
+ * buying another helper or building is bought now, or waited for when it is
+ * only a few minutes of income away (no point buying a crowd first).
+ */
+function gearStep(state: GameState, gear: GearPick | null, buyPerDollar: number): GearStep | null {
+  if (!gear || gear.perDollar <= buyPerDollar) return null
+  const money = spendable(state)
+  if (money.gte(gear.u.cost)) return { kind: 'equip', upgrade: gear.u }
+  const remaining = D(gear.u.cost).sub(money).toNumber()
+  if (remaining <= recentIncome(state) * SAVE_FOR_PLACE_SECONDS) return { kind: 'wait', upgrade: gear.u, remaining }
+  return null
+}
+
+/** How much faster an upgrade makes a kitchen or delivery step. */
+function taskGearMult(u: UpgradeDef, task: Task): number {
+  let mult = 1
+  for (const e of u.effects) {
+    if (e.kind === 'speed' && e.task === task) mult *= e.mult
+    if (e.kind === 'kitchen' && task !== 'deliver') mult *= e.mult
+  }
+  return mult
+}
+
+/**
+ * What Grandma does next for the slowest step: hire, buy equipment, or wait for
+ * it; or hold off because the ingredients are the limit (more helpers would
+ * only stand around, so the money is left for the farm).
+ */
+export type FamilyStep = { kind: 'hire'; worker: WorkerDef; cost: Decimal } | GearStep | { kind: 'hold' }
 
 export function familyNextStep(state: GameState): FamilyStep | null {
   const mods = getMods(state)
-  const target = demand(state, mods) * 1.3
+  const demand = customerDemand(state, mods) * 1.3
+  const target = Math.min(demand, supplyLimit(state, mods) * SUPPLY_LEAD)
   const tasks: Task[] = ['deliver', 'fry', 'bread', 'pound'] // ties: sell first
   const weakest = tasks
-    .map((t) => ({ t, cap: (t === 'deliver' ? deliveryCapacity(state, mods) : taskCapacity(state, t, mods)).toNumber() }))
+    .map((t) => ({ t, cap: stepCapacity(state, t, mods).toNumber() }))
     .sort((a, b) => a.cap - b.cap)[0]
-  if (weakest.cap >= target) return null
+  if (weakest.cap >= target) return weakest.cap >= demand ? null : { kind: 'hold' }
   // The cheapest helper per unit of work for that step.
   const hire = WORKERS.filter((w) => w.task === weakest.t && meets(state, w.requires))
     .map((w) => ({ w, cost: workerPlan(state, w.id, 1).cost }))
     .sort((a, b) => a.cost.div(a.w.rate).cmp(b.cost.div(b.w.rate)))[0]
   if (!hire) return null
   const hirePerDollar = (hire.w.rate * mods.speed[hire.w.task]) / hire.cost.toNumber()
-  // Equipment that does more per dollar than another helper: buy it, or wait for it
-  // if it's only a few minutes of income away (no point hiring a crowd first).
-  const gear = bestUpgradeFor(state, weakest.t, mods)
-  if (gear && gear.perDollar > hirePerDollar) {
-    const money = spendable(state)
-    if (money.gte(gear.u.cost)) return { kind: 'equip', upgrade: gear.u }
-    const remaining = D(gear.u.cost).sub(money).toNumber()
-    if (remaining <= recentIncome(state) * SAVE_FOR_PLACE_SECONDS) return { kind: 'wait', upgrade: gear.u, remaining }
-  }
-  return { kind: 'hire', worker: hire.w, cost: hire.cost }
+  const task = weakest.t
+  const gear = bestGear(state, taskCapacity(state, task, mods).toNumber(), (u) => taskGearMult(u, task))
+  return gearStep(state, gear, hirePerDollar) ?? { kind: 'hire', worker: hire.w, cost: hire.cost }
 }
 
 /** Hire for the slowest step while it is below what customers want (+30%), or equip it when that's better value. */
 function familyManager(state: GameState): void {
   for (let i = 0; i < GUARD; i++) {
     const step = familyNextStep(state)
-    if (!step || step.kind === 'wait') return
+    if (!step || step.kind === 'wait' || step.kind === 'hold') return
     if (step.kind === 'equip') {
       if (!buyUpgrade(state, step.upgrade.id)) return
       continue
@@ -263,31 +342,18 @@ export function farmGearMult(u: UpgradeDef, f: FacilityDef): number {
   return mult
 }
 
-/** Farm equipment for a building, and how much output per second it adds per dollar. */
-function bestFarmUpgradeFor(state: GameState, f: FacilityDef, mods: Mods): { u: UpgradeDef; perDollar: number } | null {
-  const now = facilityCapacity(state, f, mods).toNumber() * f.yield
-  let best: { u: UpgradeDef; perDollar: number } | null = null
-  for (const u of UPGRADES) {
-    if (!upgradeUnlocked(state, u)) continue
-    const mult = farmGearMult(u, f)
-    if (mult <= 1) continue
-    const perDollar = (now * (mult - 1)) / u.cost
-    if (!best || perDollar > best.perDollar) best = { u, perDollar }
-  }
-  return best
-}
-
 /** What Grandpa does next for one short ingredient: build, buy equipment, or wait for it. */
-export type FarmStep =
-  | { kind: 'build'; facility: FacilityDef; cost: Decimal }
-  | { kind: 'equip'; upgrade: UpgradeDef }
-  | { kind: 'wait'; upgrade: UpgradeDef; remaining: number }
+export type FarmStep = { kind: 'build'; facility: FacilityDef; cost: Decimal } | GearStep
 
 /** Ingredients the farm covers least of what the kitchen needs, worst first. */
 function shortIngredients(state: GameState, mods: Mods): IngredientId[] {
   const need = supplyNeeds(state, mods)
+  // No further than customers want (+30%): supplyNeeds follows the kitchen and fleet.
+  const l = businessLimits(state, mods)
+  const scale = Math.min(1, (l.customers * 1.3) / Math.max(1e-9, Math.min(l.kitchen, l.delivery)))
+  for (const k of Object.keys(need) as ItemId[]) need[k] = (need[k] ?? 0) * scale
   return (Object.keys(need) as ItemId[])
-    .filter((item): item is IngredientId => ['meat', 'flour', 'eggs', 'crumbs', 'oil'].includes(item))
+    .filter((item): item is IngredientId => INGREDIENT_SET.has(item))
     .map((item) => ({ item, cover: farmSupply(state, item, mods) / Math.max(need[item] ?? 0, 1e-9) }))
     .filter((x) => (need[x.item] ?? 0) > 0 && x.cover < 1.1)
     .sort((a, b) => a.cover - b.cover)
@@ -304,14 +370,8 @@ function farmStepFor(state: GameState, item: IngredientId, mods: Mods): FarmStep
   if (!f) return null
   const cost = facilityPlan(state, f, 1).cost
   const buildPerDollar = (facilitySpeed(state, f, mods) * f.yield) / cost.toNumber()
-  const gear = bestFarmUpgradeFor(state, f, mods)
-  if (gear && gear.perDollar > buildPerDollar) {
-    const money = spendable(state)
-    if (money.gte(gear.u.cost)) return { kind: 'equip', upgrade: gear.u }
-    const remaining = D(gear.u.cost).sub(money).toNumber()
-    if (remaining <= recentIncome(state) * SAVE_FOR_PLACE_SECONDS) return { kind: 'wait', upgrade: gear.u, remaining }
-  }
-  return { kind: 'build', facility: f, cost }
+  const gear = bestGear(state, facilityCapacity(state, f, mods).toNumber() * f.yield, (u) => farmGearMult(u, f))
+  return gearStep(state, gear, buildPerDollar) ?? { kind: 'build', facility: f, cost }
 }
 
 /** What Grandpa does next for the shortest ingredient (for the sidebar). */
@@ -347,7 +407,24 @@ function farmManager(state: GameState): void {
   }
 }
 
-/** Reach every unlocked place, then add capacity while delivery lags the kitchen. */
+/**
+ * What the fleet should carry: what the kitchen makes, or, when the
+ * ingredients are the limit, a little more than they can feed (SUPPLY_LEAD).
+ */
+function fleetTarget(state: GameState, mods: Mods): number {
+  const l = businessLimits(state, mods)
+  return Math.min(l.kitchen * 1.1, l.supply * SUPPLY_LEAD * 1.1, l.customers * 1.3)
+}
+
+/** The kid is waiting for the farm: the fleet carries all the ingredients can feed, though not all the kitchen could make. */
+export function fleetWaitsForSupply(state: GameState): boolean {
+  if (!chapter3Unlocked(state)) return false
+  const mods = getMods(state)
+  const target = fleetTarget(state, mods)
+  return deliveryCapacity(state, mods).toNumber() >= target && target < Math.min(kitchenCapacity(state, mods) * 1.1, customerDemand(state, mods) * 1.3)
+}
+
+/** Reach every unlocked place, then add capacity while delivery lags the kitchen (or the ingredients, when they are the limit). */
 function dispatcher(state: GameState): void {
   if (!chapter3Unlocked(state)) return
   const mods = getMods(state)
@@ -357,8 +434,7 @@ function dispatcher(state: GameState): void {
     if (v && cheapEnough(state, vehiclePlan(state, v, 1).cost, Math.max(0.5, spendShare(state, 'dispatcher')))) buyVehicle(state, v.id, 1)
   }
   for (let i = 0; i < GUARD; i++) {
-    const kitchen = Math.min(...STAGE_IDS.map((t) => taskCapacity(state, t, mods).toNumber()))
-    if (deliveryCapacity(state, mods).toNumber() >= kitchen * 1.1) return
+    if (deliveryCapacity(state, mods).toNumber() >= fleetTarget(state, mods)) return
     // Only vehicles that serve a place you deliver to.
     const useful = VEHICLES.filter(
       (v) => vehicleVisible(state, v) && REGIONS.some((r) => state.regions[r.id].unlocked && vehicleServes(v, r)),

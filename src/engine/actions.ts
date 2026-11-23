@@ -2,36 +2,42 @@
 import { D, type Decimal } from './decimal'
 import { GAME_VERSION } from '../version'
 import {
-  KNOCK_COOLDOWN,
   CRISP_TEMP_BEST,
   CRISP_TEMP_MAX,
   CRISP_TEMP_MIN,
   CRISP_UNLOCK_REGION,
-  OIL_LEVELS,
   FACILITIES,
+  FACILITY_BY_ID,
+  type FacilityId,
   FRANCHISE_MESSAGES,
-  INGREDIENT_IDS,
-  STAGE_IDS,
-  VEHICLES,
   FRANCHISE_UNLOCK_REGION,
   HEAD_START_BASE,
   HEAD_START_GROWTH,
-  PERKS,
-  REGIONS,
-  START_REGIONS,
-  UPGRADES,
-  WORKERS,
-  type FacilityId,
+  INGREDIENT_IDS,
   type IngredientId,
   type ItemId,
+  KNOCK_COOLDOWN,
+  OIL_LEVELS,
+  PERK_BY_ID,
   type PerkId,
+  REGION_BY_ID,
+  REGION_INDEX,
   type RegionId,
+  REGIONS,
+  STAGE_IDS,
   type StageId,
+  START_REGIONS,
+  UPGRADE_BY_ID,
   type UpgradeId,
+  UPGRADES,
+  VEHICLE_BY_ID,
   type VehicleId,
+  VEHICLES,
+  WORKER_BY_ID,
   type WorkerId,
+  WORKERS,
 } from './content'
-import { addLog, AUTO_SELL_PERCENTS, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale } from './state'
+import { addLog, AUTO_SELL_PERCENTS, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale, type EffectsLevel, UPDATE_RATES, type UpdateRate } from './state'
 import {
   canBuyPerk,
   canSwapFork,
@@ -39,7 +45,6 @@ import {
   canBuyUpgrade,
   canFranchise,
   chapter2Unlocked,
-  chapterOpenFor,
   clickAmount,
   earningsCrumbs,
   furthestPlace,
@@ -55,8 +60,9 @@ import {
   perkLevel,
   vehiclePlan,
   workerPlan,
+  regionRequirementsMet,
 } from './rules'
-import { buyPacks, deliverTo, runStage } from './tick'
+import { buyPacks, deliverTo, runStage } from './ops'
 
 export function clickStage(state: GameState, stage: StageId): boolean {
   const done = runStage(state, stage, clickAmount(stage, getMods(state)))
@@ -68,7 +74,7 @@ export function clickStage(state: GameState, stage: StageId): boolean {
 
 export function clickDeliver(state: GameState, region: RegionId): boolean {
   const mods = getMods(state)
-  const def = REGIONS.find((r) => r.id === region)!
+  const def = REGION_BY_ID[region]
   if (!helperReaches(def)) return false // too far to carry it yourself
   const [served] = deliverTo(state, def, clickAmount('deliver', mods), mods)
   if (served.lte(0)) return false
@@ -82,7 +88,7 @@ export function buyIngredient(state: GameState, item: IngredientId, packs = 1): 
 
 /** Hire one, ten, or as many as you can afford (see BuyAmount). */
 export function hireWorker(state: GameState, id: WorkerId, amount: BuyAmount = 1): boolean {
-  const def = WORKERS.find((w) => w.id === id)!
+  const def = WORKER_BY_ID[id]
   if (!meets(state, def.requires)) return false
   const plan = workerPlan(state, id, amount)
   if (!plan.affordable) return false
@@ -93,7 +99,7 @@ export function hireWorker(state: GameState, id: WorkerId, amount: BuyAmount = 1
 }
 
 export function buyUpgrade(state: GameState, id: UpgradeId): boolean {
-  const def = UPGRADES.find((u) => u.id === id)!
+  const def = UPGRADE_BY_ID[id]
   if (!canBuyUpgrade(state, def)) return false
   state.money = state.money.sub(def.cost)
   state.upgrades[id] = true
@@ -101,22 +107,16 @@ export function buyUpgrade(state: GameState, id: UpgradeId): boolean {
 }
 
 export function canUnlockRegion(state: GameState, id: RegionId): boolean {
-  const def = REGIONS.find((r) => r.id === id)!
-  return (
-    !state.regions[id].unlocked &&
-    chapterOpenFor(state, def) &&
-    state.prestige.franchises >= (def.requiresFranchises ?? 0) &&
-    meets(state, { reputation: def.unlockReputation }) &&
-    state.money.gte(def.unlockCost)
-  )
+  const def = REGION_BY_ID[id]
+  return !state.regions[id].unlocked && regionRequirementsMet(state, def) && state.money.gte(def.unlockCost)
 }
 
 export function unlockRegion(state: GameState, id: RegionId): boolean {
   if (!canUnlockRegion(state, id)) return false
-  const def = REGIONS.find((r) => r.id === id)!
+  const def = REGION_BY_ID[id]
   state.money = state.money.sub(def.unlockCost)
   state.regions[id].unlocked = true
-  const index = REGIONS.findIndex((r) => r.id === id)
+  const index = REGION_INDEX[id]
   if (index > state.stats.bestPlace) state.stats.bestPlace = index
   if (id === FRANCHISE_UNLOCK_REGION) {
     state.prestige.unlocked = true
@@ -181,10 +181,6 @@ function hireFarmHands(state: GameState): void {
   for (const u of UPGRADES) if (u.chain) state.upgrades[u.id] = true
 }
 
-/**
- * Sell the business: reset the run, keep Golden Crumbs, perks, settings,
- * statistics and the story so far.
- */
 /** Remember the run that is ending, for the run history and personal bests in Records. */
 function recordRun(state: GameState, gain: Decimal): void {
   const st = state.stats
@@ -202,6 +198,10 @@ function recordRun(state: GameState, gain: Decimal): void {
   st.longestRun = Math.max(st.longestRun, state.run.time)
 }
 
+/**
+ * Sell the business: reset the run, keep Golden Crumbs, perks, settings,
+ * statistics and the story so far.
+ */
 export function franchise(state: GameState): boolean {
   if (!canFranchise(state)) return false
   const gain = pendingCrumbs(state)
@@ -220,7 +220,7 @@ export function franchise(state: GameState): boolean {
 }
 
 export function buyPerk(state: GameState, id: PerkId): boolean {
-  const perk = PERKS.find((p) => p.id === id)!
+  const perk = PERK_BY_ID[id]
   if (!canBuyPerk(state, perk)) return false
   state.prestige.crumbs = state.prestige.crumbs.sub(perkCost(state, perk))
   const level = perkLevel(state, id) + 1
@@ -241,7 +241,7 @@ export function buyPerk(state: GameState, id: PerkId): boolean {
 // ---------------------------------------------------------------- chapter 2: the farm
 
 export function buyFacility(state: GameState, id: FacilityId, amount: BuyAmount = 1): boolean {
-  const def = FACILITIES.find((f) => f.id === id)!
+  const def = FACILITY_BY_ID[id]
   if (!chapter2Unlocked(state)) return false
   const plan = facilityPlan(state, def, amount)
   if (!plan.affordable) return false
@@ -254,7 +254,7 @@ export function buyFacility(state: GameState, id: FacilityId, amount: BuyAmount 
 // ---------------------------------------------------------------- chapter 3: on the road
 
 export function buyVehicle(state: GameState, id: VehicleId, amount: BuyAmount = 1): boolean {
-  const def = VEHICLES.find((v) => v.id === id)!
+  const def = VEHICLE_BY_ID[id]
   if (!vehicleVisible(state, def)) return false
   const plan = vehiclePlan(state, def, amount)
   if (!plan.affordable) return false
@@ -307,6 +307,18 @@ export function setBadgePopups(state: GameState, on: boolean): void {
   state.settings.badgePopups = on
 }
 
+export function setUpdateRate(state: GameState, rate: UpdateRate): void {
+  if ((UPDATE_RATES as readonly number[]).includes(rate)) state.settings.updateRate = rate
+}
+
+export function setEffects(state: GameState, level: EffectsLevel): void {
+  state.settings.effects = level
+}
+
+export function setChapterColours(state: GameState, on: boolean): void {
+  state.settings.chapterColours = on
+}
+
 /** Open (false) or close (true) the welcome screen. */
 export function setIntroSeen(state: GameState, seen: boolean): void {
   state.introSeen = seen
@@ -316,7 +328,7 @@ export function setIntroSeen(state: GameState, seen: boolean): void {
 
 /** Switch a family-tree choice to this side, keeping the levels. Once per choice per run. */
 export function swapFork(state: GameState, id: PerkId): boolean {
-  const perk = PERKS.find((p) => p.id === id)!
+  const perk = PERK_BY_ID[id]
   const other = forkPartner(perk)
   if (!other || !perk.fork || !canSwapFork(state, perk)) return false
   state.prestige.perks[id] = perkLevel(state, other.id)
@@ -342,6 +354,16 @@ export function setFinaleSeen(state: GameState): void {
 /** The player opened About & what's new for this version. */
 export function setNewsSeen(state: GameState, version: string): void {
   state.newsSeen = version
+}
+
+/** The player kept a copy of the save (download or copy text) at this wall-clock time. */
+export function noteCopyKept(state: GameState, now: number): void {
+  state.stats.lastCopyAt = now
+}
+
+/** The keep-a-copy note has been shown for this chapter. */
+export function setCopyNudgeChapter(state: GameState, chapter: number): void {
+  state.copyNudgeChapter = Math.max(state.copyNudgeChapter, chapter)
 }
 
 export function setBuyAmount(state: GameState, amount: BuyAmount): void {

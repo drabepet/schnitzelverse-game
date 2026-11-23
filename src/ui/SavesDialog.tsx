@@ -1,5 +1,16 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { useGame } from '../game/store'
+import { noteCopyKept } from '../engine/actions'
+import { ago, useGame } from '../game/store'
+import { downloadSave } from './saveCopy'
+import type { Snapshot } from '../game/storage'
+
+const REASON: Record<Snapshot['reason'], string> = {
+  auto: 'automatic',
+  'before-load': 'before loading a copy',
+  'before-reset': 'before starting over',
+  'before-restore': 'before going back',
+  chapter: 'new chapter',
+}
 
 function Row({ title, text, children }: { title: string; text: ReactNode; children: ReactNode }) {
   return (
@@ -18,14 +29,13 @@ export function SavesDialog({ onClose }: { onClose: () => void }) {
   const game = useGame()
   const [note, setNote] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
+  // Read once (and after each change), not on every frame: it's a few big saves.
+  const [points, setPoints] = useState<Snapshot[]>(() => game.snapshots())
+  const refresh = () => setPoints(game.snapshots())
+  const lastCopy = game.state.stats.lastCopyAt
 
   const onDownload = () => {
-    const url = URL.createObjectURL(new Blob([game.exportSave()], { type: 'text/plain' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `schnitzelverse-${new Date().toISOString().slice(0, 10)}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadSave(game)
     setNote('Save downloaded.')
   }
 
@@ -37,13 +47,15 @@ export function SavesDialog({ onClose }: { onClose: () => void }) {
     } catch {
       window.prompt('Copy your save:', text)
     }
+    game.act((st) => noteCopyKept(st, Date.now()))
   }
 
   const onUpload = async (file: File | undefined) => {
     if (!file) return
     try {
       game.importSave(await file.text())
-      setNote('Save loaded.')
+      refresh()
+      setNote('Save loaded. Changed your mind? Go back to “before loading a copy” below.')
     } catch {
       setNote('That file is not a Schnitzelverse save.')
     }
@@ -54,20 +66,23 @@ export function SavesDialog({ onClose }: { onClose: () => void }) {
     if (!text) return
     try {
       game.importSave(text)
-      setNote('Save loaded.')
+      refresh()
+      setNote('Save loaded. Changed your mind? Go back to “before loading a copy” below.')
     } catch {
       setNote('That does not look like a Schnitzelverse save.')
     }
   }
 
-  const onRestore = () => {
-    if (!window.confirm('Go back to the backup copy (saved up to 10 minutes ago, or just before your last load or reset)?')) return
-    setNote(game.restoreBackup() ? 'Backup restored.' : 'No backup yet.')
+  const onRestore = (p: Snapshot) => {
+    if (!window.confirm(`Go back to the game as it was ${ago(p.at)} (${p.label})? The game as it is now is kept as a restore point too.`)) return
+    setNote(game.restoreSnapshot(p.at) ? 'Restored.' : 'That restore point is gone.')
+    refresh()
   }
 
   const onReset = () => {
     if (!window.confirm('Start over from an empty garage? This deletes your progress.')) return
     game.hardReset()
+    refresh()
     onClose()
   }
 
@@ -77,6 +92,12 @@ export function SavesDialog({ onClose }: { onClose: () => void }) {
         <h2 id="saves-title">Your save</h2>
         <p className="muted saves-intro">
           The game saves itself in this browser every few seconds. Keep a copy to move to another computer or browser.
+        </p>
+        <p className="small muted saves-status">
+          {game.persisted
+            ? '🔒 This browser has promised to keep your save.'
+            : 'Browsers can clear saved games (in a private window, when you clear your history, or Safari after 7 days away), so keep a copy now and then.'}{' '}
+          Last copy kept: {lastCopy ? ago(lastCopy) : 'never'}.
         </p>
 
         <Row title="Save now" text="Not needed, but it feels good.">
@@ -97,9 +118,26 @@ export function SavesDialog({ onClose }: { onClose: () => void }) {
           <button onClick={() => fileInput.current?.click()}>Open file</button>
           <button onClick={onPaste}>Paste text</button>
         </Row>
-        <Row title="Undo a mistake" text="Goes back to a copy from up to 10 minutes ago.">
-          <button onClick={onRestore}>Restore backup</button>
-        </Row>
+        <div className="save-row save-points">
+          <div>
+            <b>Undo a mistake</b>
+            <span className="muted small">Go back to a restore point: taken every 15 minutes, and before loading a copy, starting over or going back.</span>
+          </div>
+          {points.length ? (
+            <ul className="save-point-list">
+              {points.map((p) => (
+                <li key={p.at}>
+                  <span>
+                    <b>{ago(p.at)}</b> · {p.label} <span className="muted">· {REASON[p.reason]}</span>
+                  </span>
+                  <button onClick={() => onRestore(p)}>Go back</button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className="muted small">No restore points yet: the first is taken in a moment.</span>
+          )}
+        </div>
         <Row title="Start over" text="An empty garage. Your progress is deleted.">
           <button className="danger" onClick={onReset}>
             Start over

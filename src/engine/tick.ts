@@ -2,55 +2,34 @@
 // state in place (cheaper than copying every frame). It has no dependency on
 // the browser, so it runs the same in the game, in tests and in offline catch-up.
 import { D, Decimal, ZERO, nonNeg } from './decimal'
-import {
-  COLD_PRICE_FACTOR,
-  COLD_REPUTATION,
-  HOT_REPUTATION,
-  INGREDIENT_IDS,
-  FACILITIES,
-  FARM_GOOD_BUFFER,
-  VEHICLES,
-  MILESTONES,
-  REGIONS,
-  RESCUE_AFTER_SECONDS,
-  RESCUE_AMOUNT,
-  RESCUE_MESSAGES,
-  SHOP,
-  STAGE_IDS,
-  STAGES,
-  type FacilityId,
-  type ItemId,
-  type RegionDef,
-  type StageId,
-} from './content'
+import { FACILITIES, type FacilityId, FARM_GOOD_BUFFER, INGREDIENT_IDS, INGREDIENT_SET, MILESTONES, type RegionDef, REGIONS, RESCUE_AFTER_SECONDS, RESCUE_AMOUNT, RESCUE_MESSAGES, STAGE_IDS, STAGES, VEHICLES, FAMILY_LINES } from './content'
 import { addLog, HISTORY_LENGTH, HISTORY_STEP, type GameState } from './state'
 import { BADGES } from './badges'
 import { runManagers } from './automation'
 import {
   consumption,
   coolingRate,
+  crumbGrowth,
+  crumbRate,
   facilityCapacity,
   freshness,
   getMods,
-  shelfMax,
-  shopSupplyRate,
+  helperReaches,
   ingredientsForNextSchnitzel,
   isStuck,
+  type Mods,
   orderCap,
   orderRate,
   packSize,
-  regionPrice,
-  helperReaches,
-  vehicleServes,
-  stageInputs,
+  shelfMax,
+  shopSupplyRate,
   stageLimit,
   taskCapacity,
   vehicleCapacity,
-  type Mods,
-  crumbGrowth,
-  crumbRate,
+  vehicleServes,
 } from './rules'
 import { routeKey, type CarrierId } from './routes'
+import { buyPacks, deliverTo, runRecipe, runStage } from './ops'
 
 /** What happened during a tick, for rate displays and offline summaries. */
 export interface Flows {
@@ -91,99 +70,16 @@ export function addFlows(a: Flows, b: Flows): Flows {
   }
 }
 
-/**
- * Run a recipe for up to `max` cycles, limited by available inputs.
- * Each cycle consumes `inputs` and produces `yieldPer` of `output`. Returns cycles run.
- */
-export function runRecipe(
-  state: GameState,
-  inputs: Partial<Record<ItemId, number>>,
-  output: ItemId,
-  yieldPer: number,
-  max: Decimal,
-): Decimal {
-  const entries = Object.entries(inputs) as [ItemId, number][]
-  let cycles = max
-  for (const [item, qty] of entries) cycles = Decimal.min(cycles, state.items[item].div(qty))
-  if (cycles.lte(0)) return ZERO
-  for (const [item, qty] of entries) state.items[item] = nonNeg(state.items[item].sub(cycles.mul(qty)))
-  state.items[output] = state.items[output].add(cycles.mul(yieldPer))
-  return cycles
-}
+/** Longest range first: the fleet delivers in this order. */
+const FLEET_FAR_FIRST = [...VEHICLES].reverse()
 
-/** Run a kitchen stage for up to `max` units, limited by available inputs. */
-export function runStage(state: GameState, stage: StageId, max: Decimal): Decimal {
-  return runRecipe(state, stageInputs(state, stage), STAGES[stage].output, 1, max)
-}
+/** What the kitchen and farm can use in one tick, per item. */
+type Use = ReturnType<typeof consumption>
 
-/**
- * Deliver up to `max` schnitzels to a region. Hot ones go first; `fresh` is the
- * share of them still hot on arrival (long trips cool them). Returns [served, revenue].
- */
-export function deliverTo(
-  state: GameState,
-  region: RegionDef,
-  max: Decimal,
-  mods: Mods,
-  fresh = 1,
-): [Decimal, Decimal] {
-  const r = state.regions[region.id]
-  if (!r.unlocked) return [ZERO, ZERO]
-  const stock = state.items.hot.add(state.items.cold)
-  const amount = Decimal.min(Decimal.min(max, r.orders), stock)
-  if (amount.lte(0)) return [ZERO, ZERO]
-
-  const hotTaken = Decimal.min(amount, state.items.hot)
-  const coldTaken = amount.sub(hotTaken)
-  const hot = hotTaken.mul(fresh) // still hot on arrival
-  const cold = amount.sub(hot)
-  const price = regionPrice(region, mods)
-  const revenue = price.mul(hot.add(cold.mul(COLD_PRICE_FACTOR)))
-
-  state.items.hot = nonNeg(state.items.hot.sub(hotTaken))
-  state.items.cold = nonNeg(state.items.cold.sub(coldTaken))
-  r.orders = nonNeg(r.orders.sub(amount))
-  state.money = state.money.add(revenue)
-  state.reputation = state.reputation.add(hot.mul(HOT_REPUTATION).add(cold.mul(COLD_REPUTATION)).mul(mods.reputation))
-  state.stats.served = state.stats.served.add(amount)
-  state.stats.servedCold = state.stats.servedCold.add(cold)
-  state.run.served = state.run.served.add(amount)
-  state.run.servedCold = state.run.servedCold.add(cold)
-  state.stats.earned = state.stats.earned.add(revenue)
-  state.run.earned = state.run.earned.add(revenue)
-  return [amount, revenue]
-}
-
-/**
- * Buy up to `packs` packs of an ingredient, as many as money allows while
- * keeping `keep` in the till. Returns packs bought.
- */
-export function buyPacks(
-  state: GameState,
-  item: (typeof INGREDIENT_IDS)[number],
-  packs: Decimal,
-  mods: Mods,
-  keep: Decimal = ZERO,
-): Decimal {
-  const offer = SHOP[item]
-  const size = packSize(item, mods)
-  const affordable = nonNeg(state.money.sub(keep)).div(offer.packPrice).floor()
-  const onShelf = state.shelves[item].div(size).floor()
-  const wanted = Decimal.min(packs, affordable).floor()
-  const n = Decimal.min(wanted, onShelf)
-  if (n.lt(wanted)) state.stats.soldOut++
-  if (n.lte(0)) return ZERO
-  state.money = nonNeg(state.money.sub(n.mul(offer.packPrice)))
-  state.shelves[item] = nonNeg(state.shelves[item].sub(n.mul(size)))
-  state.items[item] = state.items[item].add(n.mul(size))
-  return n
-}
-
-function autoBuy(state: GameState, mods: Mods, dt: number): void {
+function autoBuy(state: GameState, mods: Mods, use: Use): void {
   if (!mods.autoBuy || !state.autoBuy.enabled) return
   // Stock up to the target plus what the kitchen and farm can use during this
   // tick, so long ticks (offline progress) are not capped by the target.
-  const use = consumption(state, mods, dt)
   for (const item of INGREDIENT_IDS) {
     const missing = D(state.autoBuy.target).add(use[item] ?? ZERO).sub(state.items[item])
     if (missing.lte(0)) continue
@@ -199,12 +95,10 @@ function autoBuy(state: GameState, mods: Mods, dt: number): void {
  * needed: ingredients up to Auntie's stock target, farm goods up to a buffer,
  * plus whatever the next step can use this tick.
  */
-function runFarm(state: GameState, mods: Mods, dt: number, flows: Flows): void {
-  const use = consumption(state, mods, dt)
+function runFarm(state: GameState, mods: Mods, dt: number, use: Use, flows: Flows): void {
   for (const f of FACILITIES) {
     if (state.facilities[f.id] <= 0) continue
-    const isIngredient = (INGREDIENT_IDS as ItemId[]).includes(f.output)
-    const target = D(isIngredient ? state.autoBuy.target : FARM_GOOD_BUFFER).add(use[f.output] ?? ZERO)
+    const target = D(INGREDIENT_SET.has(f.output) ? state.autoBuy.target : FARM_GOOD_BUFFER).add(use[f.output] ?? ZERO)
     const room = nonNeg(target.sub(state.items[f.output])).div(f.yield)
     const cycles = runRecipe(state, f.inputs, f.output, f.yield, Decimal.min(facilityCapacity(state, f, mods).mul(dt), room))
     flows.farm[f.id] = cycles.mul(f.yield)
@@ -223,7 +117,9 @@ function checkMilestones(state: GameState): void {
   for (const m of MILESTONES) {
     if (state.milestones[m.id] || !m.check(state)) continue
     state.milestones[m.id] = true
-    addLog(state, m.text)
+    // The family has something to say about it (the chronicle): one entry, two lines.
+    const line = FAMILY_LINES[m.id]
+    addLog(state, line ? `${m.text}\n${line}` : m.text)
   }
 }
 
@@ -240,7 +136,10 @@ export function tick(state: GameState, dt: number): Flows {
   }
 
   // 2. The farm produces first, so the shop only fills what it doesn't cover.
-  runFarm(state, mods, dt, flows)
+  //    What the kitchen and farm can use this tick depends only on staff,
+  //    buildings and modifiers, none of which change until the managers run.
+  const use = consumption(state, mods, dt)
+  runFarm(state, mods, dt, use, flows)
 
   // 3. The corner shop restocks its shelves, then Auntie shops. Shopping
   //    happens before cooking so the kitchen never idles on a restock.
@@ -248,7 +147,7 @@ export function tick(state: GameState, dt: number): Flows {
   for (const item of INGREDIENT_IDS) {
     state.shelves[item] = Decimal.min(state.shelves[item].add(shopSupplyRate(mods) * dt), shelf)
   }
-  autoBuy(state, mods, dt)
+  autoBuy(state, mods, use)
 
   // 4. Kitchen, upstream to downstream. Staff cook to order: they stop once
   //    enough of their output is waiting for the next step.
@@ -279,7 +178,7 @@ export function tick(state: GameState, dt: number): Flows {
       flows.income = flows.income.add(revenue)
     }
   }
-  for (const v of [...VEHICLES].reverse()) {
+  for (const v of FLEET_FAR_FIRST) {
     if (state.vehicles[v.id] <= 0) continue
     serve(v.id, vehicleCapacity(state, v, mods).mul(dt), (r) => vehicleServes(v, r), (r) => freshness(v, r, mods))
   }

@@ -12,6 +12,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.012',
+    date: '23 Nov 2026',
+    emoji: '📖',
+    title: 'The family album',
+    items: [
+      'Nothing jumps any more: the numbers tick, the panels stay put.',
+      'See what holds you back: the sidebar names the slowest part and takes you there, buy buttons fill up as you save, and the header says what opens the next chapter.',
+      'Safer saves: restore points to undo a mistake, a reminder to keep a copy at each new chapter, and the family covers for you for 12 hours while you’re away.',
+      'Every chapter has its own colours, the family comments on your milestones (mission control takes over in space), and big moments get a little fanfare.',
+      'New settings: numbers in words (4.56 quadrillion), a calmer display speed and fewer effects.',
+      'Every Golden Crumb you’ve ever collected adds a little income, and the Franchise tab previews your next sale.',
+      'Smarter managers: nobody buys fryers or vans while the farm is the real limit.',
+    ],
+  },
+  {
     version: '0.011',
     date: '22 Nov 2026',
     emoji: '🍋',

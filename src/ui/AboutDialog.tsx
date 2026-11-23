@@ -47,7 +47,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
               </p>
               <h2>Good to know</h2>
               <ul className="about-list">
-                <li>It plays itself while you’re away: up to 8 hours, more with the Night shift perk.</li>
+                <li>It plays itself while you’re away: up to 12 hours, more with the Night shift perk.</li>
                 <li>It saves in this browser every few seconds. No account, no sign-up.</li>
                 <li>To move to another computer: ☰ Game → Saves → Keep a copy.</li>
               </ul>

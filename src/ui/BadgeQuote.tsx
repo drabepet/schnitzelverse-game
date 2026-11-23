@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BADGE_BY_ID } from '../engine/badges'
-import { PERKS } from '../engine/content'
+import { PERK_BY_ID, type PerkDef } from '../engine/content'
 import { describeManagerItems } from '../engine/automation'
 import { fmtMoney, fmtTime } from '../engine/format'
 import { useGame } from '../game/store'
@@ -14,7 +14,7 @@ const NEWS = 180
 
 /**
  * The bottom of the sidebar: the joke from one of your badges, a different
- * one every few seconds (click for the next). Fresh garage chatter wins for a moment.
+ * one every few seconds (click for the next). Fresh news from the family chronicle wins for a moment.
  */
 export function BadgeQuote() {
   const { state } = useGame()
@@ -29,15 +29,16 @@ export function BadgeQuote() {
   const latest = state.log[0]
   if (latest && (state.stats.playtime - latest.t < FRESH || earned.length === 0)) {
     return (
-      <div className="sb-section sb-detail sb-chatter" title="Garage chatter: see Records">
+      <div className="sb-section sb-detail sb-chatter" title="Family chronicle: see Records">
         💬 {latest.text}
       </div>
     )
   }
   // Every other turn: the latest thing a manager bought, if it's recent.
   const news = [...state.managerLog].reverse().find((e) => state.stats.playtime - e.t < NEWS)
-  if (news && (pick % 2 === 1 || !earned.length)) {
-    const who = PERKS.find((p) => p.id === news.who)!
+  // The log comes from the save: skip an entry whose manager no longer exists.
+  const who = news && (PERK_BY_ID[news.who] as PerkDef | undefined)
+  if (news && who && (pick % 2 === 1 || !earned.length)) {
     return (
       <button className="sb-section sb-detail sb-quote" onClick={() => setPick((p) => p + 1)} title="Family news: what the managers did lately. Click for a badge.">
         <span className="sb-quote-head">

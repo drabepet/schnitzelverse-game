@@ -1,7 +1,15 @@
 // Names that grow with the business. Helpers and farm buildings keep their
 // ids (and saves); only what they are called changes as each pipeline tab
 // is promoted (see tiers.ts): Uncle with a mallet → … → Graviton flattener.
-import { CREW_UPGRADES, FACILITIES, WORKERS, type FacilityId, type StageId, type UpgradeId, type WorkerId } from './content'
+import {
+  CREW_UPGRADES,
+  FACILITY_BY_ID,
+  type FacilityId,
+  type StageId,
+  type UpgradeId,
+  WORKER_BY_ID,
+  type WorkerId,
+} from './content'
 import type { GameState } from './state'
 import { tierLevel, type Pillar } from './tiers'
 
@@ -81,9 +89,15 @@ export const FACILITY_LOOKS: Record<FacilityId, Look[]> = {
   ],
 }
 
-/** A kitchen crew's looks: one per piece of crew equipment, in order. */
+/** A kitchen crew's looks: one per piece of crew equipment, in order (built once per step). */
+const CREW_LOOKS = new Map<StageId, Look[]>()
 function crewLooks(task: StageId): Look[] {
-  return CREW_UPGRADES.filter((c) => c.task === task).map((c) => ({ from: 0, upgrade: c.id, ...c.crew }))
+  let looks = CREW_LOOKS.get(task)
+  if (!looks) {
+    looks = CREW_UPGRADES.filter((c) => c.task === task).map((c) => ({ from: 0, upgrade: c.id, ...c.crew }))
+    CREW_LOOKS.set(task, looks)
+  }
+  return looks
 }
 
 function pick(state: GameState, base: Look, looks: Look[], tier: number): Look {
@@ -94,15 +108,17 @@ function pick(state: GameState, base: Look, looks: Look[], tier: number): Look {
 
 /** What a helper is called right now, and the family member they started as. */
 export function workerLook(state: GameState, id: WorkerId): Look & { original: string } {
-  const def = WORKERS.find((w) => w.id === id)!
+  const def = WORKER_BY_ID[id]
   const base = { from: 0, name: def.name, emoji: def.emoji, flavor: def.flavor }
   const looks = def.task === 'deliver' ? WORKER_LOOKS[id] : crewLooks(def.task)
-  return { ...pick(state, base, looks, tierLevel(state, WORKER_PILLAR[id])), original: def.name }
+  // Crew looks follow their equipment, not the tab's tier: only work the tier out when a look needs it.
+  const tier = looks.some((l) => !l.upgrade) ? tierLevel(state, WORKER_PILLAR[id]) : 0
+  return { ...pick(state, base, looks, tier), original: def.name }
 }
 
 /** What a farm building is called right now. */
 export function facilityLook(state: GameState, id: FacilityId): Look & { original: string } {
-  const def = FACILITIES.find((f) => f.id === id)!
+  const def = FACILITY_BY_ID[id]
   const base = { from: 0, name: def.name, emoji: def.emoji, flavor: def.flavor }
   return { ...pick(state, base, FACILITY_LOOKS[id], tierLevel(state, 'prep')), original: def.name }
 }

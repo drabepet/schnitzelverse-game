@@ -32,3 +32,13 @@ describe('fmtCompact', () => {
     setNotation('short')
   })
 })
+
+describe('fmtCompact fixed', () => {
+  it('keeps trailing zeros from 1K up, so live numbers keep their width', () => {
+    expect(fmtCompact(24_000_000, true)).toBe('24.0M')
+    expect(fmtCompact(24_100_000, true)).toBe('24.1M')
+    expect(fmtCompact(1_000, true)).toBe('1.00K')
+    expect(fmtCompact(7.5, true)).toBe('7.5')
+    expect(fmtCompact(24_000_000)).toBe('24M')
+  })
+})

@@ -1,4 +1,4 @@
-import { PERKS, REGIONS, START_REGIONS, type Effect, type PerkDef, type PerkId } from '../engine/content'
+import { PERK_BY_ID, type PerkDef, type PerkId, PERKS, REGION_BY_ID, START_REGIONS } from '../engine/content'
 import { headStartMoney } from '../engine/actions'
 import { fmt, fmtMoney } from '../engine/format'
 import { offlineCap, perkLevel } from '../engine/rules'
@@ -25,7 +25,7 @@ function totals(s: GameState) {
   for (const perk of PERKS) {
     const level = perkLevel(s, perk.id)
     if (level <= 0 || !perk.effects) continue
-    for (const e of perk.effects(level) as Effect[]) {
+    for (const e of perk.effects(level)) {
       if (e.kind === 'crisp') add('crisp', e.add, perk, (a, b) => a + b, 0)
       else if (e.kind === 'speed') add(`speed.${e.task}`, e.mult, perk, times, 1)
       else if (e.kind === 'facility') add(`facility.${e.group}`, e.mult, perk, times, 1)
@@ -50,7 +50,7 @@ export function PerkBonuses() {
     return entry ? { label, value: show(entry.value), from: entry.from } : null
   }
   const lvl = (id: PerkId) => perkLevel(s, id)
-  const perk = (id: PerkId) => PERKS.find((p) => p.id === id)!
+  const perk = (id: PerkId) => PERK_BY_ID[id]
   const start = (id: PerkId, label: string, value: string): Line | null => (lvl(id) > 0 ? { label, value, from: [perk(id)] } : null)
 
   const groups: { title: string; lines: (Line | null)[] }[] = [
@@ -88,7 +88,7 @@ export function PerkBonuses() {
         start('headStart', 'Money', fmtMoney(headStartMoney(lvl('headStart')))),
         start('loyalFamily', 'Helpers', `+${lvl('loyalFamily')} of each`),
         start('auntieRemembers', 'Auntie’s shopping list', 'on the fridge'),
-        start('oldConnections', 'Places', START_REGIONS.slice(0, lvl('oldConnections')).map((id) => REGIONS.find((r) => r.id === id)!.emoji).join(' ')),
+        start('oldConnections', 'Places', START_REGIONS.slice(0, lvl('oldConnections')).map((id) => REGION_BY_ID[id].emoji).join(' ')),
         start('farmDeeds', 'Farm buildings', `+${lvl('farmDeeds')} of each`),
         start('oldFriends', 'Family farm hands', 'all four'),
         start('fleetContracts', 'Vehicles', `+${lvl('fleetContracts')} of each`),

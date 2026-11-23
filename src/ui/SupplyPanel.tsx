@@ -1,7 +1,7 @@
 import { CHAPTER2_FRANCHISES, INGREDIENT_IDS, ITEMS, SHOP } from '../engine/content'
-import { fmt, fmtInt, fmtMoney } from '../engine/format'
+import { fmt, fmtCompact, fmtInt, fmtMoney } from '../engine/format'
 import { QUICK_RESTOCK_BELOW, buyIngredient, quickRestock, setAutoBuy } from '../engine/actions'
-import { chapter2Unlocked, getMods, packSize, shelfMax, shopSupplyRate, supplyNeeds } from '../engine/rules'
+import { chapter2Unlocked, getMods, packSize, shopSupplyRate } from '../engine/rules'
 import { useGame } from '../game/store'
 import { HintButton } from './HintButton'
 import { shopLook } from '../engine/names'
@@ -10,6 +10,7 @@ import { guideHint } from './guide'
 import { floatText } from './juice'
 import { UpgradesPanel } from './UpgradesPanel'
 import { isShopGear } from '../engine/tiers'
+import { needsNow } from './derived'
 
 /**
  * The corner shop. On the Garage tab it is the main supply; once the farm
@@ -19,10 +20,9 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
   const game = useGame()
   const s = game.state
   const mods = getMods(s)
-  const shelf = shelfMax(mods)
   const shop = shopLook(s)
   const supply = fmt(shopSupplyRate(mods))
-  const kitchenUse = supplyNeeds(s, mods).meat ?? 0
+  const kitchenUse = needsNow(s).meat ?? 0
   const low = INGREDIENT_IDS.filter((i) => s.items[i].lt(QUICK_RESTOCK_BELOW))
   const canRestock = low.some((i) => s.money.gte(SHOP[i].packPrice) && s.shelves[i].gte(packSize(i, mods)))
   const restockWhyNot = !low.length
@@ -45,12 +45,10 @@ export function SupplyPanel({ backup = false }: { backup?: boolean }) {
                   </div>
                   <div className="row-sub">
                     {offer.packName} · {fmtInt(size)} for {fmtMoney(offer.packPrice)}
-                    {(backup || s.shelves[id].lt(shelf.div(2))) && (
-                      <span className={s.shelves[id].lt(size) ? 'warn' : ''}>
-                        {' '}
-                        · shop has {fmtInt(s.shelves[id])} left
-                      </span>
-                    )}
+                    <span className={s.shelves[id].lt(size) ? 'warn' : ''}>
+                      {' '}
+                      · shop has <span className="num">{fmtCompact(s.shelves[id].floor(), true)}</span> left
+                    </span>
                   </div>
                 </div>
                 <div className="btns">

@@ -27,17 +27,27 @@ export const SAVE_VERSION = 1
 
 /** How many to buy per click: one, ten, or as many as you can afford. */
 export type BuyAmount = 1 | 10 | 'max'
-export type Notation = 'short' | 'scientific'
+export type Notation = 'short' | 'named' | 'scientific'
+/** How often the screen redraws per second (the game itself always runs at full speed). */
+export const UPDATE_RATES = [20, 10, 4] as const
+export type UpdateRate = (typeof UPDATE_RATES)[number]
+/** Effects: everything, only the big moments, or none. */
+export type EffectsLevel = 'full' | 'calm' | 'off'
 /** How big the whole interface is: 'auto' grows with the window. */
 export type UiScale = 'auto' | 'small' | 'normal' | 'large' | 'xl'
 
 export interface Settings {
   buyAmount: BuyAmount
-  /** 'short' = 1.23M, 4.56B…; 'scientific' = 1.23e6 from a thousand up. */
+  /** 'short' = 1.23M, 4.56B…; 'named' = 1.23 million…; 'scientific' = 1.23e6 from a thousand up. */
   notation: Notation
   /** Show a pop-up when a badge is earned. */
   badgePopups: boolean
   uiScale: UiScale
+  /** Screen redraws per second. */
+  updateRate: UpdateRate
+  effects: EffectsLevel
+  /** Each chapter tints the interface (the garage, the farm, the road, the stars, the Schnitzelverse). */
+  chapterColours: boolean
 }
 
 export interface RegionState {
@@ -100,6 +110,8 @@ export interface GameState extends RunState {
   newsSeen: string
   /** The finale (reaching the Schnitzelverse) has been shown. */
   finaleSeen: boolean
+  /** The last chapter we suggested keeping a copy of the save at (a new chapter suggests it once). */
+  copyNudgeChapter: number
   /** Crispness: unlocked once (for good), fryer temperature and oil changes. */
   crisp: { unlocked: boolean; temperature: number; oil: number }
   /** Auntie's shopping list: restock up to `target`, never spending below `reserve`. */
@@ -160,6 +172,8 @@ export interface GameState extends RunState {
     bestSale: Decimal
     bestRunServed: Decimal
     longestRun: number
+    /** Wall-clock ms the player last kept a copy of the save (download or copy text); 0 = never. */
+    lastCopyAt: number
     /** The last RUNS_LIMIT finished runs, oldest first (Records → run history). */
     runs: RunRecord[]
   }
@@ -259,10 +273,11 @@ export function newGame(now = Date.now()): GameState {
   return {
     version: SAVE_VERSION,
     ...freshRun(),
-    settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto' },
+    settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto', updateRate: 20, effects: 'full', chapterColours: true },
     introSeen: false,
     newsSeen: '',
     finaleSeen: false,
+    copyNudgeChapter: 1,
     knockReadyAt: 0,
     crisp: { unlocked: false, temperature: CRISP_TEMP_BEST, oil: 0 },
     autoBuy: { enabled: true, target: 20, reserve: DEFAULT_AUTO_BUY_RESERVE },
@@ -282,7 +297,7 @@ export function newGame(now = Date.now()): GameState {
         text: 'You found a frying pan in the garage and a few things in Mum’s fridge. The neighbours look hungry.',
       },
     ],
-    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0, bestPlace: 0, bestIncome: 0, bestSale: D(0), bestRunServed: D(0), longestRun: 0, runs: [] },
+    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, bestTownTime: 0, bestPlace: 0, bestIncome: 0, bestSale: D(0), bestRunServed: D(0), longestRun: 0, lastCopyAt: 0, runs: [] },
     lastSaved: now,
   }
 }

@@ -1,5 +1,5 @@
 import { BUFFER_SECONDS, ITEMS, MIN_BUFFERS, STAGE_IDS, STAGES, WORKERS, type ItemId } from '../engine/content'
-import { fmt, fmtInt } from '../engine/format'
+import { fmt, fmtCompact, fmtShort } from '../engine/format'
 import { clickStage, cookAll, missingForCookAll } from '../engine/actions'
 import { clickAmount, getMods, stageBuffer, stageInputs, taskCapacity } from '../engine/rules'
 import { useGame } from '../game/store'
@@ -91,12 +91,12 @@ export function KitchenPanel() {
                   if (game.act((st) => clickStage(st, id))) floatText(e, `+${fmt(clickAmount(id, mods))} ${ITEMS[stage.output].emoji}`)
                 }}
               >
-                {stage.verb} ×{fmt(clickAmount(id, mods))}
+                {stage.verb} ×{fmtShort(clickAmount(id, mods))}
               </HintButton>
               <div className="stage-foot">
                 {staff > 0 ? (
                   <>
-                    👥 {staff} · {fmt(actual)}/{fmt(capacity)} per s
+                    👥 {staff} · {fmtCompact(actual, true)}/{fmtCompact(capacity, true)} per s
                     <Why k={id} label={`${stage.name} speed`} />
                   </>
                 ) : (
@@ -117,7 +117,7 @@ export function KitchenPanel() {
       <div className="stock">
         {STOCK.map((id) => (
           <div key={id} className={`chip ${id}`} title={ITEMS[id].name}>
-            {ITEMS[id].emoji} {ITEMS[id].name} <b>{fmtInt(s.items[id])}</b>
+            {ITEMS[id].emoji} {ITEMS[id].name} <b>{fmtCompact(s.items[id].floor(), true)}</b>
           </div>
         ))}
       </div>

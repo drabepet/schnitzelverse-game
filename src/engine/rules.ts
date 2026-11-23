@@ -1,66 +1,7 @@
 // Derived values: modifiers from upgrades, costs, capacities, requirements.
 // Pure functions of the state; nothing here changes it.
 import { D, Decimal } from './decimal'
-import {
-  BASE_COOLING,
-  BUFFER_SECONDS,
-  MIN_BUFFERS,
-  NIGHT_SHIFT_HOURS,
-  OFFLINE_CAP_HOURS,
-  CRISP_BASE_SKILL,
-  CRISP_REPUTATION_SHARE,
-  CRISP_TEMP_BEST,
-  CRISP_TEMP_SPREAD,
-  CRISP_SPEED_PER_DEGREE,
-  OIL_LEVELS,
-  CHAPTER2_FRANCHISES,
-  CHAPTER2_PERKS,
-  CHAPTER3_FRANCHISES,
-  CHAPTER3_PERKS,
-  CHAPTER4_PERKS,
-  CHAPTER5_PERKS,
-  CHAPTER5_REGION,
-  PERK_SOFT_GROWTH,
-  PERK_SOFT_LEVEL,
-  CHAPTER4_REGION,
-  FRESHNESS_KM_PER_KMH,
-  HELPER_RANGE_KM,
-  VEHICLES,
-  CRUMB_DIVISOR,
-  FRANCHISE_UNLOCK_REGION,
-  FRONTIER_CRUMB_SHARE,
-  FACILITIES,
-  SHOP_SHELF_SECONDS,
-  SHOP_SUPPLY_RATE,
-  STAGE_IDS,
-  STAGES,
-  NEXT_TASK,
-  REGIONS,
-  PERKS,
-  MIN_ORDER_BACKLOG,
-  ORDER_BACKLOG_SECONDS,
-  SHOP,
-  UPGRADES,
-  WORKERS,
-  type Effect,
-  type FacilityDef,
-  type FacilityGroup,
-  type ItemId,
-  type IngredientId,
-  type PerkDef,
-  type PerkId,
-  type RegionDef,
-  type Requirement,
-  type StageId,
-  type Task,
-  type UpgradeDef,
-  type VehicleDef,
-  type WorkerDef,
-  type WorkerId,
-  FARM_GOALS,
-  FARM_GOAL_MULT,
-  type FacilityId,
-} from './content'
+import { BASE_COOLING, BUFFER_SECONDS, CHAPTER2_FRANCHISES, CHAPTER2_PERKS, CHAPTER3_FRANCHISES, CHAPTER3_PERKS, CHAPTER4_PERKS, CHAPTER4_REGION, CHAPTER5_PERKS, CHAPTER5_REGION, CRISP_BASE_SKILL, CRISP_REPUTATION_SHARE, CRISP_SPEED_PER_DEGREE, CRISP_TEMP_BEST, CRISP_TEMP_SPREAD, CRUMB_DIVISOR, type Effect, FACILITIES, FACILITY_BY_ID, type FacilityDef, type FacilityGroup, type FacilityId, FARM_GOAL_MULT, FARM_GOALS, FRANCHISE_UNLOCK_REGION, FRESHNESS_KM_PER_KMH, FRONTIER_CRUMB_SHARE, HELPER_RANGE_KM, type IngredientId, type ItemId, MIN_BUFFERS, MIN_ORDER_BACKLOG, NEXT_TASK, NIGHT_SHIFT_HOURS, OFFLINE_CAP_HOURS, OIL_LEVELS, ORDER_BACKLOG_SECONDS, PERK_BY_ID, PERK_SOFT_GROWTH, PERK_SOFT_LEVEL, type PerkDef, type PerkId, PERKS, REGION_INDEX, type RegionDef, REGIONS, type Requirement, SHOP, SHOP_SHELF_SECONDS, SHOP_SUPPLY_RATE, STAGE_IDS, type StageId, STAGES, type Task, type UpgradeDef, UPGRADES, type VehicleDef, VEHICLES, WORKER_BY_ID, type WorkerDef, type WorkerId, WORKERS, CHAPTERS, REGION_BY_ID, type RegionId, CRUMB_PRIDE_PER_DECADE, INGREDIENT_IDS } from './content'
 import { BEST_SALE_EARLY, BEST_SALE_MIN_SHARE, CRUMB_RATE_DROP, CRUMB_RATE_FROM, type BuyAmount, type GameState } from './state'
 import { BADGE_BONUS } from './badgeBonus'
 
@@ -170,6 +111,8 @@ export function modSources(state: GameState): ModSource[] {
   }
   const bonus = badgeBonus(state)
   if (bonus > 0) out.push({ name: 'Badges', emoji: '🏅', effects: [{ kind: 'price', mult: 1 + bonus }] })
+  const pride = familyPride(state)
+  if (pride > 1) out.push({ name: 'Family pride (crumbs collected)', emoji: '✨', effects: [{ kind: 'price', mult: pride }] })
   if (state.crisp.unlocked) {
     // Crispness multiplies price and reputation; the skill comes from the sources above.
     let skill = 0
@@ -195,6 +138,11 @@ export function modSources(state: GameState): ModSource[] {
     }
   }
   return out
+}
+
+/** Income multiplier from all the Golden Crumbs ever collected (see CRUMB_PRIDE_PER_DECADE). */
+export function familyPride(state: GameState): number {
+  return 1 + CRUMB_PRIDE_PER_DECADE * state.prestige.totalCrumbs.max(0).add(1).log10().toNumber()
 }
 
 // ---------------------------------------------------------------- crispness
@@ -280,7 +228,7 @@ function readMod(m: Mods, key: ModKey): number {
   if (key in m.speed) return m.speed[key as Task]
   if (key in m.facility) return m.facility[key as FacilityGroup]
   if (key in m.building) {
-    const f = FACILITIES.find((x) => x.id === key)!
+    const f = FACILITY_BY_ID[key as FacilityId]
     return m.facility[f.group] * m.building[f.id]
   }
   return m[key as Exclude<ModKey, Task | FacilityGroup | FacilityId>]
@@ -346,7 +294,7 @@ export function perkMaxed(state: GameState, perk: PerkDef): boolean {
 export function perkMissing(state: GameState, perk: PerkDef): { perk: PerkDef; level: number }[] {
   return (perk.requires ?? [])
     .filter((r) => perkLevel(state, r.perk) < r.level)
-    .map((r) => ({ perk: PERKS.find((p) => p.id === r.perk)!, level: r.level }))
+    .map((r) => ({ perk: PERK_BY_ID[r.perk], level: r.level }))
 }
 
 /** The other side of a pick-one choice. */
@@ -366,14 +314,32 @@ export function canSwapFork(state: GameState, perk: PerkDef): boolean {
   return !!perk.fork && !!other && perkLevel(state, perk.id) === 0 && perkLevel(state, other.id) > 0 && !state.run.forkSwaps?.[perk.fork]
 }
 
-/** Chapter 2 and 3 perks stay hidden until their chapter is unlocked. */
+/** The part of the game a perk waits for: a later chapter, crispness, or nothing (open from the start). */
+export function perkOpensWith(perk: PerkDef): 2 | 3 | 4 | 5 | 'crisp' | null {
+  if (CHAPTER2_PERKS.includes(perk.id)) return 2
+  if (CHAPTER3_PERKS.includes(perk.id)) return 3
+  if (CHAPTER4_PERKS.includes(perk.id)) return 4
+  if (CHAPTER5_PERKS.includes(perk.id)) return 5
+  if (perk.id === 'crispMaster') return 'crisp'
+  return null
+}
+
+/** Perks of a later chapter (2 to 5) and Crisp Master stay hidden until that part of the game opens. */
 export function perkVisible(state: GameState, perk: PerkDef): boolean {
-  if (CHAPTER2_PERKS.includes(perk.id)) return chapter2Unlocked(state)
-  if (CHAPTER3_PERKS.includes(perk.id)) return chapter3Unlocked(state)
-  if (CHAPTER4_PERKS.includes(perk.id)) return chapter4Unlocked(state)
-  if (CHAPTER5_PERKS.includes(perk.id)) return chapter5Unlocked(state)
-  if (perk.id === 'crispMaster') return state.crisp.unlocked
-  return true
+  switch (perkOpensWith(perk)) {
+    case 2:
+      return chapter2Unlocked(state)
+    case 3:
+      return chapter3Unlocked(state)
+    case 4:
+      return chapter4Unlocked(state)
+    case 5:
+      return chapter5Unlocked(state)
+    case 'crisp':
+      return state.crisp.unlocked
+    default:
+      return true
+  }
 }
 
 export function canBuyPerk(state: GameState, perk: PerkDef): boolean {
@@ -393,8 +359,7 @@ export function canBuyPerk(state: GameState, perk: PerkDef): boolean {
  */
 export function crumbRate(state: GameState): number {
   if (state.run.time < CRUMB_RATE_FROM) return 0
-  const collected = state.prestige.totalCrumbs.sub(state.prestige.bonusCrumbs)
-  const worth = state.stats.earned.div(CRUMB_DIVISOR).sqrt().sub(collected)
+  const worth = earningsToCrumbs(state.stats.earned).sub(collectedFromEarnings(state))
   return Math.max(0, worth.toNumber()) / (state.run.time / 3600)
 }
 
@@ -412,19 +377,24 @@ export function crumbGrowth(state: GameState): number {
   return Math.log1p((rate * hours) / lifetime) / hours
 }
 
+/** Golden Crumbs some lifetime earnings are worth, unrounded: √(earnings ÷ CRUMB_DIVISOR). */
+const earningsToCrumbs = (earned: Decimal): Decimal => earned.div(CRUMB_DIVISOR).sqrt()
+/** The lifetime earnings worth this many Golden Crumbs (the inverse). */
+const crumbsToEarnings = (crumbs: Decimal): Decimal => crumbs.pow(2).mul(CRUMB_DIVISOR)
+/** Crumbs collected from earnings so far: frontier bonuses don't count against what earnings are worth. */
+const collectedFromEarnings = (state: GameState): Decimal => state.prestige.totalCrumbs.sub(state.prestige.bonusCrumbs)
+
 /** Golden Crumbs your lifetime earnings are worth in total (collected or not). */
 export function crumbsWorth(state: GameState): Decimal {
-  return state.stats.earned.div(CRUMB_DIVISOR).sqrt().floor()
+  return earningsToCrumbs(state.stats.earned).floor()
 }
 
 /**
- * Golden Crumbs a Franchise would give right now: what lifetime earnings are
- * worth minus what was already collected. Resetting early gives nothing extra.
+ * Golden Crumbs earnings alone would give right now: what lifetime earnings
+ * are worth minus what they already gave. Resetting early gives nothing extra.
  */
 export function earningsCrumbs(state: GameState): Decimal {
-  // Frontier bonuses don't count against what earnings are worth.
-  const collected = state.prestige.totalCrumbs.sub(state.prestige.bonusCrumbs)
-  const pending = crumbsWorth(state).sub(collected)
+  const pending = crumbsWorth(state).sub(collectedFromEarnings(state))
   return pending.lt(0) ? D(0) : pending
 }
 
@@ -440,7 +410,7 @@ export function furthestPlace(state: GameState): number {
 /** In this run you've reached your furthest place ever (or beyond), and at least the whole town. */
 export function atFrontier(state: GameState): boolean {
   const here = furthestPlace(state)
-  const town = REGIONS.findIndex((r) => r.id === FRANCHISE_UNLOCK_REGION)
+  const town = REGION_INDEX[FRANCHISE_UNLOCK_REGION]
   return here >= town && here >= state.stats.bestPlace
 }
 
@@ -458,16 +428,14 @@ export function pendingCrumbs(state: GameState): Decimal {
   return Decimal.max(earningsCrumbs(state), frontierCrumbs(state))
 }
 
-/** Money this run needs to have earned for the next Golden Crumb. */
 /** Lifetime earnings needed for the next Golden Crumb. */
 export function nextCrumbAt(state: GameState): Decimal {
-  return crumbsWorth(state).add(1).pow(2).mul(CRUMB_DIVISOR)
+  return crumbsToEarnings(crumbsWorth(state).add(1))
 }
 
 /** Progress (0..1) from the last Golden Crumb to the next, and the money still needed. */
 export function crumbProgress(state: GameState): { fraction: number; remaining: Decimal } {
-  const worth = crumbsWorth(state)
-  const from = worth.pow(2).mul(CRUMB_DIVISOR)
+  const from = crumbsToEarnings(crumbsWorth(state))
   const to = nextCrumbAt(state)
   const fraction = state.stats.earned.sub(from).div(to.sub(from)).toNumber()
   return { fraction: Math.min(1, Math.max(0, fraction)), remaining: to.sub(state.stats.earned).max(0) }
@@ -515,9 +483,7 @@ export function isTeased(state: GameState, req: Requirement | undefined): boolea
   return state.reputation.gte(req.reputation * 0.5)
 }
 
-// ---------------------------------------------------------------- chapter 2: the farm
-
-// ---------------------------------------------------------------- chapter 3: on the road
+// ---------------------------------------------------------------- chapters 2 and 3: the farm and the road
 
 export function chapter3Unlocked(state: GameState): boolean {
   return state.prestige.franchises >= CHAPTER3_FRANCHISES
@@ -536,6 +502,31 @@ export function chapter5Unlocked(state: GameState): boolean {
 /** The chapter you're in: 1 (the garage) to 5 (the Schnitzelverse). */
 export function chapterNumber(state: GameState): 1 | 2 | 3 | 4 | 5 {
   return chapter5Unlocked(state) ? 5 : chapter4Unlocked(state) ? 4 : chapter3Unlocked(state) ? 3 : chapter2Unlocked(state) ? 2 : 1
+}
+
+/**
+ * What opens the next chapter: a short progress text ("3/5 franchises"), when
+ * it opens in words, and how far along you are (0..1). Null in the last chapter.
+ */
+export function nextChapterGoal(
+  state: GameState,
+): { chapter: 2 | 3 | 4 | 5; name: string; text: string; when: string; progress: number } | null {
+  const chapter = chapterNumber(state)
+  if (chapter === 5) return null
+  const next = (chapter + 1) as 2 | 3 | 4 | 5
+  const name = CHAPTERS[next - 1].name
+  const sales = (needed: number) => {
+    const have = Math.min(state.prestige.franchises, needed)
+    return { text: `${have}/${needed} franchises`, when: `after ${needed} franchises`, progress: have / needed }
+  }
+  const reach = (id: RegionId) => {
+    const target = REGION_INDEX[id]
+    const best = Math.max(state.stats.bestPlace, furthestPlace(state))
+    const place = `${REGION_BY_ID[id].emoji} ${REGION_BY_ID[id].name.replace(/^The /, 'the ')}`
+    return { text: `reach ${place}`, when: `the first time you reach ${place}`, progress: Math.min(1, best / target) }
+  }
+  const goal = next === 2 ? sales(CHAPTER2_FRANCHISES) : next === 3 ? sales(CHAPTER3_FRANCHISES) : reach(next === 4 ? CHAPTER4_REGION : CHAPTER5_REGION)
+  return { chapter: next, name, ...goal }
 }
 
 /** Is this place's chapter open (space places in Chapter 4, deep space in Chapter 5)? */
@@ -562,10 +553,6 @@ export function vehicleServes(def: VehicleDef, region: RegionDef): boolean {
 
 export function vehicleCost(state: GameState, def: VehicleDef): Decimal {
   return D(def.baseCost).mul(D(def.costGrowth).pow(state.vehicles[def.id]))
-}
-
-export function canBuyVehicle(state: GameState, def: VehicleDef): boolean {
-  return vehicleVisible(state, def) && state.money.gte(vehicleCost(state, def))
 }
 
 /** Schnitzels per second all vehicles of this kind deliver. */
@@ -597,10 +584,6 @@ export function chapter2Unlocked(state: GameState): boolean {
 
 export function facilityCost(state: GameState, def: FacilityDef): Decimal {
   return D(def.baseCost).mul(D(def.costGrowth).pow(state.facilities[def.id]))
-}
-
-export function canBuyFacility(state: GameState, def: FacilityDef): boolean {
-  return chapter2Unlocked(state) && state.money.gte(facilityCost(state, def))
 }
 
 /** How many count goals (FARM_GOALS) this many buildings have reached. */
@@ -640,10 +623,7 @@ export const shelfMax = (mods: Mods): Decimal => D(shopSupplyRate(mods) * SHOP_S
  * only makes what is needed downstream. Used for the farm's supply overview.
  */
 export function supplyNeeds(state: GameState, mods: Mods): Partial<Record<ItemId, number>> {
-  const throughput = Math.min(
-    ...STAGE_IDS.map((t) => taskCapacity(state, t, mods).toNumber()),
-    deliveryCapacity(state, mods).toNumber(),
-  )
+  const throughput = Math.min(kitchenCapacity(state, mods), deliveryCapacity(state, mods).toNumber())
   const need: Partial<Record<ItemId, number>> = {}
   const add = (item: ItemId, amount: number) => (need[item] = (need[item] ?? 0) + amount)
   for (const stage of STAGE_IDS) {
@@ -656,6 +636,52 @@ export function supplyNeeds(state: GameState, mods: Mods): Partial<Record<ItemId
     for (const [item, qty] of Object.entries(f.inputs) as [ItemId, number][]) add(item, cycles * qty)
   }
   return need
+}
+
+/**
+ * Schnitzels per second the ingredients can keep up with: what the farm
+ * (from Chapter 2) and the corner shop supply of the scarcest ingredient,
+ * against what one schnitzel uses of it. Stock on the shelves is left out:
+ * it runs out. Infinity when nothing is needed.
+ */
+export function supplyLimit(state: GameState, mods: Mods): number {
+  const perSchnitzel: Partial<Record<ItemId, number>> = {}
+  for (const stage of STAGE_IDS)
+    for (const [item, qty] of Object.entries(stageInputs(state, stage)) as [ItemId, number][]) perSchnitzel[item] = (perSchnitzel[item] ?? 0) + qty
+  const farm = chapter2Unlocked(state)
+  let limit = Infinity
+  for (const id of INGREDIENT_IDS) {
+    const n = perSchnitzel[id] ?? 0
+    if (n > 0) limit = Math.min(limit, ((farm ? farmSupply(state, id, mods) : 0) + shopSupplyRate(mods)) / n)
+  }
+  return limit
+}
+
+/** The four things that can hold the business back, in schnitzels per second. */
+export type Pillar = 'customers' | 'supply' | 'kitchen' | 'delivery'
+
+export interface Limits {
+  customers: number
+  supply: number
+  kitchen: number
+  delivery: number
+  /** The smallest of the four: what the business really sells per second. */
+  limit: number
+  /** Which one it is (on a tie, the earliest in the pipeline). */
+  bottleneck: Pillar
+}
+
+/** What each part of the business can do per second, and which one holds it back. */
+export function businessLimits(state: GameState, mods: Mods): Limits {
+  const l = {
+    customers: customerDemand(state, mods),
+    supply: supplyLimit(state, mods),
+    kitchen: kitchenCapacity(state, mods),
+    delivery: deliveryCapacity(state, mods).toNumber(),
+  }
+  const order: Pillar[] = ['customers', 'supply', 'kitchen', 'delivery']
+  const bottleneck = order.reduce((a, b) => (l[b] < l[a] ? b : a))
+  return { ...l, limit: l[bottleneck], bottleneck }
 }
 
 /**
@@ -729,7 +755,7 @@ export function bulkBuy(base: number, growth: number, owned: number, money: Deci
 }
 
 export function workerPlan(state: GameState, id: WorkerId, amount: BuyAmount = state.settings.buyAmount): BulkPlan {
-  const def = WORKERS.find((w) => w.id === id)!
+  const def = WORKER_BY_ID[id]
   return bulkBuy(def.baseCost, def.costGrowth, state.workers[id], state.money, amount)
 }
 
@@ -742,7 +768,7 @@ export function vehiclePlan(state: GameState, def: VehicleDef, amount: BuyAmount
 }
 
 export function workerCost(state: GameState, id: WorkerId): Decimal {
-  const def = WORKERS.find((w) => w.id === id)!
+  const def = WORKER_BY_ID[id]
   return D(def.baseCost).mul(D(def.costGrowth).pow(state.workers[id]))
 }
 
@@ -779,6 +805,21 @@ export function taskCapacity(state: GameState, task: Task, mods = getMods(state)
   return total.mul(mods.speed[task])
 }
 
+/** What one step does per second: a kitchen step's staff, or all of delivery (helpers and the fleet). */
+export function stepCapacity(state: GameState, task: Task, mods: Mods): Decimal {
+  return task === 'deliver' ? deliveryCapacity(state, mods) : taskCapacity(state, task, mods)
+}
+
+/** Orders per second from every place you've opened. */
+export function customerDemand(state: GameState, mods: Mods): number {
+  return REGIONS.filter((r) => state.regions[r.id].unlocked).reduce((n, r) => n + orderRate(r, mods).toNumber(), 0)
+}
+
+/** Schnitzels per second the kitchen can make: as fast as its slowest step. */
+export function kitchenCapacity(state: GameState, mods: Mods): number {
+  return Math.min(...STAGE_IDS.map((t) => taskCapacity(state, t, mods).toNumber()))
+}
+
 /** How much one click on a task processes. */
 export function clickAmount(task: Task, mods: Mods): Decimal {
   return D(mods.speed[task]).mul(mods.click)
@@ -807,8 +848,7 @@ export function coolingRate(mods: Mods): number {
 
 /** Units per second the step after this one can take. */
 function nextStepCapacity(state: GameState, stage: StageId, mods: Mods): Decimal {
-  const next = NEXT_TASK[stage]
-  return next === 'deliver' ? deliveryCapacity(state, mods) : taskCapacity(state, next, mods)
+  return stepCapacity(state, NEXT_TASK[stage], mods)
 }
 
 /**
@@ -851,6 +891,15 @@ export function isStuck(state: GameState): boolean {
 // ---------------------------------------------------------------- goals
 
 /** The next place to expand to, and whether franchises still lock it. */
+/** Everything a place asks for except the money: its chapter is open, enough franchises, enough reputation. */
+export function regionRequirementsMet(state: GameState, def: RegionDef): boolean {
+  return (
+    chapterOpenFor(state, def) &&
+    state.prestige.franchises >= (def.requiresFranchises ?? 0) &&
+    meets(state, { reputation: def.unlockReputation })
+  )
+}
+
 export function nextRegion(state: GameState): { region: RegionDef; locked: boolean } | null {
   const region = REGIONS.find((r) => !state.regions[r.id].unlocked)
   if (!region) return null
@@ -859,5 +908,5 @@ export function nextRegion(state: GameState): { region: RegionDef; locked: boole
 
 /** The orbit, ever (any run): the logo leaves the flaming pan for space. */
 export function reachedOrbit(state: GameState): boolean {
-  return state.stats.bestPlace >= REGIONS.findIndex((r) => r.id === 'orbit')
+  return state.stats.bestPlace >= REGION_INDEX.orbit
 }

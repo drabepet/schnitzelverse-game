@@ -89,7 +89,7 @@ test('a late game (every chapter) renders every tab', async ({ page }) => {
   )
   const errors = watchErrors(page)
   await page.goto('/')
-  await expect(page.getByText(/Chapter 4/)).toBeVisible()
+  await expect(page.locator('.subtitle', { hasText: 'Chapter 4' })).toBeVisible()
   await visitEveryTab(page)
   await expect(page.getByText(/Income per second|The chart starts/)).toBeVisible()
   expect(errors).toEqual([])

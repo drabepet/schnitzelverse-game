@@ -32,6 +32,7 @@ import {
 } from '../src/engine/actions'
 import {
   canReach,
+  chapterNumber,
   chapter2Unlocked,
   chapter3Unlocked,
   deliveryCapacity,
@@ -78,7 +79,8 @@ let REPORT = 'playtest-report.txt'
 
 /** Start this file's report: playtest-report.<name>.txt (or PLAYTEST_REPORT for the main one). */
 export function startReport(name: string): void {
-  REPORT = name === 'main' && process.env.PLAYTEST_REPORT ? process.env.PLAYTEST_REPORT : `playtest-report.${name}.txt`
+  const custom = process.env[name === 'main' ? 'PLAYTEST_REPORT' : `PLAYTEST_REPORT_${name.toUpperCase()}`]
+  REPORT = custom || `playtest-report.${name}.txt`
   writeFileSync(REPORT, '')
 }
 
@@ -305,6 +307,48 @@ interface FranchiseProfile {
   maxSeconds: number
   snapshots?: boolean
   noFarm?: boolean
+  /** Minutes of active play at each idle check-in (default 0: just buy and leave). */
+  sessionMinutes?: number
+  /** Sell anyway once a run is this long, even when the reward is small (default 2 hours). */
+  stalledAfter?: number
+}
+
+/**
+ * The pacing inspector: everything new a player sees for the first time
+ * (a place, a chapter, a badge, a piece of equipment, a perk), so the report
+ * can name the longest stretches with nothing new. Places and chapters are the
+ * big steps.
+ */
+class News {
+  private seen = new Set<string>()
+  readonly events: { t: number; what: string; big: boolean }[] = []
+  look(s: GameState, t: number): void {
+    const add = (key: string, what: string, big: boolean) => {
+      if (this.seen.has(key)) return
+      this.seen.add(key)
+      if (t > 0) this.events.push({ t, what, big })
+    }
+    add(`chapter:${chapterNumber(s)}`, `chapter ${chapterNumber(s)}`, true)
+    for (const r of REGIONS) if (s.regions[r.id].unlocked) add(`place:${r.id}`, r.name, true)
+    for (const id of Object.keys(s.badges)) add(`badge:${id}`, `badge ${id}`, false)
+    for (const id of Object.keys(s.upgrades)) add(`upgrade:${id}`, `equipment ${id}`, false)
+    for (const p of PERKS) if (s.prestige.perks[p.id]) add(`perk:${p.id}`, `perk ${p.id}`, false)
+  }
+  /** The `n` longest stretches with nothing new (big steps only, or anything), up to `end`. */
+  dry(end: number, big: boolean, n = 5): string {
+    const list = this.events.filter((e) => !big || e.big)
+    const gaps: { len: number; text: string }[] = []
+    let prev = { t: 0, what: 'start' }
+    for (const e of [...list, { t: end, what: '(end of the run)', big: true }]) {
+      gaps.push({ len: e.t - prev.t, text: `${fmtTime(e.t - prev.t)} before ${e.what} at ${fmtTime(e.t)} (after ${prev.what})` })
+      prev = e
+    }
+    return gaps
+      .sort((a, b) => b.len - a.len)
+      .slice(0, n)
+      .map((g) => g.text)
+      .join('; ')
+  }
 }
 
 /** Places whose first arrival the summary reports. */
@@ -320,10 +364,14 @@ export function runFranchises(p: FranchiseProfile): void {
   let nextCheck = 0
   let townAt: number | undefined
   const reached: Record<string, number> = {}
+  const news = new News()
+  let nextNews = 0
+  let sessionUntil = 0
+  let nextSession = 0
 
   for (let t = 0, dt = DT; t < p.maxSeconds; t += dt) {
     // The very first run is always played actively until the town.
-    const active = s.run.time < p.activeSeconds || (s.prestige.franchises === 0 && !s.regions.town.unlocked)
+    const active = s.run.time < p.activeSeconds || t < sessionUntil || (s.prestige.franchises === 0 && !s.regions.town.unlocked)
     dt = active ? DT : DT_IDLE
     if (active) {
       clickBudget += 2 * DT
@@ -355,7 +403,7 @@ export function runFranchises(p: FranchiseProfile): void {
             : p.sell === 'double'
               ? pending.gte(lifetime)
               : pending.gte(lifetime.mul(2))
-      const stalled = s.run.time > 120 * 60
+      const stalled = s.run.time > (p.stalledAfter ?? 2 * H)
       if (canFranchise(s) && (want || stalled)) {
         const last = [...REGIONS].reverse().find((r) => s.regions[r.id].unlocked)!
         log(
@@ -368,9 +416,19 @@ export function runFranchises(p: FranchiseProfile): void {
         franchise(s)
         townAt = undefined
       }
-      nextCheck = t + (active ? 5 : p.idleCheck)
+      // A check-in while away starts a short session of active play; the next one is idleCheck later.
+      if (!active && p.sessionMinutes && t >= nextSession) {
+        sessionUntil = t + p.sessionMinutes * 60
+        nextSession = t + p.idleCheck
+      }
+      nextCheck = active || t < sessionUntil ? t + 5 : p.sessionMinutes ? Math.max(t + 5, nextSession) : t + p.idleCheck
     }
     tick(s, dt)
+    // Once a minute of game time, whether or not the player is looking.
+    if (t >= nextNews) {
+      news.look(s, t)
+      nextNews = t + 60
+    }
     if (townAt === undefined && s.regions.town.unlocked) townAt = s.run.time
     if (p.snapshots && s.run.time % 900 < dt) {
       const w = WORKERS.map((x) => `${x.id}:${s.workers[x.id]}`).join(' ')
@@ -394,6 +452,8 @@ export function runFranchises(p: FranchiseProfile): void {
       `lifetime ✨${fmt(s.prestige.totalCrumbs, 0)}, first reached: ` +
       PLACES.map((r) => `${r} ${reached[r] === undefined ? 'never' : fmtTime(reached[r])}`).join(', '),
   )
+  lines.push(`DRY big steps (longest waits for a new place or chapter): ${news.dry(p.maxSeconds, true)}`)
+  lines.push(`DRY anything (longest waits for anything new: place, badge, equipment, perk): ${news.dry(p.maxSeconds, false)}`)
   appendFileSync(REPORT, `\n===== ${p.name} =====\n${lines.join('\n')}\n`)
 }
 

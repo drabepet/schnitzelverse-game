@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MANAGER_RANKS, type PerkId } from '../engine/content'
 import { MANAGERS, describeManagerItems, managerRank, setManager } from '../engine/automation'
 import { fmtMoney, fmtTime } from '../engine/format'
 import { useGame } from '../game/store'
 import { goTo } from './goTo'
+import { usePinnedPopup } from './usePinnedPopup'
 import { doingNow, managerMood, MOOD_TEXT } from './managerStatus'
 import { MoodDot, MoodLegend } from './MoodLegend'
 
@@ -23,30 +23,14 @@ export function SidebarManagers() {
   const game = useGame()
   const s = game.state
   // Which pop-up is open: a manager's, or the colour key (hover the “Managers” title).
-  const [open, setOpen] = useState<{ id: PerkId | 'key'; top: number; left: number; width: number } | null>(null)
-  const timer = useRef<number | undefined>(undefined)
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  const { pos: open, show, hide } = usePinnedPopup<PerkId | 'key'>({ width: POP_WIDTH, delay: 250, gap: 8 })
 
   const owned = MANAGERS.filter((m) => managerRank(s, m.id) > 0)
   if (!owned.length) return null
 
-  const show = (id: PerkId | 'key', el: HTMLElement) => {
-    window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => {
-      const r = el.getBoundingClientRect()
-      const width = POP_WIDTH * (parseFloat(getComputedStyle(document.documentElement).fontSize) / 15)
-      const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8)
-      setOpen({ id, top: r.bottom + 8, left, width })
-    }, 250)
-  }
-  const hide = () => {
-    window.clearTimeout(timer.current)
-    setOpen(null)
-  }
-
-  const m = open && owned.find((x) => x.id === open.id)
+  const m = open && owned.find((x) => x.id === open.key)
   const pop = (() => {
-    if (open?.id === 'key')
+    if (open?.key === 'key')
       return (
         <span className="hint-pop sb-mgr-pop" role="tooltip" style={{ top: open.top, left: open.left, width: open.width }}>
           <b>What the dots mean</b>

@@ -16,7 +16,7 @@ import { useGame } from '../game/store'
 import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
 import { HintButton } from './HintButton'
-import { needMoney } from './reasons'
+import { needMoney, affordShare } from './reasons'
 
 export function FleetPanel() {
   const game = useGame()
@@ -65,6 +65,7 @@ export function FleetPanel() {
               <HintButton
                 className="buy-btn"
                 whyNot={plan.affordable ? null : needMoney(s, plan.cost, game.rates.income)}
+                progress={affordShare(s.money, plan.cost)}
                 onClick={() => game.act((st) => buyVehicle(st, v.id, st.settings.buyAmount))}
               >
                 <BuyLabel verb="Buy" plan={plan} />

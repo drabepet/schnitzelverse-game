@@ -43,7 +43,7 @@ Challenges: Lent (no meat), Oil Crisis, Health Inspector Week, Breadcrumb Shorta
 - Golden Crumbs come from **lifetime earnings**: you are worth **floor(√(lifetime money earned / 2,500))** crumbs in total, and selling pays out the ones you haven't collected yet (the Cookie Clicker model). Resetting early gives nothing extra; the way to more crumbs is earning faster: better perks and going deeper (the next town, the city).
 - Resets money, reputation, stock, helpers, equipment and places. Keeps crumbs, perks, settings, statistics and the story log.
 - The **recipe book** (collapsed by default, opens after you sell) has 11 perks: price, orders, kitchen speed, clicks, pack size, cooling, reputation, plus start-of-run bonuses (money, helpers, Auntie's list, pre-unlocked places). Start-of-run perks also apply the moment you buy them.
-- **The family tree** (replaces the flat recipe book and manager list): one branch per family member, each a vertical column (`BRANCHES` in content.ts, `FamilyTree.tsx`). The manager (that person's promotion) sits on top and needs nothing; below it the perks, row by row, each needing levels in the ones above (`TREE_REQUIRES`). Two cross-links join branches: Crisp master needs Green thumb, the statue needs the family recipe.
+- **The family tree** (replaces the flat recipe book and manager list): one branch per family member, each a vertical column (`BRANCHES` in data/franchise.ts, `FamilyTree.tsx`). The manager (that person's promotion) sits on top and needs nothing; below it the perks, row by row, each needing levels in the ones above (`TREE_REQUIRES`). Two cross-links join branches: Crisp master needs Green thumb, the statue needs the family recipe.
   - 👵 Grandma, the kitchen: recipe → loyal family / fast hands → better everything → crisp master → pick one: thin and fast (kitchen ×1.2/level) or thick and golden (prices ×1.15/level) → capstone: Grandma's lard secret (prices ×2.5).
   - 🔨 Uncle, stores and money: head start → Auntie remembers / night shift → bulk contracts → pick one: Uncle stays in the kitchen (kitchen ×1.15) or takes the van (helper delivery ×1.3, fleet ×1.1) → capstone: Uncle's workshop (kitchen ×2, shop ×3).
   - 👩 Mum, fame and places: word of mouth → local legend → old connections → pick one: gossip queen (orders ×1.2) or darling of the press (reputation ×1.3) → capstone: a statue in the town square (reputation ×3, orders ×1.5).
@@ -54,6 +54,7 @@ Challenges: Lent (no meat), Oil Crisis, Health Inspector Week, Breadcrumb Shorta
   - Perks bought before the tree keep their levels; you just can't level them further until their prerequisites are met. Badges: A Fork in the Road, Changed My Mind, Top of the Tree, The Whole Family Tree.
 - Auntie's shopping list keeps a cash reserve ($25 by default) so a fresh run can still hire; if an ingredient runs out completely she buys one pack anyway.
 - **The next town over** needs 1 franchise; **the city** needs 3.
+- **Family pride:** every Golden Crumb ever collected is worth a little, even after it's spent: prices ×(1 + 0.01 × log10(collected + 1)) (`familyPride`, `CRUMB_PRIDE_PER_DECADE`), so ×1.01 at 9 crumbs, ×1.09 at a billion, ×1.14 at 100 trillion (late in the game). Listed under Why? as “Family pride”. Small on purpose: the bot reaches the Schnitzelverse in 12d 22h (13d 15h without it, 12d 12h at 2% per tenfold, 11d 3h at 5%).
 
 Selling strategies compared with the playtest bot over 8 hours (`npm run playtest`):
 
@@ -126,11 +127,20 @@ Perks bought with Golden Crumbs that do the buying for you, also offline. Each c
 
 | Manager | Crumbs | Does |
 |---|---|---|
-| 👵 Grandma, head of staff | 2 | Hires for the slowest step while capacity is below demand × 1.3; buys (or briefly saves for) equipment for that step when it adds more per dollar |
-| 🧔 Uncle, the quartermaster | 3 | Buys equipment, cheapest first |
-| 👩 Mum, the estate agent | 4 | Unlocks the next place; when it only lacks money that is ≤ 5 minutes of recent income away, the others pause briefly to save up |
+| 👵 Grandma, head of staff | 2 | Hires for the slowest step while capacity is below demand × 1.3, but no further than 1.2× what the ingredients can feed; buys (or briefly saves for) equipment for that step when it adds more per dollar |
+| 🧔 Uncle, the quartermaster | 3 | Buys equipment: what helps the bottleneck first, then what always helps (prices, reputation, crispness), never what would only add idle capacity; cheapest first |
+| 👩 Mum, the estate agent | 4 | Unlocks the next place; when it only lacks money that is ≤ 5 minutes of recent income away (15 min when customers are the limit), the others pause briefly to save up |
 | 👴 Grandpa, farm boss | 10 (Ch. 2) | Builds the building holding back the least-covered ingredient, following the chain upstream; buys (or briefly saves for) farm equipment or farm gear for that building when it adds more per dollar |
-| 🧑‍💼 The kid, now a dispatcher | 40 (Ch. 3) | Buys vehicles to reach every place, then capacity while delivery lags the kitchen |
+| 🧑‍💼 The kid, now a dispatcher | 40 (Ch. 3) | Buys vehicles to reach every place, then capacity while delivery lags the kitchen (or 1.2× the ingredients, when they are the limit) |
+
+**Spending where it helps.** The business sells only as much as its weakest part allows: customers, ingredients (farm plus corner shop, `supplyLimit`), kitchen or delivery (`businessLimits`). The managers don't grow a part that would only stand idle:
+- Grandma grows the kitchen no further than customers want (×1.3) and no further than 1.2× what the ingredients can feed (`SUPPLY_LEAD`). Her card says “Waiting for the farm” then.
+- The kid grows the fleet no further than the kitchen (×1.1), the ingredients (×1.2 ×1.1) or customers (×1.3), but always buys a vehicle for a place nobody can reach yet.
+- Grandpa grows the farm no further than customers want (×1.3).
+- Uncle sorts equipment by use (`gearUse`): what adds to the bottleneck first, then what always helps (prices, reputation, crispness, Auntie, packs), and he skips equipment whose only effect is capacity in a part that is already 20% past the limit. A kitchen step's own gear counts against that step. Equipment with no effect of its own (it only opens something) always counts as useful.
+- When customers are the limit, a new place is the only thing that helps, so Mum saves for it three times longer (`SAVE_FOR_PLACE_CUSTOMERS`: 15 minutes of income, 45 at rank 2).
+
+The 20% lead keeps each part a step ahead of the next, so they take turns growing instead of waiting for each other.
 
 The family runs the business; the staff does the work. Helpers and farm buildings are renamed as their tab is promoted (`names.ts`; ids and saves never change):
 
@@ -158,6 +168,7 @@ Buying: ×1 / ×10 / Max for helpers, farm buildings and vehicles (one shared se
     - Bot, 24 hours, triples vs best moment: lifetime 4.83M vs **7.69M**; planet 15h 24m vs 11h 53m; Mars 20h 35m vs 19h 05m. At 8 hours triples has more crumbs (746 vs 554) but best moment reaches every place sooner. Late on, triples only kept selling because the bot forces a sale after 2 hours; Mum with that rule would stop selling. Run it with `PLAYTEST_HOURS=24` on `tools/playtest-franchise.sim.ts`.
   - **When it adds +10/25/50/100/200%** of lifetime crumbs. The old "doubles" and "triples" rules were +100% and +200%; saves migrate to those. Late in the game a run only adds about 5–25% of lifetime crumbs, so the big shares never fire there.
   - **After a set time** (10 minutes to 24 hours).
+  - The sell box shows one line on Mum (`mumSellStatus`): off, “in 1h 20m” (time rule), the share now against the rule's share, or for the best moment the growth against the run's best and the 3% dip she waits for.
 
 ## Crispness (built)
 
@@ -231,23 +242,46 @@ The tabs follow the game's own loop: **prep → making → distribution**, then 
 
 - **Prep:** the corner shop (before the farm) or the farm's chain cards with the shop as backup; supply equipment.
 - **Making:** kitchen, kitchen helpers, kitchen equipment. **Distribution:** places with orders per second, delivery helpers, the fleet, delivery equipment. Equipment is sorted onto a tab by what it improves.
-- **Franchise:** four crumb tiles at the top (to spend; collected in total; this run with crumbs per hour now and at its best; franchises and the biggest sale), then selling, the next-crumb progress bar, the family tree and the family at work. (The old Business dashboard is gone: its numbers are in the sidebar.)
-- **Records:** five headline tiles with silly comparisons (schnitzels laid end to end, the pork weighed in blue whales and Eiffel Towers, the money stacked in $100 notes; `compare.ts`), the income chart (now and best ever) beside personal bests (best income, biggest sale, most served in a run, longest run, fastest town, farthest place), a run history (one bar per franchise: crumbs from the sale on a log scale, coloured by how far the run got, the current run hatched; `stats.runs`, last 100, recorded at each franchise) and “Your story” as a timeline across the page (all 14 big steps, with the play time you first got there; the rest faded as a roadmap). Before the first recorded run, the run panel shows this run so far instead of a lone bar, all the detailed numbers, then 254 badges (including promotions) in 14 categories, garage chatter.
+- **Franchise:** four crumb tiles at the top (to spend; collected in total; this run with crumbs per hour now and at its best; franchises and the biggest sale), then selling (with a preview: the sale's share of all you've collected and family pride before → after), the next-crumb progress bar, the family tree and the family at work. (The old Business dashboard is gone: its numbers are in the sidebar.)
+- **Records:** five headline tiles with silly comparisons (schnitzels laid end to end, the pork weighed in blue whales and Eiffel Towers, the money stacked in $100 notes; `compare.ts`), the income chart (now and best ever) beside personal bests (best income, biggest sale, most served in a run, longest run, fastest town, farthest place), a run history (one bar per franchise: crumbs from the sale on a log scale, coloured by how far the run got, the current run hatched; `stats.runs`, last 100, recorded at each franchise) and “Your story” as a timeline across the page (all 14 big steps, with the play time you first got there; the rest faded as a roadmap). Before the first recorded run, the run panel shows this run so far instead of a lone bar, all the detailed numbers, then 254 badges (including promotions) in 14 categories, and the **family chronicle**: the story log, where each milestone gets a line from someone in the family (`FAMILY_LINES` in data/story.ts: Grandma, Mum, Uncle, Auntie, Grandpa, the kid), and from the orbit on, mission control on the radio (monospaced, blue edge).
 - **Why?** ⓘ next to prices, orders, cooling and every speed lists each upgrade, perk, badge bonus and crispness that multiplies it.
 - **Buttons live where they act**, each with a pop-up (after a short hover) saying what it does and, when greyed out, why: **🍳 Cook all three** in the kitchen (pound, bread, fry in one click; names the missing ingredients), **🛒 Restock** in the corner shop (gone once Auntie's shopping list is bought), **📣 Knock on the neighbours' door** in Distribution (one extra order from the next-door neighbours, at most every 5 s, never past their order limit). Early on customers are the limit, so clicking still has a purpose. Cheap early upgrades fill the wait between places: chalkboard (orders ×1.3, $150), lemon wedges (reputation ×1.5, $250), flyers (orders ×1.3, $450), street group chat (orders ×1.4, $800). First run (bot): street 8¾ min, block 18, district 24, town 31 active / 36 idle. Reputation targets (street 200, block 1,100, district 4,000, town 10,000) are set so reputation arrives only a little before the money (street $200).
 - **Corner shop limit in Chapter 1:** the shop sells 30 of each ingredient per second. Mrs. Horáková's bigger van (×1.5, $3K, ⭐1,500) and the wholesale market card (×2, $20K, ⭐5,000) keep it ahead of the kitchen until Grandpa's farm (2 franchises); the shop panel shows supply vs kitchen use and how far the farm is. After that it stays a backup to the farm but keeps growing slowly, by small steps (×1.25–×1.5 each, about ×39 in total): second van, mini-market, night deliveries, supermarket, regional depot, Horáková & Sons grocery chain, then an orbital hypermarket and a galactic grocer in space. The shop is renamed as it grows (mini-market → supermarket → wholesale depot → grocery chain → orbital hypermarket → galactic grocer).
 - **Size:** the whole stylesheet is in rem, so ☰ Game → Settings → Size scales everything: Fit to window (default, 14–20px text by window width) or Small / Normal / Large / Extra large. Margins show a faint gingham tablecloth.
+- **Settings** also has:
+  - **Numbers:** Short (1.23M), Named (1.23 million, up to vigintillion, then e-notation) or Scientific. Named only shows in panels and text; places with little room (sidebar, tiles, buy buttons) stay short (`fmtCompact`, `fmtShort`), so nothing gets wider or jumps.
+  - **Display speed:** Smooth / Relaxed / Calm redraws the screen 20 / 10 / 4 times a second (`updateRate`). The game itself still runs 20 ticks a second; only drawing is skipped, which saves battery and calms the numbers.
+  - **Effects:** Full (floating text, bursts, the big cards), Calm (only the big cards for a new chapter or a sale) or Off (also stops the sizzle and the pulsing button). Reduced motion always turns bursts and floating text off and only fades the cards (`juice.ts`).
+  - **Chapter colours** (on by default).
 - **Kitchen buffers are automatic:** each step keeps about 3 seconds of what the next step can use (at least 10 cutlets / 10 breaded / 5 hot) and then pauses: cook to order, nothing goes cold, nothing to set up. Each step card has one fixed status line (working / ready, waiting / waiting for an ingredient), so the layout never jumps.
-- **Badge jokes:** the bottom of the sidebar shows one earned badge (emoji, name, joke), a different one every 10 seconds or on a click (`BadgeQuote.tsx`). A garage-chatter line less than 12 seconds old is shown there first; before the first badge it is always the chatter.
-- **Header:** the chapter by name (“Chapter 3 · On the road”), then the run and the farthest place you sell to this run. The four headline numbers in the sidebar use three significant digits (`fmtCompact`: 7.42K, 74.2K, 742K) so they always fit without being cut off.
+- **Badge jokes:** the bottom of the sidebar shows one earned badge (emoji, name, joke), a different one every 10 seconds or on a click (`BadgeQuote.tsx`). A chronicle line less than 12 seconds old is shown there first, with the family's reply under it; before the first badge it is always the chronicle.
+- **Header:** the chapter by name (“Chapter 3 · On the road”), then the run and the farthest place you sell to this run. The four headline numbers in the sidebar use three significant digits (`fmtCompact`: 7.42K, 74.2K, 742K) so they always fit without being cut off. After the chapter, a small pill says what opens the next one (“next: On the road · 3/5 franchises”, or “reach 🌍 the whole planet”; `nextChapterGoal`), hidden in the last chapter and on phones.
+- **Chapter skins:** each chapter tints the page (background, panels, borders, tablecloth) in light and dark: wheat on the farm, asphalt grey with lane dashes on the road, deep navy with stars in space, violet sparkles in the Schnitzelverse (`:root[data-chapter]`). The brand band (header, active tab, dialog tops) changes with it: golden fried in the garage, green fields into wheat, asphalt under a street light, the night sky with stars, violet into gold. Chapter colours off keeps chapter 1's look. (A strip of emoji per tab showing the business growing was tried and dropped: it only repeated the numbers in the panels below.)
+- **Moments, scaled:** a click floats “+$”; a new place gives a small burst of crumbs (sparks on the road, stars in space) from the header, a new best place a bigger one; selling and a new chapter show one card in the middle of the window for under 3 seconds that never takes clicks (`Moments.tsx`, `juice.ts`).
 - **Look**: one style everywhere, taken from the welcome page: the header is a golden brand band with the logo (`Logo.tsx`: a schnitzel in a flaming pan, which becomes the pan circling a planet once the orbit has been reached in any run; the browser-tab icon follows, `useTabIcon.ts`); tabs are pills with the active one in the brand colours; panels have a thin golden band on top; list emoji sit on tinted tiles; primary buttons are golden gradients with a soft glow; every dialog opens with the brand band.
 - **Welcome page** on a new game and after a hard reset (☰ Game → How to play reopens it; Esc closes it): a wide page with a hero banner, the garage story (Grandma's “Thin. Golden. Never soggy.”) beside a four-chapter journey, six “how it works” cards, the first six steps as numbered cards (Auntie's shopping list marked ⭐ best first buy) and a big “Fire up the pan!” button. One column on phones.
-- **First minutes:** a one-line guide in the sidebar and a pulsing button until the first helper is hired. Floating "+$" on clicks, a sizzling fryer (off with reduced motion).
+- **First minutes:** a one-line guide in the sidebar and a pulsing button until the first helper is hired. Floating "+$" on clicks, a sizzling fryer (off with reduced motion or effects off).
 - **Game menu:** four plain items with a one-line hint each, no icons: How to play, Settings, Saves, About & what's new. Closes on a click outside or Esc. A yellow dot on ☰ Game and a “New” pill mark a version whose news the player hasn't opened yet (`newsSeen`; a new player is marked as caught up when they close the welcome page).
-- **Saves dialog:** says the game saves itself, then one row each for Save now, Keep a copy (download / copy text), Load a copy (open file / paste text), Undo a mistake (restore the backup from up to 10 minutes ago) and Start over.
+- **Saves dialog:** says the game saves itself, whether the browser promised to keep it (`navigator.storage.persist()`, asked once at start; otherwise a calm note to keep a copy) and when you last kept a copy. Then rows for Save now, Keep a copy (download / copy text), Load a copy (open file / paste text), **Undo a mistake** and Start over.
+  - **Restore points** (`storage.ts`): up to 6 full saves in one localStorage key, newest first. Automatic ones every 15 minutes (the newest 4 are kept), and moments (the newest 2): before loading a copy, before starting over, before going back, and at a new chapter. Each is labelled (“12 min ago · Run 21 · 🌕 Moon base · automatic”), only stored if it loads again, and the time is unique (it names the point). A damaged main save falls back to the newest point that loads. The old single backup slot is migrated in as the first point.
+  - **Keep-a-copy note:** at the start of each new chapter, once (`copyNudgeChapter`), a toast suggests downloading a copy and takes a restore point. Never on a timer. Older saves start from their current chapter, so the note doesn't greet them on load.
 - **About & what's new:** as wide as the welcome page, with the same hero. What the game is and why on the left, the changelog on the right (first on phones): one card per public release with an emoji, a playful title and a few plain-language lines. The entries live in `src/changelog.ts`; a test checks the newest one matches `GAME_VERSION`.
 - Tab markers: ⚠ an ingredient short or a place unreachable, + a new place ready to unlock, perks you can afford, new badges.
-- **Status sidebar** (every tab): key numbers; Grandma's first-minutes tips; managers' switches; per-second flow with the bottleneck; ingredients and their source; the next place's progress and ETA; the latest chatter line. On narrow screens it becomes a strip with the key numbers.
+- **Status sidebar** (every tab): key numbers; Grandma's first-minutes tips; managers' switches; per-second flow with the bottleneck; ingredients and their source; the next place's progress and ETA; the latest chronicle line. On narrow screens it becomes a strip with the key numbers.
+  - **What holds you back:** the Per second section lists Orders, Ingredients (how many schnitzels a second the farm and shop bring ingredients for), Fry and Deliver; the smallest is the limit and gets 🐢. A two-line link under it says what to do and opens the tab where you do it (`flow()` and `adviceFor()` in `insights.ts`). Held with `useSteady`, so it doesn't flicker.
+- **Buy buttons fill up:** a greyed-out buy button that only lacks money (or crumbs) fills from the left as you get closer to its price (`HintButton` `progress`, `affordShare`). The exact wait stays in its pop-up. No layout change.
+- **Welcome back:** time away, what was served and earned, and what the family did meanwhile, worked out by comparing the business before and after (`familyDigest`: helpers, farm buildings, vehicles, equipment and what they cost; places Mum opened; Mum's sales and their crumbs). Then the next place with its progress, and how long the family covers for you (12 h, +4 h per Night shift level).
+
+### A layout that stays still
+
+Numbers tick several times a second, so nothing in normal flow may change size because of a live value (it made panels jump, worst on the farm). The rules:
+- **Fixed structure, not content-driven wrapping.** Farm chains are a grid with one column per building and fixed-width arrows (`.flow`, columns set inline); narrow cards stack it by container width (`@container chain`), never by what the text says.
+- **Live numbers keep their width.** Use `fmtCompact(x, true)` for rates and stock (keeps trailing zeros: 24.0M, not 24M), `tabular-nums`, and `white-space: nowrap` (sidebar rows, stage footers, building rates, arrows). Numbers inside prose sit in `.num` (min 5ch, `.num.time` 6.5ch); chips with counts get a min width.
+- **Status lines reserve their room.** A line that can say different things always takes the same height (`min-height: 2lh` or `3lh`, clamped): building status, the sidebar's "About … at this pace", the route summary (which now always says something), manager cards' "doing now".
+- **Messages that hover around a threshold are held** with `useSteady(value, ms)` (default 3 s): a shown message changes at most once per hold. Used for farm statuses, coverage notes, the sidebar guide and sell tip, the bottleneck highlight, the frontier-sale note and the next-crumb ETA.
+- **No pop-in in flow.** Tab markers keep their spot when quiet (hidden, not removed); a button whose label counts down (Knock) stacks both labels (`LabelStack`), so it keeps the widest size; the Fry button's 💨 is absolutely positioned.
+- **One-line text needs a column that can shrink.** `nowrap` + ellipsis inside a grid only works if the column is `minmax(0, 1fr)` and the items have `min-width: 0`; otherwise the longest line widens the column and the box spills into its neighbours (this broke the manager cards once).
+- Checked with a `layout-shift` PerformanceObserver over every tab of the Mars save: vertical shifts went from many per second to none.
 
 ## Pacing targets
 
@@ -256,9 +290,22 @@ The tabs follow the game's own loop: **prep → making → distribution**, then 
 - Layer 3: weeks
 - Endgame: months
 
+**Measured** (`PLAYTEST_HOURS=340 PLAYTEST_IDLE_STEP=4`; the SUMMARY and DRY lines at the end of each report):
+
+| | Active player (`playtest-main`: plays 5 min per run, checks every 30 s, sells when crumbs double or after 2 h) | Check-in player (`playtest-checkin`: a 15-minute session every 8 h, sells when crumbs double or after a day) |
+|---|---|---|
+| Next town / city | 1h 19m / 1h 49m | 8h 36m / 16h 49m |
+| Whole planet | 9h 53m | 5d 0h |
+| Solar System | 2d 8h | 6d 16h |
+| The Schnitzelverse | 12d 22h | 10d 0h |
+| Longest wait for a new place or chapter | 3d 21h (universe → Schnitzelverse), 2d 16h (Local Group → universe) | 40h (continent → chapter 4), 33h (universe → Schnitzelverse) |
+| Longest wait for anything new | 45h (around day 10) | 32h (day 11–12) |
+
+The check-in player is far slower early (nothing gets bought between visits until the managers are promoted) and faster late: 8–24 hour runs earn more crumbs than the active bot's 2-hour runs. The driest stretch for both is the end of chapter 5 (universe → Schnitzelverse).
+
 ## Roadmap
 
-- [x] **M0 Scaffold**: engine/UI split, game loop, save/export/import, offline progress (8h cap), big numbers, tests
+- [x] **M0 Scaffold**: engine/UI split, game loop, save/export/import, offline progress (8 h cap at first, 12 h now), big numbers, tests
 - Random events: skipped on purpose (no rewards for being there at the right moment).
 - [x] **M1 Garage slice**: manual cooking, corner shop, 4 helpers, 14 upgrades, 6 regions, cooling, auto-restock, story log
 - [x] **M1.1 Playtest fixes**: Mum's fridge (no soft-locks), cook-to-order buffers, pacing to ~45 min, playtest bot (`npm run playtest`)
