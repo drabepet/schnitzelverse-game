@@ -1,23 +1,19 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Header } from './ui/Header'
 import { SupplyPanel } from './ui/SupplyPanel'
-import { KitchenPanel } from './ui/KitchenPanel'
+import { KitchenPage } from './ui/KitchenPage'
 import { DistributionPanel } from './ui/DistributionPanel'
 import { StaffPanel } from './ui/StaffPanel'
 import { UpgradesPanel } from './ui/UpgradesPanel'
-import { LogPanel } from './ui/LogPanel'
 import { OfflineDialog } from './ui/OfflineDialog'
 import { FranchisePanel } from './ui/FranchisePanel'
 import { FarmPanel } from './ui/FarmPanel'
 import { FleetPanel } from './ui/FleetPanel'
-import { BadgesPage } from './ui/BadgesPage'
 import { BadgeToasts } from './ui/BadgeToasts'
 import { Moments } from './ui/Moments'
 import { setEffectsLevel } from './ui/juice'
-import { StatsPanel } from './ui/StatsPanel'
 import { StatusSidebar } from './ui/StatusSidebar'
-import { QualityPanel } from './ui/QualityPanel'
-import { RecordsTop } from './ui/RecordsTop'
+import { preloadLazyParts, RecordsTab } from './ui/lazyParts'
 import { IntroDialog } from './ui/IntroDialog'
 import { FinaleDialog } from './ui/FinaleDialog'
 import { TabBar } from './ui/Tabs'
@@ -66,6 +62,9 @@ export default function App() {
     document.documentElement.dataset.chapter = String(skin)
   }, [skin])
 
+  // The Records tab and the menu's dialogs: fetched once the game is running.
+  useEffect(preloadLazyParts, [])
+
   // Links elsewhere (the sidebar) can open a tab and scroll to a spot on it.
   useEffect(() => {
     const onGoTo = (e: Event) => {
@@ -106,24 +105,13 @@ export default function App() {
               </div>
             ))}
 
-          {current === 'making' && (
-            <div className="tab-grid">
-              <div className="stack">
-                <KitchenPanel />
-                <StaffPanel pillar="making" />
-              </div>
-              <div className="stack">
-                <QualityPanel />
-                <UpgradesPanel pillar="making" />
-              </div>
-            </div>
-          )}
+          {current === 'making' && <KitchenPage />}
 
           {current === 'distribution' && (
             <div className="tab-grid">
               <DistributionPanel />
               <div className="stack">
-                <StaffPanel pillar="distribution" />
+                <StaffPanel />
                 <FleetPanel />
                 <UpgradesPanel pillar="distribution" />
               </div>
@@ -137,12 +125,9 @@ export default function App() {
           )}
 
           {current === 'records' && (
-            <div className="stack">
-              <RecordsTop />
-              <StatsPanel />
-              <BadgesPage />
-              <LogPanel />
-            </div>
+            <Suspense fallback={<p className="muted lazy-wait">Opening the records…</p>}>
+              <RecordsTab />
+            </Suspense>
           )}
         </div>
       </div>

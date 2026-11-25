@@ -50,11 +50,11 @@ src/
     automation.ts  managers: perks that buy things for you
     badges.ts      badges; badgeBonus.ts: which ones add income
     save.ts        save/load/export with version merge
-    format.ts      number formatting (K, M, B … then 1.23e45)
+    format.ts      number formatting (K, M, B … or named, then 1.23e45)
   game/
     store.ts       real-time loop, autosave, offline catch-up, React hook
-    storage.ts     save backend + backup copy (localStorage)
-  ui/              React panels
+    storage.ts     save backend + restore points (localStorage)
+  ui/              React panels (lazyParts.ts: the Records tab and menu dialogs, loaded on their own)
 e2e/               browser smoke test (runs in CI)
 tools/             balance playtest bot (bot.ts + *.sim.ts play styles, run in parallel)
 docs/DESIGN.md     the game design and roadmap
@@ -65,4 +65,5 @@ Rules of thumb:
 - New content goes into `src/engine/data/` (import it from `content.ts`). The engine should not need to change for it.
 - Anything that can grow without limit is a `Decimal` (break_eternity.js).
 - Every button that can be greyed out is a `HintButton` with a `whyNot` reason (helpers in `src/ui/reasons.ts`): hovering it says why, and what unlocks it.
+- The build splits React and break_eternity into their own files (`vite.config.ts`), so browsers keep them cached across releases; rarely opened screens go through `src/ui/lazyParts.ts`.
 - The engine never touches `window`/`document`, so it runs the same in the game, in tests and in offline catch-up.

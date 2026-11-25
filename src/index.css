@@ -2120,7 +2120,8 @@ button.intro-start {
 }
 
 /* About & what's new */
-.about .intro-hero {
+.about .intro-hero,
+.tales .intro-hero {
   padding-right: 3.6rem;
 }
 button.about-close {
@@ -3561,8 +3562,16 @@ button.afford:disabled {
 }
 .copy-nudge-btns {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.4rem;
+}
+/* The card's text column shrinks to the toast, so three buttons wrap instead of spilling out. */
+.copy-nudge > span:last-child {
+  min-width: 0;
+}
+.copy-nudge .toast-text + .toast-text {
+  margin-top: 0.2rem;
 }
 
 /* Franchise: Mum's selling rule, always two lines tall */
@@ -3705,4 +3714,255 @@ button.afford:disabled {
 /* Sidebar chatter: an event and the family's line under it. */
 .sb-chatter {
   white-space: pre-line;
+}
+
+/* ---------- kitchen stations (one column per step, like the family tree) */
+.kitchen-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.0667rem;
+  container: kitchen / inline-size;
+}
+.kitchen-head .stock {
+  margin-top: 0.4rem;
+}
+.kitchen-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.stations {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.0667rem;
+  align-items: start;
+}
+@container kitchen (max-width: 44rem) {
+  .stations {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.station {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5333rem;
+}
+.station.starved {
+  border-color: var(--warn);
+}
+.station-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.station-emoji {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.7rem;
+  background: var(--tile);
+  font-size: 1.4rem;
+}
+.station-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+/* The 🐢 keeps its spot when it's another step's turn (hidden, not removed). */
+.station-slow {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+}
+.station-slow.quiet {
+  visibility: hidden;
+}
+.station .hint-btn.station-click,
+.station .station-click button,
+.station > .hint-btn,
+.station > .hint-btn button {
+  display: block;
+  width: 100%;
+}
+.station-hire {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.5333rem;
+  border-top: 1px solid var(--border);
+}
+.station-hire > .small {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.station-hire .hint-btn {
+  flex-shrink: 0;
+}
+.station-gear {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5333rem;
+  border-top: 1px solid var(--border);
+}
+.station-gear .owned-title {
+  margin: 0;
+}
+
+/* Star paprika at the top of the Distribution tab. */
+.fuel-box {
+  margin: 0 0 0.8rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--panel-2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.fuel-box.short {
+  border-color: var(--warn);
+}
+.fuel-box-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.fuel-box-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.6rem;
+  align-items: center;
+  font-size: 0.88rem;
+}
+.fuel-box-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fuel-box-row .num-wide {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+  min-width: 9rem;
+}
+.fuel-bar {
+  grid-column: 1 / -1;
+  height: 0.4rem;
+  border-radius: 0.2rem;
+  background: var(--panel);
+  overflow: hidden;
+}
+.fuel-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 300ms ease;
+}
+.fuel-box.short .fuel-bar > div {
+  background: var(--warn);
+}
+.fuel-box-foot {
+  min-height: 1.3em;
+}
+
+/* The legend of star paprika: a story pop-up, wider than a Why? list. */
+.story-pop {
+  /* Opens to the right of the button (it sits at the left edge of its card). */
+  left: 0;
+  transform: none;
+  width: min(26rem, 85vw);
+  max-width: none;
+  white-space: normal;
+  gap: 0.45rem;
+}
+.story-p {
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+/* ☰ Game → Kitchen tales: chapters on the left, the story on the right. */
+.tales-art {
+  font-size: 4.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 30%));
+}
+.tales-body {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: start;
+  padding-bottom: 1.6rem;
+  max-height: min(70vh, 44rem);
+  overflow-y: auto;
+}
+@media (max-width: 720px) {
+  .tales-body {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 1rem;
+  }
+}
+.tales-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: sticky;
+  top: 0;
+}
+.tales-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+}
+.tales-item > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.tales-item,
+.tales-item b {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.tales-item .new-pill {
+  flex-shrink: 0;
+  position: static;
+}
+.tales-item.on {
+  border-color: var(--accent);
+  background: var(--tile);
+}
+.tales-item:disabled {
+  opacity: 0.55;
+}
+.tales-item-emoji {
+  font-size: 1.4rem;
+}
+.tales-text p {
+  margin: 0 0 0.85rem;
+  line-height: 1.65;
+  font-size: 1rem;
+}
+.tales-text .intro-kicker {
+  margin-bottom: 0.3rem;
 }

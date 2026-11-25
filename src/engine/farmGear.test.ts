@@ -10,8 +10,12 @@ const gear = UPGRADES.filter((u) => u.building)
 
 describe('farm gear', () => {
   it('every building has one rung per place, and every chain a farm hand', () => {
-    for (const f of FACILITIES) expect(gear.filter((u) => u.building === f.id)).toHaveLength(FARM_PLACES.length)
-    expect(UPGRADES.filter((u) => u.chain)).toHaveLength(4)
+    // From the place each building opens at: the town for the farm, Mars or the next star for star paprika.
+    for (const f of FACILITIES) {
+      const from = FARM_PLACES.indexOf((f.requires?.place ?? 'town') as (typeof FARM_PLACES)[number])
+      expect(gear.filter((u) => u.building === f.id)).toHaveLength(FARM_PLACES.length - from)
+    }
+    expect(UPGRADES.filter((u) => u.chain)).toHaveLength(5)
     expect(new Set(UPGRADES.map((u) => u.id)).size).toBe(UPGRADES.length)
   })
 

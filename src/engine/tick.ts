@@ -2,7 +2,7 @@
 // state in place (cheaper than copying every frame). It has no dependency on
 // the browser, so it runs the same in the game, in tests and in offline catch-up.
 import { D, Decimal, ZERO, nonNeg } from './decimal'
-import { FACILITIES, type FacilityId, FARM_GOOD_BUFFER, INGREDIENT_IDS, INGREDIENT_SET, MILESTONES, type RegionDef, REGIONS, RESCUE_AFTER_SECONDS, RESCUE_AMOUNT, RESCUE_MESSAGES, STAGE_IDS, STAGES, VEHICLES, FAMILY_LINES } from './content'
+import { FACILITIES, type FacilityId, FARM_GOOD_BUFFER, INGREDIENT_IDS, INGREDIENT_SET, MILESTONES, type RegionDef, REGIONS, RESCUE_AFTER_SECONDS, RESCUE_AMOUNT, RESCUE_MESSAGES, STAGE_IDS, STAGES, VEHICLES, FAMILY_LINES, FUEL_PER_SCHNITZEL } from './content'
 import { addLog, HISTORY_LENGTH, HISTORY_STEP, type GameState } from './state'
 import { BADGES } from './badges'
 import { runManagers } from './automation'
@@ -13,6 +13,7 @@ import {
   crumbRate,
   facilityCapacity,
   freshness,
+  fuelFor,
   getMods,
   helperReaches,
   ingredientsForNextSchnitzel,
@@ -42,6 +43,8 @@ export interface Flows {
   farm: Partial<Record<FacilityId, Decimal>>
   /** Schnitzels delivered per route, keyed by routeKey(carrier, place). */
   routes: Record<string, Decimal>
+  /** Schnitzels flown without star paprika (on solar sails: they arrive cold). */
+  sails: Decimal
 }
 
 export const emptyFlows = (): Flows => ({
@@ -52,6 +55,7 @@ export const emptyFlows = (): Flows => ({
   income: ZERO,
   farm: {},
   routes: {},
+  sails: ZERO,
 })
 
 export function addFlows(a: Flows, b: Flows): Flows {
@@ -67,6 +71,7 @@ export function addFlows(a: Flows, b: Flows): Flows {
     income: a.income.add(b.income),
     farm,
     routes,
+    sails: a.sails.add(b.sails),
   }
 }
 
@@ -171,7 +176,26 @@ export function tick(state: GameState, dt: number): Flows {
   ) => {
     for (let i = REGIONS.length - 1; i >= 0 && capacity.gt(0); i--) {
       if (!reaches(REGIONS[i])) continue
-      const [served, revenue] = deliverTo(state, REGIONS[i], capacity, mods, freshFor(REGIONS[i]))
+      let served: Decimal
+      let revenue: Decimal
+      const fuel = carrier === 'helpers' ? null : fuelFor(REGIONS[i])
+      if (fuel) {
+        // Long trips burn star paprika. Crates with fuel arrive as hot as the
+        // ship allows; the rest drift on solar sails and arrive cold.
+        const fuelled = Decimal.min(capacity, state.items[fuel].div(FUEL_PER_SCHNITZEL))
+        const [a, ra] = deliverTo(state, REGIONS[i], fuelled, mods, freshFor(REGIONS[i]))
+        state.items[fuel] = nonNeg(state.items[fuel].sub(a.mul(FUEL_PER_SCHNITZEL)))
+        state.stats.paprikaBurned = state.stats.paprikaBurned.add(a.mul(FUEL_PER_SCHNITZEL))
+        const [b, rb] = deliverTo(state, REGIONS[i], capacity.sub(a), mods, 0)
+        served = a.add(b)
+        revenue = ra.add(rb)
+        if (b.gt(0)) {
+          flows.sails = flows.sails.add(b)
+          state.stats.sailed = state.stats.sailed.add(b)
+        }
+      } else {
+        ;[served, revenue] = deliverTo(state, REGIONS[i], capacity, mods, freshFor(REGIONS[i]))
+      }
       if (served.gt(0)) flows.routes[routeKey(carrier, REGIONS[i].id)] = served
       capacity = capacity.sub(served)
       flows.deliver = flows.deliver.add(served)

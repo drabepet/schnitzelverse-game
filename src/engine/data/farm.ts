@@ -1,5 +1,6 @@
 // Chapter 2: Grandpa’s farm.
-import type { IngredientId, ItemId } from './items'
+import type { ItemId } from './items'
+import type { Requirement } from './staff'
 
 // ---------------------------------------------------------------- chapter 2: the farm
 
@@ -14,7 +15,18 @@ export const SHOP_SUPPLY_RATE = 30
 export const SHOP_SHELF_SECONDS = 60
 
 export type FacilityGroup = 'field' | 'animal' | 'processor'
-export type FacilityId = 'wheatField' | 'mill' | 'bakery' | 'sunflowers' | 'oilPress' | 'coop' | 'pigFarm' | 'butcher'
+export type FacilityId =
+  | 'wheatField'
+  | 'mill'
+  | 'bakery'
+  | 'sunflowers'
+  | 'oilPress'
+  | 'coop'
+  | 'pigFarm'
+  | 'butcher'
+  | 'paprikaDunes'
+  | 'paprikaMill'
+  | 'paprikaDistillery'
 
 export interface FacilityDef {
   id: FacilityId
@@ -30,6 +42,11 @@ export interface FacilityDef {
   rate: number
   baseCost: number
   costGrowth: number
+  /** Can only be built once this is met (the paprika chain: a place in this run). */
+  requires?: Requirement
+  /** Star paprika: Chapter 4 (and `deep`: Chapter 5). Not part of the ingredient farm. */
+  space?: true
+  deep?: true
 }
 
 /** In processing order: raw producers first, then the buildings that use their output. */
@@ -138,15 +155,67 @@ export const FACILITIES: FacilityDef[] = [
     baseCost: 20_000,
     costGrowth: 1.1,
   },
+  // Star paprika (Chapters 4–5): fuel for long space trips, see FUEL_PER_SCHNITZEL.
+  {
+    id: 'paprikaDunes',
+    name: 'Paprika dunes',
+    emoji: '🏜️',
+    flavor: 'Star paprika only grows in red Martian sand. The crumb worms leave it alone. Mostly.',
+    group: 'field',
+    inputs: {},
+    output: 'pods',
+    yield: 1,
+    rate: 10,
+    baseCost: 5e13,
+    costGrowth: 1.1,
+    requires: { place: 'mars' },
+    space: true,
+  },
+  {
+    id: 'paprikaMill',
+    name: 'Paprika mill',
+    emoji: '⚗️',
+    flavor: 'Grinds the pods into fold paprika. One pinch and a pilot sees the shortcut.',
+    group: 'processor',
+    inputs: { pods: 2 },
+    output: 'fold',
+    yield: 1,
+    rate: 5,
+    baseCost: 1e14,
+    costGrowth: 1.1,
+    requires: { place: 'mars' },
+    space: true,
+  },
+  {
+    id: 'paprikaDistillery',
+    name: 'Paprika distillery',
+    emoji: '🔮',
+    flavor: 'Boils fold paprika down until it folds space between the stars.',
+    group: 'processor',
+    inputs: { fold: 2 },
+    output: 'deepFold',
+    yield: 1,
+    rate: 20,
+    baseCost: 1e17,
+    costGrowth: 1.1,
+    requires: { place: 'nextStar' },
+    space: true,
+    deep: true,
+  },
 ]
+
+/** Kitchen farm buildings (the ingredient chains), without the star paprika ones. */
+export const KITCHEN_FACILITIES = FACILITIES.filter((f) => !f.space)
+/** Star paprika buildings: they make ship fuel, not ingredients. */
+export const FUEL_FACILITIES = FACILITIES.filter((f) => f.space)
 
 /** How the Farm page groups buildings: one card per production chain. */
 export interface FarmChain {
   id: string
   name: string
   emoji: string
-  /** Kitchen ingredients this chain makes. */
-  outputs: IngredientId[]
+  /** What this chain makes for the kitchen (or, for star paprika, for the fleet). */
+  outputs: ItemId[]
   /** Buildings in flow order, raw producer first. */
   buildings: FacilityId[]
 }
@@ -162,6 +231,13 @@ export const FARM_CHAINS: FarmChain[] = [
   },
   { id: 'oil', name: 'Frying oil', emoji: '🫗', outputs: ['oil'], buildings: ['sunflowers', 'oilPress'] },
   { id: 'eggs', name: 'Eggs', emoji: '🥚', outputs: ['eggs'], buildings: ['coop'] },
+  {
+    id: 'paprika',
+    name: 'Star paprika (ship fuel)',
+    emoji: '🌶️',
+    outputs: ['fold', 'deepFold'],
+    buildings: ['paprikaDunes', 'paprikaMill', 'paprikaDistillery'],
+  },
 ]
 
 /**

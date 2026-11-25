@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.013',
+    date: '25 Nov 2026',
+    emoji: '🌶️',
+    title: 'Spice of the stars',
+    items: [
+      'The kitchen gets three stations: Uncle, Grandma and the cousin each have their own column, with helpers, gear for every place you reach, and goals for 10, 25, 50… helpers.',
+      'Star paprika: grow it on Mars, burn it to fly past the Moon. Without it, ships drift on solar sails and the schnitzel arrives cold.',
+      'Kitchen tales: a short story for every chapter, in ☰ Game. A new one waits for you each time a chapter opens.',
+      'Eleven new records for paprika pilots, worm whisperers and champion sneezers.',
+      'Space kitchens grow step by step instead of in giant leaps, so the farm and the fleet matter again.',
+      'Updates load faster: the game keeps the parts that didn’t change.',
+    ],
+  },
+  {
     version: '0.012',
     date: '23 Nov 2026',
     emoji: '📖',

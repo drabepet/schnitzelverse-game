@@ -6,7 +6,7 @@ import { buyIngredient, buyUpgrade, clickDeliver, clickStage, hireWorker, unlock
 import { deserialize, fromExportString, serialize, toExportString } from './save'
 import { fmt } from './format'
 import { BUFFER_SECONDS, MIN_BUFFERS } from './content'
-import { stageBuffer } from './rules'
+import { farmGoalBonus, stageBuffer } from './rules'
 
 describe('kitchen', () => {
   it('turns ingredients into a hot schnitzel by hand', () => {
@@ -106,8 +106,8 @@ describe('safety nets', () => {
 
   it('the buffer grows with the next step: a few seconds of what it can use', () => {
     const s = newGame(0)
-    s.workers.grandma = 100 // breads 35/s
-    expect(stageBuffer(s, 'pound').toNumber()).toBe(Math.ceil(35 * BUFFER_SECONDS))
+    s.workers.grandma = 100 // breads 35/s, × the count goals for 10, 25, 50 and 100 helpers
+    expect(stageBuffer(s, 'pound').toNumber()).toBe(Math.ceil(35 * farmGoalBonus(100) * BUFFER_SECONDS))
   })
 
   it('buffers do not throttle long offline steps', () => {

@@ -1,9 +1,8 @@
 import { Logo } from './Logo'
 import { useTabIcon } from './useTabIcon'
-import { useEffect, useRef, useState } from 'react'
-import { SettingsDialog } from './SettingsDialog'
-import { AboutDialog } from './AboutDialog'
-import { SavesDialog } from './SavesDialog'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { AboutDialog, SavesDialog, SettingsDialog, TalesDialog } from './lazyParts'
+import { OPEN_TALE_EVENT, unreadTales } from './tales'
 import { GAME_VERSION } from '../version'
 import { chapterNumber, furthestPlace, nextChapterGoal } from '../engine/rules'
 import { CHAPTERS, REGIONS } from '../engine/content'
@@ -18,12 +17,14 @@ export function Header() {
   const s = game.state
   useTabIcon()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [open, setOpen] = useState<'settings' | 'saves' | 'about' | null>(null)
+  const [open, setOpen] = useState<'settings' | 'saves' | 'about' | 'tales' | null>(null)
+  const [taleStart, setTaleStart] = useState<number | undefined>(undefined)
   const menuRef = useRef<HTMLDivElement>(null)
   const chapter = chapterNumber(s)
   const nextChapter = nextChapterGoal(s)
   const place = REGIONS[furthestPlace(s)]
   const hasNews = s.introSeen && s.newsSeen !== GAME_VERSION
+  const newTales = s.introSeen ? unreadTales(s).length : 0
 
   // Close the menu on a click outside it or on Escape.
   useEffect(() => {
@@ -42,8 +43,19 @@ export function Header() {
     }
   }, [menuOpen])
 
-  const pick = (what: 'settings' | 'saves' | 'about') => {
+  // The new-chapter card can open a tale (see tales.ts).
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      setTaleStart((e as CustomEvent<number>).detail)
+      setOpen('tales')
+    }
+    window.addEventListener(OPEN_TALE_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_TALE_EVENT, onOpen)
+  }, [])
+
+  const pick = (what: 'settings' | 'saves' | 'about' | 'tales') => {
     setMenuOpen(false)
+    setTaleStart(undefined)
     setOpen(what)
     if (what === 'about') game.act((st) => setNewsSeen(st, GAME_VERSION))
   }
@@ -77,7 +89,7 @@ export function Header() {
       <div className="menu" ref={menuRef}>
         <button className="ghost" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-haspopup="menu">
           ☰ Game
-          {hasNews && <span className="news-dot" title="What’s new" />}
+          {(hasNews || newTales > 0) && <span className="news-dot" title={hasNews ? 'What’s new' : 'A new kitchen tale'} />}
         </button>
         {menuOpen && (
           <div className="menu-pop" role="menu">
@@ -99,6 +111,13 @@ export function Header() {
               <b>Saves</b>
               <span>Keep a copy, load one, start over</span>
             </button>
+            <button role="menuitem" onClick={() => pick('tales')}>
+              <b>
+                Kitchen tales
+                {newTales > 0 && <span className="new-pill">New</span>}
+              </b>
+              <span>A story for every chapter</span>
+            </button>
             <button role="menuitem" onClick={() => pick('about')}>
               <b>
                 About &amp; what’s new
@@ -110,9 +129,12 @@ export function Header() {
           </div>
         )}
       </div>
-      {open === 'settings' && <SettingsDialog onClose={() => setOpen(null)} />}
-      {open === 'saves' && <SavesDialog onClose={() => setOpen(null)} />}
-      {open === 'about' && <AboutDialog onClose={() => setOpen(null)} />}
+      <Suspense fallback={null}>
+        {open === 'settings' && <SettingsDialog onClose={() => setOpen(null)} />}
+        {open === 'saves' && <SavesDialog onClose={() => setOpen(null)} />}
+        {open === 'about' && <AboutDialog onClose={() => setOpen(null)} />}
+        {open === 'tales' && <TalesDialog start={taleStart} onClose={() => setOpen(null)} />}
+      </Suspense>
       {game.saveNotice && (
         <div className="overlay" role="dialog" aria-modal="true">
           <div className="dialog">

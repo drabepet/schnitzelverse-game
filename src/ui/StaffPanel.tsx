@@ -1,4 +1,4 @@
-import { HELPER_RANGE_KM, STAGES, WORKERS } from '../engine/content'
+import { HELPER_RANGE_KM, WORKERS } from '../engine/content'
 import { fmt } from '../engine/format'
 import { hireWorker } from '../engine/actions'
 import { getMods, isTeased, workerPlan, meets } from '../engine/rules'
@@ -7,30 +7,22 @@ import { firstReason, needMoney, needRequirement, affordShare } from './reasons'
 import { useGame } from '../game/store'
 import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
-import { guideHint } from './guide'
 import { staffTitle, workerLook } from '../engine/names'
-import { tierLevel } from '../engine/tiers'
 
-/** Helpers for the kitchen (`making`) or for delivery (`distribution`). */
-export function StaffPanel({ pillar }: { pillar: 'making' | 'distribution' }) {
+/** Delivery helpers. (Kitchen helpers are hired at their station, see KitchenPage.) */
+export function StaffPanel() {
   const game = useGame()
   const s = game.state
   const mods = getMods(s)
-  const mine = WORKERS.filter((w) => (w.task === 'deliver') === (pillar === 'distribution'))
+  const mine = WORKERS.filter((w) => w.task === 'deliver')
 
   return (
     <section className="panel panel-staff">
-      <PanelHead>{staffTitle(s, pillar)}</PanelHead>
-      <p className="hint">
-        {pillar === 'making'
-          ? tierLevel(s, 'making') >= 2
-            ? 'The family runs the place now (see Managers in Franchise); the staff does the work, also while you’re away.'
-            : 'Automation, family edition: every helper works while you’re away.'
-          : `They reach up to ${HELPER_RANGE_KM} km. Further than that needs the fleet.`}
-      </p>
+      <PanelHead>{staffTitle(s, 'distribution')}</PanelHead>
+      <p className="hint">They reach up to {HELPER_RANGE_KM} km. Further than that needs the fleet.</p>
       <ul className="rows">
         {mine.filter((w) => isTeased(s, w.requires)).map((w) => {
-          const what = w.task === 'deliver' ? 'deliveries' : STAGES[w.task].name.toLowerCase()
+          const what = 'deliveries'
           const plan = workerPlan(s, w.id)
           const look = workerLook(s, w.id)
           return (
@@ -49,7 +41,7 @@ export function StaffPanel({ pillar }: { pillar: 'making' | 'distribution' }) {
               <HintButton
                 whyNot={firstReason(needRequirement(s, w.requires), needMoney(s, plan.cost, game.rates.income))}
                 progress={meets(s, w.requires) ? affordShare(s.money, plan.cost) : undefined}
-                className={`buy-btn ${guideHint(s)?.target === 'hire' && w.id === 'uncle' ? 'pulse' : ''}`}
+                className="buy-btn"
                 onClick={() => game.act((st) => hireWorker(st, w.id, st.settings.buyAmount))}
               >
                 <BuyLabel verb="Hire" plan={plan} />

@@ -83,7 +83,7 @@ describe('managers', () => {
     advance(s, 1800, 0.25)
     expect(Object.values(s.workers).reduce((a, b) => a + b, 0)).toBeGreaterThan(8)
     expect(s.regions.friends.unlocked).toBe(true)
-  })
+  }, 20_000) // half an hour of play: ~2 s here, over the default 5 s on slower CI machines
 })
 
 describe('knocking on doors', () => {

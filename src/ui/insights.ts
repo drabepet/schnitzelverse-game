@@ -1,10 +1,12 @@
 // Derived numbers the sidebar and dashboard share: flow, bottleneck,
 // ingredient sources and progress toward the next place.
-import { INGREDIENT_IDS, type IngredientId, type RegionDef } from '../engine/content'
+import { FUEL_IDS, INGREDIENT_IDS, type IngredientId, type RegionDef, REGIONS, type ShipFuelId } from '../engine/content'
+import type { GameState } from '../engine/state'
 import {
   chapter2Unlocked,
   customerDemand,
   deliveryCapacity,
+  fuelFor,
   getMods,
   kitchenCapacity,
   nextRegion,
@@ -126,4 +128,24 @@ export function nextGoal(game: GameStore): Goal | null {
     rep >= 1 && money >= 1 ? null : repWait === moneyWait ? (rep <= money ? 'rep' : 'money') : repWait > moneyWait ? 'rep' : 'money'
   // More than a month away at this pace is "not yet", not a number.
   return { region, locked, rep, money, eta: locked || !Number.isFinite(t) || t > 30 * 86400 ? null : t, slowest }
+}
+
+/** Star paprika for one ship fuel: what the fleet would burn at full capacity, and what the farm makes (per second). */
+export interface FuelStatus {
+  id: ShipFuelId
+  need: number
+  made: number
+  /** 0..1: the share of the burn the farm covers. */
+  share: number
+}
+
+/** Each ship fuel in use: from the first place that needs it (Mars, the next star). */
+export function fuelStatus(s: GameState): FuelStatus[] {
+  const need = needsNow(s)
+  const made = farmSupplyNow(s)
+  return FUEL_IDS.filter((id) => REGIONS.some((r) => s.regions[r.id].unlocked && fuelFor(r) === id)).map((id) => {
+    const n = need[id] ?? 0
+    const m = made(id)
+    return { id, need: n, made: m, share: n > 0 ? Math.min(1, m / n) : 1 }
+  })
 }

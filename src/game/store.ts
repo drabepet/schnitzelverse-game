@@ -94,7 +94,7 @@ export function ago(at: number, now = Date.now()): string {
 export class GameStore {
   state: GameState
   /** Smoothed per-second rates for display. */
-  rates: Rates = { pound: 0, bread: 0, fry: 0, deliver: 0, income: 0 }
+  rates: Rates = { pound: 0, bread: 0, fry: 0, deliver: 0, income: 0, sails: 0 }
   /** Smoothed reputation gained per second. */
   reputationRate = 0
   private lastReputation: Decimal | null = null

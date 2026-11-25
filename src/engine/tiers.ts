@@ -1,6 +1,6 @@
 // The three pipeline tabs (prep → making → distribution) are named after
 // how far you've come in each. Every level is also a "promotion" badge.
-import { type UpgradeDef, VEHICLES } from './content'
+import { type StageId, type UpgradeDef, VEHICLES } from './content'
 import { chapter2Unlocked, getMods, kitchenCapacity } from './rules'
 import type { GameState } from './state'
 
@@ -192,6 +192,19 @@ export function upgradePillar(u: UpgradeDef): Pillar {
   if (kinds.some((k) => k === 'packSize' || k === 'autoBuy' || k === 'facility' || k === 'building' || k === 'shopSupply')) return 'prep'
   if (kinds.some((k) => k === 'deliver' || k === 'fleet' || k === 'cooling' || k === 'orders')) return 'distribution'
   return 'making'
+}
+
+/**
+ * The kitchen station a piece of equipment belongs to: the step it speeds up,
+ * when that's all it does (the mallet, the breading line, plasma fryers…).
+ * Anything that helps the whole kitchen, the price or crispness has none.
+ */
+export function stationOf(u: UpgradeDef): StageId | null {
+  if (u.station) return u.station
+  const tasks = new Set(u.effects.map((e) => (e.kind === 'speed' && e.task !== 'deliver' ? e.task : null)))
+  if (tasks.size !== 1) return null
+  const [task] = tasks
+  return task
 }
 
 /** Equipment for the corner shop (supply, pack size, Auntie): shown in the shop panel. */

@@ -4,6 +4,7 @@ import type { StageId, Task } from './kitchen'
 import { REGIONS, type RegionId } from './regions'
 import type { Requirement } from './staff'
 import { type FarmChainId, type FarmGearId, buildFarmGear } from '../farmGear'
+import { type KitchenGearId, buildKitchenGear } from '../kitchenGear'
 
 // ---------------------------------------------------------------- upgrades
 
@@ -53,6 +54,7 @@ export type ShopRungId = `shop_${(typeof SHOP_PLACES)[number]}`
 
 export type UpgradeId =
   | FarmGearId
+  | KitchenGearId
   | ShopRungId
   | 'heavyMallet'
   | 'chalkboard'
@@ -157,6 +159,8 @@ export interface UpgradeDef {
   building?: FacilityId
   /** A farm hand for one chain (shown on the chain's card). */
   chain?: FarmChainId
+  /** Kitchen gear for one station (shown in its column), see kitchenGear.ts. */
+  station?: StageId
   effects: Effect[]
 }
 
@@ -204,13 +208,13 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     crew: { name: 'Pounding robot', emoji: '🦾', flavor: 'Its firmware is called “Uncle 2.0”. It hums polkas.' },
   },
   {
-    id: 'gravitonFlatteners', name: 'Graviton flatteners', task: 'pound', mult: 8, cost: 60_000_000_000, requires: LEVEL_D, space: true,
-    description: 'Bends spacetime until the cutlet is exactly 4 mm thin. Pounding ×8',
+    id: 'gravitonFlatteners', name: 'Graviton flatteners', task: 'pound', mult: 2, cost: 60_000_000_000, requires: LEVEL_D, space: true,
+    description: 'Bends spacetime until the cutlet is exactly 4 mm thin. Pounding ×2',
     crew: { name: 'Graviton flattener', emoji: '🌀', flavor: 'Bends spacetime until the cutlet is exactly 4 mm thin.' },
   },
   {
-    id: 'singularityTenderizer', name: 'Singularity tenderizer', task: 'pound', mult: 8, cost: 2e19, requires: LEVEL_E, space: true, deep: true,
-    description: 'A tiny black hole, on a leash. Cutlets come out one atom thin. Pounding ×8',
+    id: 'singularityTenderizer', name: 'Singularity tenderizer', task: 'pound', mult: 5, cost: 2e19, requires: LEVEL_E, space: true, deep: true,
+    description: 'A tiny black hole, on a leash. Cutlets come out one atom thin. Pounding ×5',
     crew: { name: 'Singularity tenderizer', emoji: '🕳️', flavor: 'A pet black hole. Uncle feeds it the bones.' },
   },
   // Bread
@@ -230,13 +234,13 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     crew: { name: 'Breading bot', emoji: '🤖', flavor: 'Programmed by Grandma. It also never measures anything.' },
   },
   {
-    id: 'crumbNebula', name: 'Zero-g crumb nebula', task: 'bread', mult: 8, cost: 70_000_000_000, requires: LEVEL_D, space: true,
-    description: 'Cutlets drift through a cloud of crumbs in zero g. Breading ×8',
+    id: 'crumbNebula', name: 'Zero-g crumb nebula', task: 'bread', mult: 2, cost: 70_000_000_000, requires: LEVEL_D, space: true,
+    description: 'Cutlets drift through a cloud of crumbs in zero g. Breading ×2',
     crew: { name: 'Zero-g crumb nebula', emoji: '🌌', flavor: 'Cutlets drift through a cloud of crumbs and come out perfect.' },
   },
   {
-    id: 'crumbGalaxy', name: 'Crumb galaxy', task: 'bread', mult: 8, cost: 2.5e19, requires: LEVEL_E, space: true, deep: true,
-    description: 'A spiral arm made entirely of breadcrumbs. Cutlets orbit through it. Breading ×8',
+    id: 'crumbGalaxy', name: 'Crumb galaxy', task: 'bread', mult: 5, cost: 2.5e19, requires: LEVEL_E, space: true, deep: true,
+    description: 'A spiral arm made entirely of breadcrumbs. Cutlets orbit through it. Breading ×5',
     crew: { name: 'Crumb galaxy', emoji: '💫', flavor: 'A spiral arm of breadcrumbs, a hundred light years wide. Grandma still sifts it.' },
   },
   // Fry
@@ -256,13 +260,13 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     crew: { name: 'Fry-o-tron', emoji: '⚙️', flavor: 'Golden brown, to the nanometre.' },
   },
   {
-    id: 'plasmaFryers', name: 'Plasma fryers', task: 'fry', mult: 8, cost: 80_000_000_000, requires: LEVEL_D, space: true,
-    description: 'Fries at the temperature of a small star; still 170 °C inside. Frying ×8',
+    id: 'plasmaFryers', name: 'Plasma fryers', task: 'fry', mult: 2, cost: 80_000_000_000, requires: LEVEL_D, space: true,
+    description: 'Fries at the temperature of a small star; still 170 °C inside. Frying ×2',
     crew: { name: 'Plasma fryer', emoji: '☄️', flavor: 'Fries at the temperature of a small star. Still 170 °C inside.' },
   },
   {
-    id: 'supernovaFryers', name: 'Supernova fryers', task: 'fry', mult: 8, cost: 3e19, requires: LEVEL_E, space: true, deep: true,
-    description: 'Every exploding star is now a fryer. The cutlets are timed to the second. Frying ×8',
+    id: 'supernovaFryers', name: 'Supernova fryers', task: 'fry', mult: 5, cost: 3e19, requires: LEVEL_E, space: true, deep: true,
+    description: 'Every exploding star is now a fryer. The cutlets are timed to the second. Frying ×5',
     crew: { name: 'Supernova fryer', emoji: '💥', flavor: 'One exploding star, one perfect batch. The cousins wear very dark sunglasses.' },
   },
 ]
@@ -741,11 +745,11 @@ export const UPGRADES: UpgradeDef[] = [
     id: 'zeroGFryer',
     name: 'Zero-g fryer',
     emoji: '🫧',
-    description: 'Oil floats, cutlets float, everything fries from all sides at once. Kitchen ×3',
+    description: 'Oil floats, cutlets float, everything fries from all sides at once. Kitchen ×1.5',
     cost: 2_000_000_000,
     space: true,
     requires: { reputation: 300_000_000 },
-    effects: [{ kind: 'kitchen', mult: 3 }],
+    effects: [{ kind: 'kitchen', mult: 1.5 }],
   },
   {
     id: 'hydroponics',
@@ -849,11 +853,11 @@ export const UPGRADES: UpgradeDef[] = [
     id: 'dysonFryer',
     name: 'Dyson fryer',
     emoji: '🌞',
-    description: 'A ring of fryers around the Sun. Mind the splatter. Kitchen ×5',
+    description: 'A ring of fryers around the Sun. Mind the splatter. Kitchen ×3',
     cost: 10_000_000_000_000,
     space: true,
     requires: { reputation: 500_000_000_000 },
-    effects: [{ kind: 'kitchen', mult: 5 }],
+    effects: [{ kind: 'kitchen', mult: 3 }],
   },
 
   // Chapter 5: the Schnitzelverse.
@@ -938,12 +942,12 @@ export const UPGRADES: UpgradeDef[] = [
     id: 'neutronStarFryer',
     name: 'Neutron star fryer',
     emoji: '🌟',
-    description: 'A teaspoon of it weighs a billion tonnes and fries a billion schnitzels. Kitchen ×5',
+    description: 'A teaspoon of it weighs a billion tonnes and fries a billion schnitzels. Kitchen ×3',
     cost: 1e22,
     space: true,
     deep: true,
     requires: { reputation: 1e21 },
-    effects: [{ kind: 'kitchen', mult: 5 }],
+    effects: [{ kind: 'kitchen', mult: 3 }],
   },
   {
     id: 'faceInTheStars',
@@ -972,6 +976,8 @@ export const UPGRADES: UpgradeDef[] = [
 
 // Farm gear (farmGear.ts) is built from the places and farm buildings, and joins UPGRADES after the list above.
 UPGRADES.push(...buildFarmGear(REGIONS, FACILITIES, CHAPTER2_FRANCHISES))
+// Kitchen gear (kitchenGear.ts): a ladder per station, one rung per place.
+UPGRADES.push(...buildKitchenGear(REGIONS))
 
 /** Shop rungs: the supply multiplier each one adds, and its price as a share of its place's price. */
 export const SHOP_RUNG_MULT = 3

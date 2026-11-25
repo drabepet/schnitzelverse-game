@@ -4,7 +4,6 @@ import {
   type Effect,
   FACILITIES,
   type FacilityDef,
-  type IngredientId,
   type ItemId,
   MANAGER_INTERVAL,
   MANAGER_SPEND_SHARE,
@@ -26,6 +25,8 @@ import {
   type WorkerDef,
   WORKERS,
   INGREDIENT_SET,
+  FACILITY_BY_ID,
+  FUEL_IDS,
 } from './content'
 import { buyFacility, buyPerk, buyUpgrade, buyVehicle, canUnlockRegion, franchise, hireWorker, unlockRegion } from './actions'
 import {
@@ -68,6 +69,8 @@ import { D, Decimal } from './decimal'
 import { MANAGER_LOG_LIMIT, type GameState } from './state'
 
 export const MANAGERS = PERKS.filter((p) => p.manager)
+
+const FUEL_SET: ReadonlySet<ItemId> = new Set(FUEL_IDS)
 
 /** Bought and switched on. */
 export function managerActive(state: GameState, id: PerkId): boolean {
@@ -167,8 +170,10 @@ function effectPillar(e: Effect): { pillar: Pillar; task?: Task } | null {
       return e.task === 'deliver' ? { pillar: 'delivery' } : { pillar: 'kitchen', task: e.task }
     case 'kitchen':
       return { pillar: 'kitchen' }
-    case 'facility':
     case 'building':
+      // Star paprika gear moves the fleet, and fuel is never wasted.
+      return FACILITY_BY_ID[e.facility].space ? null : { pillar: 'supply' }
+    case 'facility':
     case 'shopSupply':
       return { pillar: 'supply' }
     case 'fleet':
@@ -342,18 +347,18 @@ export function farmGearMult(u: UpgradeDef, f: FacilityDef): number {
   return mult
 }
 
-/** What Grandpa does next for one short ingredient: build, buy equipment, or wait for it. */
+/** What Grandpa does next for one short ingredient (or ship fuel): build, buy equipment, or wait for it. */
 export type FarmStep = { kind: 'build'; facility: FacilityDef; cost: Decimal } | GearStep
 
-/** Ingredients the farm covers least of what the kitchen needs, worst first. */
-function shortIngredients(state: GameState, mods: Mods): IngredientId[] {
+/** Ingredients (and star paprika for the fleet) the farm covers least of what is needed, worst first. */
+function shortIngredients(state: GameState, mods: Mods): ItemId[] {
   const need = supplyNeeds(state, mods)
   // No further than customers want (+30%): supplyNeeds follows the kitchen and fleet.
   const l = businessLimits(state, mods)
   const scale = Math.min(1, (l.customers * 1.3) / Math.max(1e-9, Math.min(l.kitchen, l.delivery)))
   for (const k of Object.keys(need) as ItemId[]) need[k] = (need[k] ?? 0) * scale
   return (Object.keys(need) as ItemId[])
-    .filter((item): item is IngredientId => INGREDIENT_SET.has(item))
+    .filter((item) => INGREDIENT_SET.has(item) || FUEL_SET.has(item))
     .map((item) => ({ item, cover: farmSupply(state, item, mods) / Math.max(need[item] ?? 0, 1e-9) }))
     .filter((x) => (need[x.item] ?? 0) > 0 && x.cover < 1.1)
     .sort((a, b) => a.cover - b.cover)
@@ -365,7 +370,7 @@ function shortIngredients(state: GameState, mods: Mods): IngredientId[] {
  * equipment for its group if that adds more per dollar (bought now, or
  * waited for when it's only a few minutes of income away).
  */
-function farmStepFor(state: GameState, item: IngredientId, mods: Mods): FarmStep | null {
+function farmStepFor(state: GameState, item: ItemId, mods: Mods): FarmStep | null {
   const f = farmBottleneck(state, item, mods)
   if (!f) return null
   const cost = facilityPlan(state, f, 1).cost

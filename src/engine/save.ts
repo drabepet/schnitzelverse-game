@@ -92,6 +92,8 @@ export function deserialize(json: string): GameState {
   const state = migrate(merge(newGame(), saved) as GameState)
   // Saves from before the keep-a-copy note: start suggesting it from the next chapter on.
   if (!('copyNudgeChapter' in saved)) state.copyNudgeChapter = chapterNumber(state)
+  // Saves from before the kitchen tales: no card for the chapter you're already in (the menu has them all).
+  if (!('taleOffered' in saved)) state.taleOffered = chapterNumber(state)
   return state
 }
 

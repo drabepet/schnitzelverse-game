@@ -3,7 +3,7 @@ import { fmtCompact, fmtTime } from '../engine/format'
 import { D } from '../engine/decimal'
 import { canFranchise, chapter2Unlocked, crispness, pendingCrumbs } from '../engine/rules'
 import { useGame } from '../game/store'
-import { adviceFor, flow, ingredients, nextGoal } from './insights'
+import { adviceFor, flow, fuelStatus, ingredients, nextGoal } from './insights'
 import { goTo } from './goTo'
 import { BadgeQuote } from './BadgeQuote'
 import { SidebarManagers } from './SidebarManagers'
@@ -85,7 +85,15 @@ export function StatusSidebar() {
             limit={i.source === 'short' || (!i.source && i.stock < 1)}
           />
         ))}
-        <Row label="🔥 Hot / 🧊 cold" value={`${fmtCompact(s.items.hot.floor(), true)} / ${fmtCompact(s.items.cold.floor(), true)}`} />
+        {fuelStatus(s).map((fu) => (
+          <Row
+            key={fu.id}
+            label={`${ITEMS[fu.id].emoji} ${ITEMS[fu.id].name}`}
+            value={`${fmtCompact(fu.made, true)} of ${fmtCompact(fu.need, true)}/s`}
+            limit={fu.share < 0.99}
+            title="Ship fuel from the farm, against what the fleet burns flying past the Moon (deep-fold: past the Sun). Short: those schnitzels arrive cold."
+          />
+        ))}
       </div>
 
       {goal && (

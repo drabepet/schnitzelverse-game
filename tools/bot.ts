@@ -366,6 +366,9 @@ export function runFranchises(p: FranchiseProfile): void {
   const reached: Record<string, number> = {}
   const news = new News()
   let nextNews = 0
+  // Schnitzels delivered and those flown on solar sails (no star paprika) since the last snapshot.
+  let delivered = 0
+  let sailed = 0
   let sessionUntil = 0
   let nextSession = 0
 
@@ -423,7 +426,9 @@ export function runFranchises(p: FranchiseProfile): void {
       }
       nextCheck = active || t < sessionUntil ? t + 5 : p.sessionMinutes ? Math.max(t + 5, nextSession) : t + p.idleCheck
     }
-    tick(s, dt)
+    const flows = tick(s, dt)
+    delivered += flows.deliver.toNumber()
+    sailed += flows.sails.toNumber()
     // Once a minute of game time, whether or not the player is looking.
     if (t >= nextNews) {
       news.look(s, t)
@@ -439,8 +444,11 @@ export function runFranchises(p: FranchiseProfile): void {
           `caps ${(['pound', 'bread', 'fry'] as const).map((t) => fmt(taskCapacity(s, t)))},deliver ${fmt(deliveryCapacity(s, getMods(s)))} ` +
           `fleet ${VEHICLES.map((v) => s.vehicles[v.id]).join('/')} ` +
           `| stock ${INGREDIENT_IDS.map((i) => fmt(s.items[i]))} cut ${fmt(s.items.cutlet)} br ${fmt(s.items.breaded)} hot ${fmt(s.items.hot)} ` +
-          `| served ${fmt(s.stats.served)} | upgrades ${Object.keys(s.upgrades).length}/${UPGRADES.length}`,
+          `| served ${fmt(s.stats.served)} | upgrades ${Object.keys(s.upgrades).length}/${UPGRADES.length}` +
+          ` | sails ${delivered > 0 ? Math.round((sailed / delivered) * 100) : 0}%`,
       )
+      delivered = 0
+      sailed = 0
     }
   }
   const perks = PERKS.filter((x) => s.prestige.perks[x.id]).map((x) => `${x.id}:${s.prestige.perks[x.id]}`)

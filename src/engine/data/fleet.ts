@@ -5,6 +5,15 @@
 /** The fleet arrives with this many franchises. */
 export const CHAPTER3_FRANCHISES = 5
 
+/**
+ * Star paprika (Chapters 4–5): every schnitzel flown past the Moon burns this
+ * much fold paprika, and past the Sun this much deep-fold paprika. Without it
+ * the ship drifts on solar sails and the schnitzel arrives cold.
+ */
+export const FUEL_PER_SCHNITZEL = 0.01
+/** Trips at least this long (km) need fuel: Mars and beyond. */
+export const FUEL_FROM_KM = 100_000_000
+
 export type VehicleId = 'van' | 'truck' | 'train' | 'plane' | 'rocket' | 'cruiser' | 'ark' | 'warp' | 'wormhole'
 
 export interface VehicleDef {

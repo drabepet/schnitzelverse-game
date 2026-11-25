@@ -1,16 +1,14 @@
-import { FACILITY_BY_ID, type FacilityId, FARM_CHAINS, FARM_GOAL_MULT, FARM_GOALS, type FarmChain, INGREDIENT_IDS, type IngredientId, type ItemId, ITEMS, UPGRADES, FACILITIES } from '../engine/content'
+import { FACILITY_BY_ID, type FacilityId, FARM_CHAINS, type FarmChain, FUEL_IDS, INGREDIENT_IDS, REGION_BY_ID, type IngredientId, type ItemId, ITEMS, UPGRADES, FACILITIES } from '../engine/content'
 import { fmt, fmtCompact } from '../engine/format'
 import { buyFacility } from '../engine/actions'
 import { farmBottleneck } from '../engine/automation'
 import {
   chapter2Unlocked,
+  chapterOpenFor,
   facilityCapacity,
   facilityPlan,
   facilitySpeed,
-  farmGoalBonus,
-  farmGoalsReached,
   getMods,
-  nextFarmGoal,
   shopSupplyRate,
   type Mods,
 } from '../engine/rules'
@@ -21,10 +19,12 @@ import { BuyLabel, PanelHead } from './BuyAmount'
 import { Why } from './Why'
 import { facilityLook, shopLook } from '../engine/names'
 import { HintButton } from './HintButton'
-import { needMoney, affordShare } from './reasons'
+import { needMoney, needRequirement, affordShare, placeName } from './reasons'
 import { UpgradesPanel } from './UpgradesPanel'
 import { isShopGear } from '../engine/tiers'
 import { GearList } from './FarmGear'
+import { CountGoal } from './CountGoal'
+import { PaprikaStory } from './PaprikaStory'
 import { useSteady } from './useSteady'
 import { farmSupplyNow, needsNow } from './derived'
 
@@ -49,9 +49,9 @@ export function FarmPanel() {
   const need = needsNow(s)
   const supply = farmSupplyNow(s)
 
-  // The building holding back each short ingredient.
-  const slow = new Map<FacilityId, IngredientId[]>()
-  for (const item of INGREDIENT_IDS) {
+  // The building holding back each short ingredient (or ship fuel).
+  const slow = new Map<FacilityId, ItemId[]>()
+  for (const item of [...INGREDIENT_IDS, ...FUEL_IDS]) {
     const n = need[item] ?? 0
     if (n <= 0 || supply(item) >= n * 0.98) continue
     const f = farmBottleneck(s, item, mods)
@@ -96,22 +96,33 @@ export function FarmPanel() {
       </div>
       <div className="chain-grid">
         {FARM_CHAINS.map((chain) => {
+          // Star paprika shows up with the stars (Chapter 4); the distillery with Chapter 5.
+          const buildings = chain.buildings.filter((id) => chapterOpenFor(s, FACILITY_BY_ID[id]))
+          if (!buildings.length) return null
           const hand = HANDS_OF.get(chain.id) ?? []
           return (
-            <div key={chain.id} className="panel chain">
+            <div key={chain.id} id={`chain-${chain.id}`} className="panel chain">
               <div className="chain-head">
                 <h3>
                   {chain.emoji} {chain.name}
                 </h3>
                 <span className="muted small chain-nums">
                   {chain.outputs
+                    .filter((o) => buildings.some((id) => FACILITY_BY_ID[id].output === o))
                     .map((o) => `${ITEMS[o].emoji} ${fmt(supply(o))} of ${fmt(need[o] ?? 0)}/s`)
                     .join(' · ')}
                 </span>
               </div>
+              {chain.id === 'paprika' && <PaprikaStory />}
+              {chain.id === 'paprika' && (
+                <p className="hint">
+                  Ship fuel: every schnitzel flown past the Moon burns a pinch of fold paprika (deep-fold beyond the Sun). Without it ships
+                  drift on solar sails and the schnitzel arrives cold.
+                </p>
+              )}
               <GearList gear={hand} />
-              <div className="flow" style={{ gridTemplateColumns: chain.buildings.map(() => 'minmax(0, 1fr)').join(' var(--flow-arrow) ') }}>
-                {chain.buildings.map((id, i) => (
+              <div className="flow" style={{ gridTemplateColumns: buildings.map(() => 'minmax(0, 1fr)').join(' var(--flow-arrow) ') }}>
+                {buildings.map((id, i) => (
                   <FlowStep key={id} id={id} first={i === 0} game={game} s={s} mods={mods} holdsBack={slow.get(id)} />
                 ))}
               </div>
@@ -155,35 +166,6 @@ function Coverage({ item, need, farm, shop }: { item: IngredientId; need: number
   )
 }
 
-/** Progress to the next count goal for one kind of building. */
-function Goal({ count, name }: { count: number; name: string }) {
-  const next = nextFarmGoal(count)
-  const reached = farmGoalsReached(count)
-  const bonus = farmGoalBonus(count)
-  if (next === null)
-    return (
-      <div className="count-goal small muted" title={`Every goal reached: ${name} ×${fmt(bonus)}`}>
-        🎯 All goals reached · ×{fmt(bonus)}
-      </div>
-    )
-  const prev = reached > 0 ? FARM_GOALS[reached - 1] : 0
-  const pct = Math.max(0, Math.min(100, ((count - prev) / (next - prev)) * 100))
-  return (
-    <div
-      className="count-goal small"
-      title={`Own ${next} to make every one ×${FARM_GOAL_MULT} faster.${reached ? ` Goals reached so far: ${reached} (×${fmt(bonus)}).` : ''}`}
-    >
-      <span>
-        🎯 {count}/{next} → ×{FARM_GOAL_MULT}
-      </span>
-      {reached > 0 && <span className="muted"> · now ×{fmt(bonus)}</span>}
-      <div className="count-goal-bar">
-        <div style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
-
 function FlowStep({
   id,
   first,
@@ -197,7 +179,7 @@ function FlowStep({
   game: GameStore
   s: GameState
   mods: Mods
-  holdsBack?: IngredientId[]
+  holdsBack?: ItemId[]
 }) {
   const f = FACILITY_BY_ID[id]
   const look = facilityLook(s, id)
@@ -211,9 +193,11 @@ function FlowStep({
   const plan = facilityPlan(s, f)
   const load = capacity > 0 ? Math.min(100, (actual / capacity) * 100) : 0
   const gear = GEAR_OF.get(f.id) ?? []
+  const locked = needRequirement(s, f.requires)
   let status = ''
   let warn = false
-  if (count === 0) status = 'Not built yet'
+  const opensAt = f.requires?.place ? REGION_BY_ID[f.requires.place] : null
+  if (count === 0) status = locked && opensAt ? `🔒 Opens at ${opensAt.emoji} ${placeName(opensAt)}` : 'Not built yet'
   else if (holdsBack?.length) {
     status = `🐢 Slowest step: holding back ${holdsBack.map((i) => ITEMS[i].emoji).join(' ')}`
     warn = true
@@ -264,12 +248,12 @@ function FlowStep({
         <div className={`node-status small ${shown.startsWith('!') ? 'warn' : 'muted'}`} title={shown.replace(/^!/, '')}>
           {shown.replace(/^!/, '')}
         </div>
-        <Goal count={count} name={look.name} />
+        <CountGoal count={count} name={look.name} />
         <GearList gear={gear} />
         <HintButton
           className="buy-btn"
-          whyNot={plan.affordable ? null : needMoney(s, plan.cost, game.rates.income)}
-          progress={affordShare(s.money, plan.cost)}
+          whyNot={locked ?? (plan.affordable ? null : needMoney(s, plan.cost, game.rates.income))}
+          progress={locked ? undefined : affordShare(s.money, plan.cost)}
           onClick={() => game.act((st) => buyFacility(st, f.id, st.settings.buyAmount))}
         >
           <BuyLabel verb="Build" plan={plan} />

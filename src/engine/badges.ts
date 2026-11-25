@@ -1,6 +1,6 @@
 // Badges: silly achievements. Earned badges survive every franchise.
 // The hard ones also add a little income (see badgeBonus.ts).
-import { FACILITIES, REGIONS, UPGRADES, VEHICLES, WORKERS } from './content'
+import { KITCHEN_FACILITIES, REGIONS, UPGRADES, VEHICLES, WORKERS } from './content'
 import { D } from './decimal'
 import { TIERS } from './tiers'
 import { MORE_BADGES } from './badgesExtra'
@@ -18,6 +18,7 @@ export type BadgeCategory =
   | 'fleet'
   | 'space'
   | 'beyond'
+  | 'paprika'
   | 'fame'
   | 'shame'
   | 'byHand'
@@ -49,6 +50,7 @@ export const BADGE_CATEGORIES: { id: BadgeCategory; name: string }[] = [
   { id: 'fleet', name: 'On the road' },
   { id: 'space', name: 'The stars' },
   { id: 'beyond', name: 'The Schnitzelverse' },
+  { id: 'paprika', name: 'Star paprika' },
   { id: 'shame', name: 'Hall of shame' },
   { id: 'byHand', name: 'Made by hand' },
   { id: 'collector', name: 'Badge hunter' },
@@ -125,7 +127,7 @@ export const BADGES: BadgeDef[] = [
 
   // ------------------------------------------------------------ farm
   { id: 'farm1', category: 'farm', emoji: '🚜', name: 'Old MacSchnitzel', goal: 'Build your first farm building', flavor: 'E-I-E-I-Oil.', check: (s) => totalFacilities(s) >= 1 },
-  { id: 'farmAll', category: 'farm', emoji: '🧺', name: 'Farm to Pan', goal: 'Own every kind of farm building at once', flavor: 'The shortest supply chain in history: from Grandpa to the pan.', check: (s) => FACILITIES.every((f) => s.facilities[f.id] > 0) },
+  { id: 'farmAll', category: 'farm', emoji: '🧺', name: 'Farm to Pan', goal: 'Own every kind of farm building at once', flavor: 'The shortest supply chain in history: from Grandpa to the pan.', check: (s) => KITCHEN_FACILITIES.every((f) => s.facilities[f.id] > 0) },
   { id: 'pigs25', category: 'farm', emoji: '🐖', name: 'This Little Piggy', goal: 'Own 25 pig farms', flavor: 'Went to market. Did not come back.', check: (s) => s.facilities.pigFarm >= 25 },
   { id: 'coops25', category: 'farm', emoji: '🥚', name: 'Egg-cellent Work', goal: 'Own 25 chicken coops', flavor: 'Which came first? Your breading station.', check: (s) => s.facilities.coop >= 25 },
   { id: 'bakery10', category: 'farm', emoji: '🥖', name: 'Crumby Business', goal: 'Own 10 bakeries', flavor: 'They bake bread purely to destroy it. Like art.', check: (s) => s.facilities.bakery >= 10 },

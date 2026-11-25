@@ -3,6 +3,8 @@
 // Most give no bonus; the few far-away ones are listed in badgeBonus.ts.
 import {
   FACILITIES,
+  FACILITY_BY_ID,
+  KITCHEN_FACILITIES,
   type FacilityId,
   FARM_GOALS,
   PERKS,
@@ -19,8 +21,10 @@ import { badgeCount, building, byHand, earned, fame, franchises, hours, ownedUpg
 
 
 const SHOP_GEAR: UpgradeId[] = ['biggerVan', 'wholesaleCard', 'secondVan', 'miniMarket', 'nightDeliveries', 'supermarket', 'regionalDepot', 'groceryChain', 'hypermarket', 'galacticGrocer']
-const farmGear = () => UPGRADES.filter((u) => u.building)
-const farmHands = () => UPGRADES.filter((u) => u.chain)
+// The ingredient farm only: star paprika has its own records (below).
+const farmGear = () => UPGRADES.filter((u) => u.building && !FACILITY_BY_ID[u.building].space)
+const farmHands = () => UPGRADES.filter((u) => u.chain && u.chain !== 'paprika')
+const paprikaGear = () => UPGRADES.filter((u) => u.building && FACILITY_BY_ID[u.building].space)
 
 type Def = Omit<BadgeDef, 'category'>
 const cat = (category: BadgeDef['category'], defs: Def[]): BadgeDef[] => defs.map((d) => ({ ...d, category }))
@@ -140,8 +144,23 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'farmGear10', emoji: '🔧', name: 'Gear Head', goal: 'Own 10 pieces of farm gear in one run', flavor: 'Grandpa has a shed for the gear. And a shed for the sheds.', check: (s) => farmGear().filter((u) => s.upgrades[u.id]).length >= 10 },
     { id: 'farmGear50', emoji: '🛠️', name: 'Tractor Pimp', goal: 'Own 50 pieces of farm gear in one run', flavor: 'The combine harvester has neon underlights now.', check: (s) => farmGear().filter((u) => s.upgrades[u.id]).length >= 50 },
     { id: 'farmGearAll', emoji: '🏆', name: 'Grandpa’s Pride', goal: 'Own every piece of farm gear in one run', flavor: 'He shed a single tear. It was immediately used to water the wheat.', check: (s) => farmGear().every((u) => s.upgrades[u.id]) },
-    { id: 'buildingMaxed', emoji: '🥇', name: 'Best in Show', goal: 'Own every piece of gear for one farm building in one run', flavor: 'It has a sash. It has a rosette. It has its own fan club.', check: (s) => FACILITIES.some((f) => farmGear().filter((u) => u.building === f.id).every((u) => s.upgrades[u.id])) },
+    { id: 'buildingMaxed', emoji: '🥇', name: 'Best in Show', goal: 'Own every piece of gear for one farm building in one run', flavor: 'It has a sash. It has a rosette. It has its own fan club.', check: (s) => KITCHEN_FACILITIES.some((f) => farmGear().filter((u) => u.building === f.id).every((u) => s.upgrades[u.id])) },
     { id: 'pigsOnly', emoji: '🐽', name: 'Animal Farm', goal: 'Secret', flavor: '100 pig farms, not a single field. The pigs are thrilled. The bread is not.', secret: true, check: (s) => s.facilities.pigFarm >= 100 && s.facilities.wheatField === 0 },
+  ]),
+
+  // ------------------------------------------------------------ star paprika (records only: no bonuses, see badgeBonus.ts)
+  ...cat('paprika', [
+    { id: 'paprikaFirst', emoji: '🏜️', name: 'Red Sand, Big Plans', goal: 'Build your first paprika dunes', flavor: 'Grandma’s old tin, a little Martian sand, and a lot of questions nobody can answer.', check: building('paprikaDunes', 1) },
+    { id: 'paprikaMill', emoji: '⚗️', name: 'Grind Time', goal: 'Build a paprika mill', flavor: 'The whole valley sneezes in unison. It is weirdly beautiful.', check: building('paprikaMill', 1) },
+    { id: 'paprikaFold', emoji: '⛽', name: 'Fold Here', goal: 'Fly a schnitzel on fold paprika', flavor: 'Please keep your crust inside the vehicle at all times.', check: (s) => s.stats.paprikaBurned.gt(0) },
+    { id: 'paprikaSails', emoji: '⛵', name: 'Becalmed', goal: 'Fly a million schnitzels on solar sails', flavor: 'They arrived. Eventually. Cold, and with a light tan.', check: (s) => s.stats.sailed.gte(1e6) },
+    { id: 'paprikaTank', emoji: '🛢️', name: 'Full Tank', goal: 'Keep a million fold paprika in stock', flavor: 'Enough to fold the Solar System twice. Mum wants to know why the garage smells of Mars.', check: (s) => s.items.fold.gte(1e6) },
+    { id: 'paprikaDunes50', emoji: '🪱', name: 'Worm Union', goal: 'Own 50 paprika dunes', flavor: 'The crumb worms have formed a union. Their only demand: more crusts.', check: building('paprikaDunes', 50) },
+    { id: 'paprikaDeep', emoji: '🔮', name: 'Deep Fold', goal: 'Build a paprika distillery', flavor: 'Boiled down until space itself wrinkles. Do not sniff the lid.', check: building('paprikaDistillery', 1) },
+    { id: 'paprikaWhistle', emoji: '📯', name: 'Worm Whisperer', goal: 'Get Grandma’s worm whistle', flavor: 'One blast and the worms leave the pipes alone. Two blasts and they come for dinner.', check: (s) => !!s.upgrades.paprikaDistillery_cluster },
+    { id: 'paprikaBillion', emoji: '🤧', name: 'Sneeze Speed', goal: 'Burn a billion pinches of star paprika', flavor: 'Mission control has stopped asking how. Mission control has started sneezing.', check: (s) => s.stats.paprikaBurned.gte(1e9) },
+    { id: 'paprikaGearAll', emoji: '🍋', name: 'The Last Pod', goal: 'Own every piece of paprika gear in one run', flavor: 'It folds space just by being looked at. Grandma keeps it in the spice rack anyway.', check: (s) => paprikaGear().every((u) => s.upgrades[u.id]) },
+    { id: 'paprikaCosmic', emoji: '🌌', name: 'Fold the Universe', goal: 'Burn a quadrillion pinches of star paprika', flavor: 'Somewhere, a crumb worm the size of a galaxy smiles and asks for a crust.', check: (s) => s.stats.paprikaBurned.gte(1e15) },
   ]),
 
   // ------------------------------------------------------------ fleet

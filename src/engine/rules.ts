@@ -1,7 +1,7 @@
 // Derived values: modifiers from upgrades, costs, capacities, requirements.
 // Pure functions of the state; nothing here changes it.
 import { D, Decimal } from './decimal'
-import { BASE_COOLING, BUFFER_SECONDS, CHAPTER2_FRANCHISES, CHAPTER2_PERKS, CHAPTER3_FRANCHISES, CHAPTER3_PERKS, CHAPTER4_PERKS, CHAPTER4_REGION, CHAPTER5_PERKS, CHAPTER5_REGION, CRISP_BASE_SKILL, CRISP_REPUTATION_SHARE, CRISP_SPEED_PER_DEGREE, CRISP_TEMP_BEST, CRISP_TEMP_SPREAD, CRUMB_DIVISOR, type Effect, FACILITIES, FACILITY_BY_ID, type FacilityDef, type FacilityGroup, type FacilityId, FARM_GOAL_MULT, FARM_GOALS, FRANCHISE_UNLOCK_REGION, FRESHNESS_KM_PER_KMH, FRONTIER_CRUMB_SHARE, HELPER_RANGE_KM, type IngredientId, type ItemId, MIN_BUFFERS, MIN_ORDER_BACKLOG, NEXT_TASK, NIGHT_SHIFT_HOURS, OFFLINE_CAP_HOURS, OIL_LEVELS, ORDER_BACKLOG_SECONDS, PERK_BY_ID, PERK_SOFT_GROWTH, PERK_SOFT_LEVEL, type PerkDef, type PerkId, PERKS, REGION_INDEX, type RegionDef, REGIONS, type Requirement, SHOP, SHOP_SHELF_SECONDS, SHOP_SUPPLY_RATE, STAGE_IDS, type StageId, STAGES, type Task, type UpgradeDef, UPGRADES, type VehicleDef, VEHICLES, WORKER_BY_ID, type WorkerDef, type WorkerId, WORKERS, CHAPTERS, REGION_BY_ID, type RegionId, CRUMB_PRIDE_PER_DECADE, INGREDIENT_IDS } from './content'
+import { BASE_COOLING, BUFFER_SECONDS, CHAPTER2_FRANCHISES, CHAPTER2_PERKS, CHAPTER3_FRANCHISES, CHAPTER3_PERKS, CHAPTER4_PERKS, CHAPTER4_REGION, CHAPTER5_PERKS, CHAPTER5_REGION, CRISP_BASE_SKILL, CRISP_REPUTATION_SHARE, CRISP_SPEED_PER_DEGREE, CRISP_TEMP_BEST, CRISP_TEMP_SPREAD, CRUMB_DIVISOR, type Effect, FACILITIES, FACILITY_BY_ID, type FacilityDef, type FacilityGroup, type FacilityId, FARM_GOAL_MULT, FARM_GOALS, FRANCHISE_UNLOCK_REGION, FRESHNESS_KM_PER_KMH, FRONTIER_CRUMB_SHARE, HELPER_RANGE_KM, type IngredientId, type ItemId, MIN_BUFFERS, MIN_ORDER_BACKLOG, NEXT_TASK, NIGHT_SHIFT_HOURS, OFFLINE_CAP_HOURS, OIL_LEVELS, ORDER_BACKLOG_SECONDS, PERK_BY_ID, PERK_SOFT_GROWTH, PERK_SOFT_LEVEL, type PerkDef, type PerkId, PERKS, REGION_INDEX, type RegionDef, REGIONS, type Requirement, SHOP, SHOP_SHELF_SECONDS, SHOP_SUPPLY_RATE, STAGE_IDS, type StageId, STAGES, type Task, type UpgradeDef, UPGRADES, type VehicleDef, VEHICLES, WORKER_BY_ID, type WorkerDef, type WorkerId, WORKERS, CHAPTERS, REGION_BY_ID, type RegionId, CRUMB_PRIDE_PER_DECADE, INGREDIENT_IDS, FUEL_IDS, FUEL_FROM_KM, FUEL_PER_SCHNITZEL, type ShipFuelId } from './content'
 import { BEST_SALE_EARLY, BEST_SALE_MIN_SHARE, CRUMB_RATE_DROP, CRUMB_RATE_FROM, type BuyAmount, type GameState } from './state'
 import { BADGE_BONUS } from './badgeBonus'
 
@@ -90,7 +90,7 @@ function identityMods(): Mods {
     fleet: 1,
     crisp: 0,
     shopSupply: 1,
-    building: { wheatField: 1, mill: 1, bakery: 1, sunflowers: 1, oilPress: 1, coop: 1, pigFarm: 1, butcher: 1 },
+    building: Object.fromEntries(FACILITIES.map((f) => [f.id, 1])) as Record<FacilityId, number>,
   }
 }
 
@@ -113,6 +113,11 @@ export function modSources(state: GameState): ModSource[] {
   if (bonus > 0) out.push({ name: 'Badges', emoji: '🏅', effects: [{ kind: 'price', mult: 1 + bonus }] })
   const pride = familyPride(state)
   if (pride > 1) out.push({ name: 'Family pride (crumbs collected)', emoji: '✨', effects: [{ kind: 'price', mult: pride }] })
+  // Kitchen crews have count goals like the farm's buildings (10, 25, 50… helpers).
+  for (const w of WORKERS) {
+    if (w.task === 'deliver' || farmGoalsReached(state.workers[w.id]) === 0) continue
+    out.push({ name: `Count goals (${state.workers[w.id]} helpers)`, emoji: '🎯', effects: [{ kind: 'speed', task: w.task, mult: farmGoalBonus(state.workers[w.id]) }] })
+  }
   if (state.crisp.unlocked) {
     // Crispness multiplies price and reputation; the skill comes from the sources above.
     let skill = 0
@@ -197,7 +202,10 @@ function modsKey(state: GameState): string {
   let badges = 0
   for (const _ in state.badges) badges++
   const c = state.crisp
-  return `${upgrades}|${perks}|${badges}|${state.prestige.franchises}|${c.unlocked ? 1 : 0}|${c.temperature}|${c.oil}`
+  // Kitchen count goals reached (see modSources).
+  let goals = ''
+  for (const w of WORKERS) if (w.task !== 'deliver') goals += farmGoalsReached(state.workers[w.id])
+  return `${upgrades}|${perks}|${badges}|${state.prestige.franchises}|${c.unlocked ? 1 : 0}|${c.temperature}|${c.oil}|${goals}`
 }
 
 const modsCache = new WeakMap<GameState, { key: string; mods: Mods }>()
@@ -560,6 +568,31 @@ export function vehicleCapacity(state: GameState, def: VehicleDef, mods: Mods): 
   return D(def.capacity).mul(state.vehicles[def.id]).mul(mods.fleet)
 }
 
+/**
+ * The star paprika a trip to this place burns (Chapters 4–5): fold paprika
+ * from Mars on, deep-fold paprika beyond the Sun, none closer than that.
+ */
+export function fuelFor(region: RegionDef): ShipFuelId | null {
+  if (!region.space || region.distance < FUEL_FROM_KM) return null
+  return region.deep ? 'deepFold' : 'fold'
+}
+
+/**
+ * Star paprika per second the fleet would burn at full capacity, per fuel: a
+ * ship counts for every fuel its open routes use (an upper bound, like farmSupply).
+ */
+export function fleetFuelNeed(state: GameState, mods: Mods): Record<ShipFuelId, number> {
+  const need: Record<ShipFuelId, number> = { fold: 0, deepFold: 0 }
+  for (const v of VEHICLES) {
+    if (!v.space || state.vehicles[v.id] <= 0) continue
+    const cap = vehicleCapacity(state, v, mods).toNumber()
+    for (const k of FUEL_IDS) {
+      if (REGIONS.some((r) => state.regions[r.id].unlocked && vehicleServes(v, r) && fuelFor(r) === k)) need[k] += cap * FUEL_PER_SCHNITZEL
+    }
+  }
+  return need
+}
+
 /** Total delivery per second: helpers plus the whole fleet. */
 export function deliveryCapacity(state: GameState, mods: Mods): Decimal {
   let total = taskCapacity(state, 'deliver', mods)
@@ -629,6 +662,9 @@ export function supplyNeeds(state: GameState, mods: Mods): Partial<Record<ItemId
   for (const stage of STAGE_IDS) {
     for (const [item, qty] of Object.entries(stageInputs(state, stage)) as [ItemId, number][]) add(item, throughput * qty)
   }
+  // Star paprika for the fleet's long trips.
+  const fuel = fleetFuelNeed(state, mods)
+  for (const k of FUEL_IDS) if (fuel[k] > 0) add(k, fuel[k])
   // Processors last-to-first, so the bakery's flour is counted before the mill.
   for (const f of [...FACILITIES].reverse()) {
     if (state.facilities[f.id] <= 0 || !Object.keys(f.inputs).length) continue
@@ -715,6 +751,8 @@ export function consumption(state: GameState, mods: Mods, dt: number): Partial<R
   }
   for (const stage of STAGE_IDS) add(stageInputs(state, stage), taskCapacity(state, stage, mods).mul(dt))
   for (const f of FACILITIES) add(f.inputs, facilityCapacity(state, f, mods).mul(dt))
+  const fuel = fleetFuelNeed(state, mods)
+  for (const k of FUEL_IDS) if (fuel[k] > 0) use[k] = (use[k] ?? D(0)).add(D(fuel[k]).mul(dt))
   return use
 }
 

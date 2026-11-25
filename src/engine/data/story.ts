@@ -190,3 +190,14 @@ export const FAMILY_LINES: Record<string, string> = {
   universe: 'Grandpa: “Every star is a farm now. I miss my tractor.”',
   schnitzelverse: 'Grandma: “Thin. Golden. Never soggy.” She smiles. “You remembered.”',
 }
+
+/** The legend of star paprika (Chapters 4–5), behind the 📜 button on the fuel box and the paprika chain. */
+export const PAPRIKA_LEGEND: { title: string; paragraphs: string[] } = {
+  title: '🌶️ The legend of star paprika',
+  paragraphs: [
+    'It began with a spill. On the first schnitzel run to Mars, Cousin Jitka dropped Grandma’s paprika tin in the red sand. By morning the dunes had sprouted, and the pods glowed faintly in the dark.',
+    'The pilot who sniffed one on the way home landed on Earth eleven minutes before he took off. Scientists call it fold paprika: one pinch and space creases like a tablecloth, and Mars is a sneeze away.',
+    'The dunes are guarded by crumb worms, longer than freight trains, drawn by the smell of frying. They ask for nothing but the crusts. Grandpa feeds them by hand and has named every one.',
+    'Past the Sun, the stills boil it down into deep-fold paprika, so strong that a pilot once folded the whole galaxy into a sandwich by accident. Nobody knows where Grandma got the first tin. She only says: “A good recipe always travels.”',
+  ],
+}

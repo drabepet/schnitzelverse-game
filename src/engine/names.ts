@@ -87,6 +87,10 @@ export const FACILITY_LOOKS: Record<FacilityId, Look[]> = {
     { from: 3, name: 'Laser butcher', emoji: '🔦', flavor: 'Perfect cutlets, cut with light. Pavel misses his knife.' },
     { from: 4, name: 'Matter carver', emoji: '💠', flavor: 'Reshapes pork at the molecular level. Still tastes of Sunday.' },
   ],
+  // Star paprika arrives with space farms already; only the last tier renames it.
+  paprikaDunes: [{ from: 4, name: 'Paprika desert world', emoji: '🏜️', flavor: 'A whole planet of red dunes. The crumb worms are the size of trains.' }],
+  paprikaMill: [{ from: 4, name: 'Fold paprika refinery', emoji: '🏭', flavor: 'Grinds pods by the shipload. The whole valley sneezes.' }],
+  paprikaDistillery: [{ from: 4, name: 'Fold-space still', emoji: '🔮', flavor: 'Paprika boiled down until space itself wrinkles.' }],
 }
 
 /** A kitchen crew's looks: one per piece of crew equipment, in order (built once per step). */

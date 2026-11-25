@@ -6,7 +6,7 @@ import {
   CRISP_TEMP_MAX,
   CRISP_TEMP_MIN,
   CRISP_UNLOCK_REGION,
-  FACILITIES,
+  KITCHEN_FACILITIES,
   FACILITY_BY_ID,
   type FacilityId,
   FRANCHISE_MESSAGES,
@@ -167,7 +167,7 @@ function applyStartPerks(state: GameState): void {
   const family = perkLevel(state, 'loyalFamily')
   for (const w of WORKERS) state.workers[w.id] += family
   const deeds = perkLevel(state, 'farmDeeds')
-  for (const f of FACILITIES) state.facilities[f.id] += deeds
+  for (const f of KITCHEN_FACILITIES) state.facilities[f.id] += deeds
   const fleet = perkLevel(state, 'fleetContracts')
   const launch = perkLevel(state, 'launchContracts')
   const warp = perkLevel(state, 'warpContracts')
@@ -230,7 +230,7 @@ export function buyPerk(state: GameState, id: PerkId): boolean {
   if (id === 'auntieRemembers') state.upgrades.shoppingList = true
   if (id === 'loyalFamily') for (const w of WORKERS) state.workers[w.id]++
   if (id === 'oldConnections') unlockStartRegions(state, level)
-  if (id === 'farmDeeds') for (const f of FACILITIES) state.facilities[f.id]++
+  if (id === 'farmDeeds') for (const f of KITCHEN_FACILITIES) state.facilities[f.id]++
   if (id === 'fleetContracts') for (const v of VEHICLES) if (!v.space) state.vehicles[v.id]++
   if (id === 'launchContracts') for (const v of VEHICLES) if (v.space && !v.deep) state.vehicles[v.id]++
   if (id === 'warpContracts') state.vehicles.warp++
@@ -242,7 +242,8 @@ export function buyPerk(state: GameState, id: PerkId): boolean {
 
 export function buyFacility(state: GameState, id: FacilityId, amount: BuyAmount = 1): boolean {
   const def = FACILITY_BY_ID[id]
-  if (!chapter2Unlocked(state)) return false
+  // Star paprika only grows once its place is reached in this run.
+  if (!chapter2Unlocked(state) || !meets(state, def.requires)) return false
   const plan = facilityPlan(state, def, amount)
   if (!plan.affordable) return false
   state.money = state.money.sub(plan.cost)
@@ -364,6 +365,16 @@ export function noteCopyKept(state: GameState, now: number): void {
 /** The keep-a-copy note has been shown for this chapter. */
 export function setCopyNudgeChapter(state: GameState, chapter: number): void {
   state.copyNudgeChapter = Math.max(state.copyNudgeChapter, chapter)
+}
+
+/** A kitchen tale has been opened. */
+export function markTaleRead(state: GameState, chapter: number): void {
+  if (!state.talesRead.includes(chapter)) state.talesRead.push(chapter)
+}
+
+/** The new-chapter card has offered this chapter's tale (read now or later). */
+export function setTaleOffered(state: GameState, chapter: number): void {
+  state.taleOffered = Math.max(state.taleOffered, chapter)
 }
 
 export function setBuyAmount(state: GameState, amount: BuyAmount): void {

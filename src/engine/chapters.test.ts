@@ -50,3 +50,32 @@ describe('family chronicle', () => {
     for (const id of Object.keys(FAMILY_LINES)) expect(ids.has(id), id).toBe(true)
   })
 })
+
+describe('kitchen tales', () => {
+  it('one tale per chapter, each a few minutes’ read', async () => {
+    const { CHAPTERS, TALES } = await import('./content')
+    expect(TALES.map((t) => t.chapter)).toEqual(CHAPTERS.map((_, i) => i + 1))
+    for (const t of TALES) {
+      const words = t.paragraphs.join(' ').split(/\s+/).length
+      expect(words).toBeGreaterThan(350)
+      expect(words).toBeLessThan(700)
+    }
+  })
+
+  it('reading and offering are remembered; older saves are not greeted with a card', async () => {
+    const { markTaleRead, setTaleOffered } = await import('./actions')
+    const { deserialize, serialize } = await import('./save')
+    const { newGame } = await import('./state')
+    const s = newGame(0)
+    markTaleRead(s, 1)
+    markTaleRead(s, 1)
+    setTaleOffered(s, 3)
+    setTaleOffered(s, 2)
+    expect(s.talesRead).toEqual([1])
+    expect(s.taleOffered).toBe(3)
+    const old = JSON.parse(serialize(s))
+    delete old.taleOffered
+    old.prestige.franchises = 5 // Chapter 3
+    expect(deserialize(JSON.stringify(old)).taleOffered).toBe(3)
+  })
+})

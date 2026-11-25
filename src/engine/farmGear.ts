@@ -30,7 +30,7 @@ export const FARM_PLACES = [
 ] as const satisfies readonly RegionId[]
 export type FarmPlace = (typeof FARM_PLACES)[number]
 
-export type FarmChainId = 'meat' | 'flour' | 'oil' | 'eggs'
+export type FarmChainId = 'meat' | 'flour' | 'oil' | 'eggs' | 'paprika'
 export type FarmGearId = `${FacilityId}_${FarmPlace}` | `hand_${FarmChainId}`
 
 /** How much a rung speeds up its own building, by place: small steps, a bit bigger far away. */
@@ -58,13 +58,18 @@ export const RUNG_MULT: Record<FarmPlace, number> = {
 }
 /** Rung price: this share of the place's price, × the building's price relative to $10K. */
 export const RUNG_COST_SHARE = 0.5
+/** Star paprika rungs: this share of the place's price (their buildings start out dear). */
+export const FUEL_RUNG_COST_SHARE = 0.1
 /** Quality rungs: schnitzel price × this. */
 export const QUALITY_MULT = 1.02
 
 type Extra = { link: FacilityId[]; mult: number } | { quality: true }
 type Rung = [emoji: string, name: string, flavor: string, extra?: Extra]
 
-/** One rung per FARM_PLACES entry, in the same order. */
+/**
+ * One rung per FARM_PLACES entry, in the same order, from the place the
+ * building opens at (the town for the farm; Mars and the next star for paprika).
+ */
 const LADDERS: Record<FacilityId, Rung[]> = {
   pigFarm: [
     ['🥕', 'Kitchen scraps for the pigs', 'Peelings from the garage. The pigs think it is a banquet.'],
@@ -242,6 +247,43 @@ const LADDERS: Record<FacilityId, Rung[]> = {
     ['🌌', 'Cosmic coop', 'One coop, the size of a galaxy cluster. The hens are very proud.'],
     ['🍋', 'The first egg', 'It came before the chicken. In every universe. Question settled.'],
   ],
+  // From Mars on.
+  paprikaDunes: [
+    ['🪣', 'Sand-proof seed drills', 'Martian sand gets into everything. These drills don’t mind.'],
+    ['☄️', 'Comet-ice irrigation', 'Ancient ice, melted and dripped onto every dune.'],
+    ['🌀', 'Storm-sown dunes', 'Jupiter’s storms scatter the seeds for free.'],
+    ['🌞', 'Pre-dried pods', 'Dried on the vine by the Sun: the mills grind them twice as easily.', { link: ['paprikaMill'], mult: 1.25 }],
+    ['⭐', 'Two-sun ripening', 'Ripens under two suns. Twice as red.'],
+    ['🪱', 'Worm-proof treads', 'The harvesters tiptoe. The crumb worms sleep on.'],
+    ['🌀', 'A galactic dune belt', 'A ring of red sand round the whole galaxy.'],
+    ['🌫️', 'Andromeda pods', 'Their paprika glows faintly blue. Folds space just the same.'],
+    ['🫧', 'Vacuum-sealed sand', 'Not one grain blows away between the galaxies.'],
+    ['🌌', 'Universal dunes', 'Every desert in the universe, planted red.'],
+    ['🍋', 'The last pod', 'It folds space just by being looked at.'],
+  ],
+  paprikaMill: [
+    ['🪨', 'Basalt millstones', 'Martian rock grinds finer than anything on Earth.'],
+    ['⚙️', 'Asteroid-steel gears', 'Mined, smelted and fitted on the same rock.'],
+    ['🌀', 'Centrifugal sifter', 'Spins the fine paprika away from the husks.'],
+    ['🏜️', 'Husks for the dunes', 'Ground husks make the red sand richer.', { link: ['paprikaDunes'], mult: 1.25 }],
+    ['⭐', 'Starlit grinding', 'Ground under two suns, it folds a little further.'],
+    ['🧭', 'A pilots’ tasting room', 'Pilots test every batch. They come back from places they can’t describe.'],
+    ['🌀', 'A mill in every arm', 'One mill per arm of the galaxy, all grinding in time.'],
+    ['🌫️', 'Andromeda millers', 'They hum while they work. The paprika folds in tune.'],
+    ['🫧', 'Vacuum grinding', 'No air, no dust, no sneezing.'],
+    ['🌌', 'Neutron-star millstones', 'Two neutron stars, turning very slowly.'],
+    ['🍋', 'The finest grind', 'A pinch so fine it folds itself.'],
+  ],
+  // From the next-door star on.
+  paprikaDistillery: [
+    ['🧪', 'Twin-star stills', 'Heated by one sun, cooled by the other.'],
+    ['🪱', 'Grandma’s worm whistle', 'One blast and the crumb worms leave the pipes alone.'],
+    ['🌀', 'Galactic condensers', 'The galaxy spins, the paprika drips.'],
+    ['♨️', 'Steam for the mills', 'Spare heat dries the pods before grinding.', { link: ['paprikaMill'], mult: 1.3 }],
+    ['🫧', 'Vacuum distilling', 'Boils at minus two hundred degrees. Somehow.'],
+    ['🌌', 'The Big Bang still', 'Distilled in what is left of the first second.'],
+    ['🍋', 'The fold that folds everything', 'One drop and every road is short.'],
+  ],
 }
 
 /** A family farm hand for each chain: the first boost once the farm opens. */
@@ -250,26 +292,31 @@ const HANDS: { chain: FarmChainId; buildings: FacilityId[]; emoji: string; name:
   { chain: 'flour', buildings: ['wheatField', 'mill', 'bakery'], emoji: '👩‍🌾', name: 'Aunt Jarmila takes the fields', flavor: 'Plants, mills and bakes, and still finds time to judge your crust.', cost: 40_000 },
   { chain: 'oil', buildings: ['sunflowers', 'oilPress'], emoji: '👨‍🌾', name: 'Great-uncle Franta’s sunflowers', flavor: 'Has grown sunflowers for sixty years. Talks to every one of them.', cost: 35_000 },
   { chain: 'eggs', buildings: ['coop'], emoji: '👧', name: 'Little Bára feeds the hens', flavor: 'Every hen has a name. Bára knows all of them.', cost: 20_000 },
+  { chain: 'paprika', buildings: ['paprikaDunes', 'paprikaMill'], emoji: '👩‍🚀', name: 'Cousin Jitka moves to Mars', flavor: 'Packs a sand-proof suit, a worm whistle and Grandma’s recipe, just in case.', cost: 1e14 },
 ]
 
 /** The farm gear as upgrades, given the places and buildings (passed in to avoid an import cycle). */
 export function buildFarmGear(regions: RegionDef[], facilities: FacilityDef[], franchises: number): UpgradeDef[] {
   const out: UpgradeDef[] = []
   for (const h of HANDS) {
+    // The paprika hand waits for Mars, like the paprika buildings.
+    const opens = facilities.find((f) => f.id === h.buildings[0])?.requires?.place
     out.push({
       id: `hand_${h.chain}`,
       name: h.name,
       emoji: h.emoji,
       description: h.flavor,
       cost: h.cost,
-      requires: { franchises },
+      requires: opens ? { franchises, place: opens } : { franchises },
+      space: opens ? true : undefined,
       chain: h.chain,
       effects: h.buildings.map((b): Effect => ({ kind: 'building', facility: b, mult: 1.25 })),
     })
   }
   for (const f of facilities) {
+    const from = FARM_PLACES.indexOf((f.requires?.place ?? 'town') as FarmPlace)
     LADDERS[f.id].forEach(([emoji, name, flavor, extra], i) => {
-      const place = FARM_PLACES[i]
+      const place = FARM_PLACES[from + i]
       const region = regions.find((r) => r.id === place)!
       const effects: Effect[] =
         extra && 'quality' in extra
@@ -282,8 +329,10 @@ export function buildFarmGear(regions: RegionDef[], facilities: FacilityDef[], f
         name,
         emoji,
         description: flavor,
-        cost: Math.round(region.unlockCost * RUNG_COST_SHARE * (f.baseCost / 10_000)),
+        cost: Math.round(region.unlockCost * (f.space ? FUEL_RUNG_COST_SHARE : RUNG_COST_SHARE * (f.baseCost / 10_000))),
         requires: { franchises, place },
+        space: f.space || region.space ? true : undefined,
+        deep: f.deep || region.deep ? true : undefined,
         building: f.id,
         effects,
       })

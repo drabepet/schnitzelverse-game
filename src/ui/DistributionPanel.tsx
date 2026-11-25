@@ -1,9 +1,14 @@
-import { KNOCK_COOLDOWN, REGIONS } from '../engine/content'
+import { ITEMS, KNOCK_COOLDOWN, REGIONS, type ShipFuelId } from '../engine/content'
+import type { GameState } from '../engine/state'
+import { farmSupplyNow, needsNow } from './derived'
+import { fuelStatus } from './insights'
+import { goTo } from './goTo'
+import { PaprikaStory } from './PaprikaStory'
 import { fmt, fmtCompact, fmtInt, fmtKm, fmtMoney } from '../engine/format'
 import { useSteady } from './useSteady'
 import { LabelStack } from './LabelStack'
 import { canKnock, canUnlockRegion, clickDeliver, knockOnDoors, knockWait, unlockRegion } from '../engine/actions'
-import { canReach, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, regionPrice, regionRequirementsMet } from '../engine/rules'
+import { canReach, fuelFor, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, regionPrice, regionRequirementsMet } from '../engine/rules'
 import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
@@ -67,6 +72,7 @@ export function DistributionPanel() {
       </p>
 
 
+      <FuelBox s={s} sails={game.rates.sails} />
       <RouteLegend lanes={lanes} rates={game.routeRates} />
       <p className={`route-summary small ${summary.startsWith('⏳') ? 'warn' : 'muted'}`}>{summary}</p>
       <ul className="rows">
@@ -110,6 +116,7 @@ export function DistributionPanel() {
                     {status.by.length > 0 && <span className="muted"> · {status.by.map((b) => b.carrier.emoji).join('')}</span>}
                   </div>
                 )}
+                {fuelFor(r) && canReach(s, r) && <FuelLine fuel={fuelFor(r)!} s={s} />}
               </div>
               <HintButton
                 className={`primary ${r.id === 'neighbours' && guideHint(s)?.target === 'deliver' ? 'pulse' : ''}`}
@@ -179,5 +186,65 @@ export function DistributionPanel() {
         </p>
       )}
     </section>
+  )
+}
+
+/**
+ * How a long trip is fuelled: the share of what the fleet can burn that the
+ * farm's star paprika covers (in steps of 10%, held, so it doesn't flicker).
+ */
+function FuelLine({ fuel, s }: { fuel: ShipFuelId; s: GameState }) {
+  const need = needsNow(s)[fuel] ?? 0
+  const made = farmSupplyNow(s)(fuel)
+  const share = need > 0 ? Math.min(1, made / need) : 1
+  const text = useSteady(
+    share >= 0.99 || (need === 0 && s.items[fuel].gt(0))
+      ? `⛽ Flying on ${ITEMS[fuel].name.toLowerCase()}`
+      : share > 0.05
+        ? `⛽ ${ITEMS[fuel].name} for ${Math.floor(share * 10) * 10}% of the trips; the rest drift on solar sails and arrive cold`
+        : `⛵ On solar sails: no ${ITEMS[fuel].name.toLowerCase()}, so it arrives cold. Grow star paprika on the farm.`,
+  )
+  return (
+    <div className={`place-status small ${text.startsWith('⛵') || !text.includes('Flying') ? 'warn' : 'muted'}`} title="Trips past the Moon burn star paprika, made on the farm (Prep tab).">
+      {text}
+    </div>
+  )
+}
+
+/**
+ * Star paprika at a glance, at the top of the tab: per ship fuel, what the
+ * fleet burns at full capacity, what the farm makes, and how much flies on
+ * solar sails (cold). A link goes to the paprika chain on the farm.
+ */
+function FuelBox({ s, sails }: { s: GameState; sails: number }) {
+  const fuels = fuelStatus(s)
+  const sailing = useSteady(sails > 0.5)
+  if (!fuels.length) return null
+  return (
+    <div className={`fuel-box ${fuels.some((f) => f.share < 0.99) ? 'short' : ''}`}>
+      <div className="fuel-box-head">
+        <b>🌶️ Star paprika: ship fuel</b>
+        <PaprikaStory />
+        <button className="small-btn ghost" onClick={() => goTo({ tab: 'prep', anchor: 'chain-paprika' })}>
+          Grow it on the farm →
+        </button>
+      </div>
+      {fuels.map((f) => (
+        <div key={f.id} className="fuel-box-row">
+          <span>
+            {ITEMS[f.id].emoji} {ITEMS[f.id].name} <span className="muted small">({f.id === 'fold' ? 'Mars and beyond' : 'past the Sun'})</span>
+          </span>
+          <span className="num-wide">
+            {fmtCompact(f.made, true)} of {fmtCompact(f.need, true)}/s
+          </span>
+          <div className="fuel-bar" title={`The farm covers ${Math.round(f.share * 100)}% of what the fleet burns.`}>
+            <div style={{ width: `${f.share * 100}%` }} />
+          </div>
+        </div>
+      ))}
+      <div className={`small ${sailing ? 'warn' : 'muted'} fuel-box-foot`}>
+        {sailing ? `⛵ ${fmtCompact(sails, true)}/s drift on solar sails and arrive cold.` : '✅ Every long trip is fuelled.'}
+      </div>
+    </div>
   )
 }
