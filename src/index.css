@@ -2411,6 +2411,35 @@ button.about-close:hover {
   text-overflow: ellipsis;
   color: var(--muted);
 }
+.critic-line {
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.critic-line.starred {
+  color: var(--accent);
+}
+/* Vehicle rows: fit-out, count goal and gear get their own full-width line. */
+.vehicle-row {
+  flex-wrap: wrap;
+}
+.vehicle-extras {
+  flex-basis: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.fit-outs {
+  align-self: flex-start;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.fit-outs button {
+  white-space: nowrap;
+}
 .place-status.keeping {
   color: var(--good);
 }
@@ -3179,15 +3208,17 @@ button.about-close:hover {
 .office-card header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
+/* The name keeps at least ~8rem; in a narrow card the Working chip drops below it instead of squeezing it. */
 .office-card header > div {
   display: flex;
   flex-direction: column;
   line-height: 1.2;
-  flex: 1;
+  flex: 1 1 8rem;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .office-card header .mgr-chip {
   margin-left: auto;
@@ -3965,4 +3996,61 @@ button.afford:disabled {
 }
 .tales-text .intro-kicker {
   margin-bottom: 0.3rem;
+}
+
+/* The family at work: who spends first. */
+.office-order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  margin: 0 0 0.9rem;
+}
+.office-order ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: order;
+}
+.office-order li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--panel-2);
+  font-size: 0.85rem;
+  counter-increment: order;
+}
+.office-order li::before {
+  content: counter(order) '.';
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.office-order li .small-btn {
+  padding: 0.05rem 0.4rem;
+}
+
+/* Phones: narrow route lanes and no place emoji, so the place's own text keeps room (after the lane rules). */
+@media (max-width: 520px) {
+  .lane {
+    width: 0.7rem;
+  }
+  .lane-icon {
+    width: 1rem;
+    height: 1rem;
+    margin: -0.5rem 0 0 -0.5rem;
+    font-size: 0.7rem;
+  }
+  .row.region {
+    gap: 0.45rem;
+    padding-inline: 0.5rem;
+  }
+  .row.region > .emoji {
+    display: none;
+  }
 }

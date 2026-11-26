@@ -190,7 +190,7 @@ export function currentTier(state: GameState, pillar: Pillar): Tier {
 export function upgradePillar(u: UpgradeDef): Pillar {
   const kinds = u.effects.map((e) => (e.kind === 'speed' ? (e.task === 'deliver' ? 'deliver' : 'kitchen') : e.kind))
   if (kinds.some((k) => k === 'packSize' || k === 'autoBuy' || k === 'facility' || k === 'building' || k === 'shopSupply')) return 'prep'
-  if (kinds.some((k) => k === 'deliver' || k === 'fleet' || k === 'cooling' || k === 'orders')) return 'distribution'
+  if (kinds.some((k) => k === 'deliver' || k === 'fleet' || k === 'vehicle' || k === 'cooling' || k === 'orders')) return 'distribution'
   return 'making'
 }
 

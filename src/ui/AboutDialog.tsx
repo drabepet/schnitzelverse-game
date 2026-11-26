@@ -1,17 +1,11 @@
-import { useEffect } from 'react'
 import { CHANGELOG } from '../changelog'
+import { useEscape } from './useEscape'
 import { GAME_VERSION } from '../version'
 import { Logo } from './Logo'
 
 /** ☰ Game → About & what's new: what this is, why it exists, and what changed in each version. */
 export function AboutDialog({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useEscape(onClose)
 
   return (
     <div className="overlay intro-overlay" role="dialog" aria-modal="true" aria-labelledby="about-title" onClick={onClose}>

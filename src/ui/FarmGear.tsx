@@ -14,6 +14,7 @@ import { UpgradeTip } from './UpgradeTip'
 /** A tag for gear that isn't a plain speed-up. */
 function kindTag(u: UpgradeDef): string | null {
   if (u.effects.some((e) => e.kind === 'price')) return '✨ quality'
+  if (u.effects.some((e) => e.kind === 'vehicle' && e.fresh)) return '❄️ stays hot'
   if (u.building && u.effects.some((e) => e.kind === 'building' && e.facility !== u.building)) return '🔗 helps another chain'
   const link = u.station && u.effects.find((e) => e.kind === 'speed' && e.task !== u.station)
   if (link && link.kind === 'speed') return `🔗 helps ${link.task === 'pound' ? 'pounding' : link.task === 'bread' ? 'breading' : 'frying'}`

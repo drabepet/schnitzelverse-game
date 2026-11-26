@@ -1,6 +1,7 @@
 // The story: milestones logged as you go.
 import { CHAPTER2_FRANCHISES } from './farm'
-import { CHAPTER3_FRANCHISES } from './fleet'
+import { CHAPTER3_FRANCHISES, CRITIC_STARS } from './fleet'
+import { REGIONS } from './regions'
 import type { GameState } from '../state'
 
 // ---------------------------------------------------------------- story
@@ -86,7 +87,17 @@ export const MILESTONES: Milestone[] = [
   {
     id: 'chapter3',
     check: (s) => s.prestige.franchises >= CHAPTER3_FRANCHISES,
-    text: 'Your helpers can’t cycle to the other end of the country. Chapter 3: on the road. Buy a fleet.',
+    text: 'Your helpers can’t cycle to the other end of the country. Chapter 3: on the road. Buy a fleet. And the food critics are out: schnitzel that arrives hot earns a place stars, and stars put the price up.',
+  },
+  {
+    id: 'firstStar',
+    check: (s) => s.prestige.franchises >= CHAPTER3_FRANCHISES && REGIONS.some((r) => s.regions[r.id].critic >= CRITIC_STARS[0]),
+    text: '★ The first food critic’s review: “Hot, thin, golden. One star, and they’ll be back.”',
+  },
+  {
+    id: 'firstThreeStars',
+    check: (s) => s.prestige.franchises >= CHAPTER3_FRANCHISES && REGIONS.some((r) => s.regions[r.id].critic >= CRITIC_STARS[2]),
+    text: '★★★ Three stars! “Every schnitzel arrived sizzling. We have nothing left to complain about, which upsets us.”',
   },
   {
     id: 'continent',
@@ -146,7 +157,12 @@ export const MILESTONES: Milestone[] = [
   {
     id: 'universe',
     check: (s) => s.regions.universe.unlocked,
-    text: 'The whole universe eats your schnitzel. Only one table left to lay.',
+    text: 'The whole universe eats your schnitzel. And at the very edge of it, somebody finds a door.',
+  },
+  {
+    id: 'nextUniverse',
+    check: (s) => s.regions.nextUniverse.unlocked,
+    text: 'The universe next door. Same street, different physics. Nobody there has ever heard of breadcrumbs.',
   },
   {
     id: 'schnitzelverse',
@@ -176,6 +192,8 @@ export const FAMILY_LINES: Record<string, string> = {
   region: 'Uncle: “I fixed the coffee machine at the services. They gave us the whole counter.”',
   country: 'Mum: “The president! I framed the photo. Twice.”',
   chapter3: 'The kid: “Vans! With engines! I still get to wave from the window, right?”',
+  firstStar: 'Mum: “One star! I’ve already told the hairdresser. She wants it laminated.”',
+  firstThreeStars: 'Grandma: “Three stars. Good. Now don’t let it go cold.”',
   continent: 'Grandma: “Forty countries, one rule: lemon, not ketchup.”',
   planet: 'Grandpa: “Eight billion plates. The pigs want a raise.”',
   orbit: '📡 Mission control: “Station reports one schnitzel, slightly floating. Crust intact. Over.”',
@@ -188,6 +206,7 @@ export const FAMILY_LINES: Record<string, string> = {
   nextGalaxy: 'Mum: “Andromeda. I always said that neighbourhood had potential.”',
   localGroup: 'Uncle: “Fifty galaxies, one fryer. I may need a longer extension cord.”',
   universe: 'Grandpa: “Every star is a farm now. I miss my tractor.”',
+  nextUniverse: 'Grandma: “A whole universe and nobody taught them to bread a cutlet? Pack my bowls.”',
   schnitzelverse: 'Grandma: “Thin. Golden. Never soggy.” She smiles. “You remembered.”',
 }
 

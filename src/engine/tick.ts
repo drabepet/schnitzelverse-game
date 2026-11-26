@@ -2,7 +2,7 @@
 // state in place (cheaper than copying every frame). It has no dependency on
 // the browser, so it runs the same in the game, in tests and in offline catch-up.
 import { D, Decimal, ZERO, nonNeg } from './decimal'
-import { FACILITIES, type FacilityId, FARM_GOOD_BUFFER, INGREDIENT_IDS, INGREDIENT_SET, MILESTONES, type RegionDef, REGIONS, RESCUE_AFTER_SECONDS, RESCUE_AMOUNT, RESCUE_MESSAGES, STAGE_IDS, STAGES, VEHICLES, FAMILY_LINES, FUEL_PER_SCHNITZEL } from './content'
+import { FACILITIES, type FacilityId, FARM_GOOD_BUFFER, INGREDIENT_IDS, INGREDIENT_SET, MILESTONES, type RegionDef, REGIONS, RESCUE_AFTER_SECONDS, RESCUE_AMOUNT, RESCUE_MESSAGES, STAGE_IDS, STAGES, VEHICLES, FAMILY_LINES, FUEL_PER_SCHNITZEL, CRITIC_SECONDS, type RegionId } from './content'
 import { addLog, HISTORY_LENGTH, HISTORY_STEP, type GameState } from './state'
 import { BADGES } from './badges'
 import { runManagers } from './automation'
@@ -168,6 +168,13 @@ export function tick(state: GameState, dt: number): Flows {
 
   // 6. Delivery. The fleet goes first, longest range first, each vehicle to
   //    the best-paying place it can reach; then helpers cover what is left nearby.
+  //    The critics note what arrives hot at each place (folded in below).
+  const tally = new Map<RegionId, [hot: Decimal, all: Decimal]>()
+  const note = (id: RegionId, all: Decimal, hot: Decimal) => {
+    if (all.lte(0)) return
+    const t = tally.get(id)
+    tally.set(id, t ? [t[0].add(hot), t[1].add(all)] : [hot, all])
+  }
   const serve = (
     carrier: CarrierId,
     capacity: Decimal,
@@ -183,10 +190,11 @@ export function tick(state: GameState, dt: number): Flows {
         // Long trips burn star paprika. Crates with fuel arrive as hot as the
         // ship allows; the rest drift on solar sails and arrive cold.
         const fuelled = Decimal.min(capacity, state.items[fuel].div(FUEL_PER_SCHNITZEL))
-        const [a, ra] = deliverTo(state, REGIONS[i], fuelled, mods, freshFor(REGIONS[i]))
+        const [a, ra, ha] = deliverTo(state, REGIONS[i], fuelled, mods, freshFor(REGIONS[i]))
         state.items[fuel] = nonNeg(state.items[fuel].sub(a.mul(FUEL_PER_SCHNITZEL)))
         state.stats.paprikaBurned = state.stats.paprikaBurned.add(a.mul(FUEL_PER_SCHNITZEL))
         const [b, rb] = deliverTo(state, REGIONS[i], capacity.sub(a), mods, 0)
+        note(REGIONS[i].id, a.add(b), ha)
         served = a.add(b)
         revenue = ra.add(rb)
         if (b.gt(0)) {
@@ -194,7 +202,9 @@ export function tick(state: GameState, dt: number): Flows {
           state.stats.sailed = state.stats.sailed.add(b)
         }
       } else {
-        ;[served, revenue] = deliverTo(state, REGIONS[i], capacity, mods, freshFor(REGIONS[i]))
+        let hot: Decimal
+        ;[served, revenue, hot] = deliverTo(state, REGIONS[i], capacity, mods, freshFor(REGIONS[i]))
+        note(REGIONS[i].id, served, hot)
       }
       if (served.gt(0)) flows.routes[routeKey(carrier, REGIONS[i].id)] = served
       capacity = capacity.sub(served)
@@ -207,6 +217,14 @@ export function tick(state: GameState, dt: number): Flows {
     serve(v.id, vehicleCapacity(state, v, mods).mul(dt), (r) => vehicleServes(v, r), (r) => freshness(v, r, mods))
   }
   serve('helpers', taskCapacity(state, 'deliver', mods).mul(dt), helperReaches, () => 1)
+  // The critics' opinion drifts towards this tick's hot share, over about CRITIC_SECONDS.
+  if (tally.size) {
+    const k = 1 - Math.exp(-dt / CRITIC_SECONDS)
+    for (const [id, [hot, all]] of tally) {
+      const r = state.regions[id]
+      r.critic += (Math.min(1, hot.div(all).toNumber()) - r.critic) * k
+    }
+  }
 
   // 7. Managers (perks) do the shopping.
   runManagers(state, dt)

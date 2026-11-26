@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useEscape } from './useEscape'
 import { CHAPTERS, TALES } from '../engine/content'
 import { markTaleRead } from '../engine/actions'
 import { chapterNumber } from '../engine/rules'
@@ -15,13 +16,7 @@ export function TalesDialog({ onClose, start }: { onClose: () => void; start?: n
   const [chapter, setChapter] = useState(Math.min(start ?? reached, reached))
   const tale = TALES.find((t) => t.chapter === chapter)!
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useEscape(onClose)
 
   // Opening a tale marks it read (the “New” dot goes away).
   useEffect(() => {

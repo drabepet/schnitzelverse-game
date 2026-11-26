@@ -5,6 +5,8 @@ import { REGIONS, type RegionId } from './regions'
 import type { Requirement } from './staff'
 import { type FarmChainId, type FarmGearId, buildFarmGear } from '../farmGear'
 import { type KitchenGearId, buildKitchenGear } from '../kitchenGear'
+import { type FleetGearId, buildFleetGear } from '../fleetGear'
+import { CHAPTER3_FRANCHISES, VEHICLES, type VehicleId } from './fleet'
 
 // ---------------------------------------------------------------- upgrades
 
@@ -30,6 +32,8 @@ export type Effect =
   | { kind: 'shopSupply'; mult: number }
   /** One kind of farm building (farm gear, see farmGear.ts). */
   | { kind: 'building'; facility: FacilityId; mult: number }
+  /** One kind of vehicle (fleet gear, fit-outs, count goals): capacity and how far it keeps food hot. */
+  | { kind: 'vehicle'; vehicle: VehicleId; capacity?: number; fresh?: number }
 
 /** The corner shop grows with every place you reach (from the country on), like the farm gear. */
 export const SHOP_PLACES = [
@@ -55,6 +59,7 @@ export type ShopRungId = `shop_${(typeof SHOP_PLACES)[number]}`
 export type UpgradeId =
   | FarmGearId
   | KitchenGearId
+  | FleetGearId
   | ShopRungId
   | 'heavyMallet'
   | 'chalkboard'
@@ -161,6 +166,8 @@ export interface UpgradeDef {
   chain?: FarmChainId
   /** Kitchen gear for one station (shown in its column), see kitchenGear.ts. */
   station?: StageId
+  /** Fleet gear for one kind of vehicle (shown on its row), see fleetGear.ts. */
+  vehicle?: VehicleId
   effects: Effect[]
 }
 
@@ -779,31 +786,31 @@ export const UPGRADES: UpgradeDef[] = [
     id: 'orbitalMirrors',
     name: 'Orbital sun mirrors',
     emoji: '🪞',
-    description: 'Mirrors in orbit point extra sunshine at your crops, day and night. Fields ×3',
+    description: 'Mirrors in orbit point extra sunshine at your crops, day and night. Fields ×2.5',
     cost: 30_000_000_000,
     space: true,
     requires: { reputation: 3_000_000_000 },
-    effects: [{ kind: 'facility', group: 'field', mult: 3 }],
+    effects: [{ kind: 'facility', group: 'field', mult: 2.5 }],
   },
   {
     id: 'cloneVats',
     name: 'Cutlet cloning vats',
     emoji: '🧫',
-    description: 'Every pig gets a twin. The pigs are fine with it. Animals ×3',
+    description: 'Every pig gets a twin. The pigs are fine with it. Animals ×2.5',
     cost: 80_000_000_000,
     space: true,
     requires: { reputation: 8_000_000_000 },
-    effects: [{ kind: 'facility', group: 'animal', mult: 3 }],
+    effects: [{ kind: 'facility', group: 'animal', mult: 2.5 }],
   },
   {
     id: 'matterReplicators',
     name: 'Matter replicators',
     emoji: '🖨️',
-    description: 'Tea, Earl Grey, hot. Breadcrumbs, golden, many. Processing ×3',
+    description: 'Tea, Earl Grey, hot. Breadcrumbs, golden, many. Processing ×2.5',
     cost: 300_000_000_000,
     space: true,
     requires: { reputation: 30_000_000_000 },
-    effects: [{ kind: 'facility', group: 'processor', mult: 3 }],
+    effects: [{ kind: 'facility', group: 'processor', mult: 2.5 }],
   },
   {
     id: 'terraforming',
@@ -898,34 +905,34 @@ export const UPGRADES: UpgradeDef[] = [
     id: 'pigPlanets',
     name: 'Pig planets',
     emoji: '🐖',
-    description: 'Whole planets of happy pigs and hens. Each one has a name. Animals ×5',
+    description: 'Whole planets of happy pigs and hens. Each one has a name. Animals ×6',
     cost: 5e19,
     space: true,
     deep: true,
     requires: { reputation: 5e18 },
-    effects: [{ kind: 'facility', group: 'animal', mult: 5 }],
+    effects: [{ kind: 'facility', group: 'animal', mult: 6 }],
   },
   {
     id: 'wheatWorlds',
     name: 'Wheat worlds',
     emoji: '🌾',
-    description: 'Planets that are one big field. The harvest takes a thousand years and never stops. Fields ×5',
+    description: 'Planets that are one big field. The harvest takes a thousand years and never stops. Fields ×6',
     cost: 8e19,
     space: true,
     deep: true,
     requires: { reputation: 8e18 },
-    effects: [{ kind: 'facility', group: 'field', mult: 5 }],
+    effects: [{ kind: 'facility', group: 'field', mult: 6 }],
   },
   {
     id: 'nebulaMills',
     name: 'Nebula mills',
     emoji: '🌫️',
-    description: 'A nebula spun into flour, oil and crumbs by the gravity of a dozen stars. Processing ×5',
+    description: 'A nebula spun into flour, oil and crumbs by the gravity of a dozen stars. Processing ×6',
     cost: 1.5e20,
     space: true,
     deep: true,
     requires: { reputation: 1.5e19 },
-    effects: [{ kind: 'facility', group: 'processor', mult: 5 }],
+    effects: [{ kind: 'facility', group: 'processor', mult: 6 }],
   },
   {
     id: 'quantumCrunch',
@@ -978,6 +985,8 @@ export const UPGRADES: UpgradeDef[] = [
 UPGRADES.push(...buildFarmGear(REGIONS, FACILITIES, CHAPTER2_FRANCHISES))
 // Kitchen gear (kitchenGear.ts): a ladder per station, one rung per place.
 UPGRADES.push(...buildKitchenGear(REGIONS))
+// Fleet gear (fleetGear.ts): four rungs per kind of vehicle.
+UPGRADES.push(...buildFleetGear(REGIONS, VEHICLES, CHAPTER3_FRANCHISES))
 
 /** Shop rungs: the supply multiplier each one adds, and its price as a share of its place's price. */
 export const SHOP_RUNG_MULT = 3

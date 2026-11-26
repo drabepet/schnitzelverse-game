@@ -121,6 +121,16 @@ Measured with the playtest bot over 64 hours (sell when the reward doubles, runs
 | Continent | 18h 30m |
 | **The whole planet** | **58h 19m** |
 
+### Critics and the fleet (built)
+
+Distribution had the fewest choices in the game. Two additions feed each other:
+
+- **Food critics (from Chapter 3).** Every place keeps a rolling share of the schnitzels that arrived hot there (`RegionState.critic`, averaged over about 5 minutes, `CRITIC_SECONDS`). Updated per tick from what was delivered, so offline is the same as online. **★ at 70%, ★★ at 85%, ★★★ at 97%** hot; each star multiplies **that place's** price by 1.1 (`placePrice`, so ★★★ is ×1.33). Every arrival counts: cold stock from the kitchen and solar-sail trips pull a place down. Each place row shows `★★☆ · 90% arrive hot · ★★★ at 97% · price +21%`.
+- **Fit-outs.** Each kind of vehicle is Standard, 📦 Cargo (carries ×2, keeps food hot only half as far) or 🔥 Express (keeps food hot twice as far). Free to switch any time, kept between runs (`state.fitOuts`). The wormhole gate is always hot, so it has no Express. Applied as mod sources, so Why? shows them.
+- **Fleet gear** (`fleetGear.ts`): four rungs per vehicle at the places it works, alternating 📦 capacity ×1.3 and ❄️ fresh ×1.3 (the wormhole's are all capacity). Each costs 15% of its place's price, never less than one vehicle, and goes only on a vehicle you own. Uncle buys capacity rungs when delivery is the limit and fresh rungs always (stars).
+- **Count goals** for vehicles, like the farm and kitchen crews (×1.2 at 10, 25, 50… of a kind).
+- **Food critics records** (8, records only, no bonus): first star, ★★★ somewhere, at five places, everywhere (12+ places), a star in space, ★★★ in the Schnitzelverse, both fit-outs tried, all fleet gear in one run.
+
 ## Managers (built)
 
 Perks bought with Golden Crumbs that do the buying for you, also offline. Each can be switched on and off (sidebar and Franchise tab). They look around once a second of game time and only buy things that cost at most 10% of your money (equipment: 25%), so they never empty the till.
@@ -159,6 +169,8 @@ Buying: ×1 / ×10 / Max for helpers, farm buildings and vehicles (one shared se
 ### Ranks, the dial, the log and Mum's sale
 
 - **Ranks:** every manager is a perk with 3 levels at the top of their family-tree branch: 1 On the job, 2 Old hand, 3 Runs the show. Each rank costs 1,000× the one before (Grandma 2 → 2,000 → 2M crumbs; the kid 40 → 40K → 40M). Rank 2: Grandma, Grandpa and the kid buy ten at a time when that's still cheap enough; Uncle buys the biggest piece he can afford first (not the cheapest); Mum asks the others to save for a place up to 15 minutes away (not 5). Rank 2 also opens the Bold setting, rank 3 All in. Rank 3 Mum can sell the business (below).
+- **The family joins in** (`familyJoinsIn`): the first sale makes Grandma and Mum managers (rank 1, free), with a chronicle line. From then on the business hires and opens places while you're away, so a player who looks in a few times a day doesn't wait a whole visit for the next town (the bot's three-times-a-day player waited 8 hours for it). Run 1 stays hands-on. Older saves past their first sale get them on load.
+- **Who goes first** (the family at work, from two promoted spenders): Uncle, Grandpa, the kid and Grandma spend in the player's order each second (`managerOrder`, ↑ buttons; Mum always goes first, she opens places and sells). **Strict** (off by default): the next in line only buys once the one before has nothing left to buy, saving up counts as busy (`managerWants`), so “farm before fleet” really holds. The default order is the old fixed one.
 - **How boldly** (a dial per manager): Careful ×0.5, Normal ×1, Bold ×2.5 (rank 2), All in ×5 (rank 3) of their usual share of your money per purchase, at most 90% (`spendShare`).
 - **The family at work** (Franchise tab, under the tree): a card per manager with rank, on/off, what they're doing now, money spent this run, their last three purchases and the dial. Purchases are logged by comparing what the business owns before and after each manager's turn, merged while they keep buying (`managerLog`, last 40). The sidebar's rotating box shows the newest manager purchase (from the last 3 minutes) every other turn with the badge jokes.
 - **Sidebar managers**: a face per promoted manager with a status dot: green just bought something (last minute), amber saving up, pale nothing to do, grey with a slash switched off (`managerMood`). Hovering a face shows a pop-up with the status and the last purchase; hovering the “Managers” title shows the colour key (`MoodLegend`, also under “The family at work”). The pop-up is a portal on `document.body`, so the main panel can't draw over it.
@@ -204,7 +216,7 @@ Starts for good the first time you reach the whole planet. Space places are reac
 Space pays far more per schnitzel than Earth (orbit $30 → Solar System $3K): that is the late game's money engine. Bot (sells when crumbs double, 2 h runs, all managers): see the farm balance note in Chapter 2 for the current timeline (planet ~10¼h, Mars ~17h, Jupiter ~37h, the Solar System beyond 64h). `tools/saves/mars.txt` (made by `tools/demo-save.sim.ts`) loads a game just past Mars.
 
 Vehicles: 🚀 Schnitzel rocket (2K/s, Moon range, $1B), 🛸 Crust cruiser (12K/s, to Jupiter, $50B), 🌌 Schnitzel ark (80K/s, whole system, $2T). Space freshness uses each vehicle's own `freshKm`.
-Upgrades: Zero-g fryer (kitchen ×1.5), Hydroponic domes (farm ×3), Teleport pantry (shop packs ×10), Orbital sun mirrors (fields ×3), Cutlet cloning vats (animals ×3), Matter replicators (processing ×3), Terraforming (farm ×5, new promotion "Terraformed worlds"), Space elevator (fleet ×2), Billboard on the Moon (orders ×2), Cosmic crumbs (crisp +0.5), Dyson fryer (kitchen ×3). Perk: Launch contracts. New promotions: Space farms, Orbital kitchen (20K/s), Space program, Interplanetary.
+Upgrades: Zero-g fryer (kitchen ×1.5), Hydroponic domes (farm ×3), Teleport pantry (shop packs ×10), Orbital sun mirrors (fields ×2.5), Cutlet cloning vats (animals ×2.5), Matter replicators (processing ×2.5), Terraforming (farm ×5, new promotion "Terraformed worlds"), Space elevator (fleet ×2), Billboard on the Moon (orders ×2), Cosmic crumbs (crisp +0.5), Dyson fryer (kitchen ×3). The farm jumps used to be ×3, ×3 and ×5 (×45 per group in one chapter), which left the farm 4× ahead of what the business sold; now Hydroponic domes ×3, the group gear ×2.5, Terraforming ×5 (×37.5; the Chapter 5 farm upgrades went from ×5 to ×6 to keep the pace) and the farm grows through its gear ladders and count goals, like the kitchen. Perk: Launch contracts. New promotions: Space farms, Orbital kitchen (20K/s), Space program, Interplanetary.
 
 ### Star paprika: ship fuel (built)
 
@@ -228,12 +240,13 @@ Starts for good the first time you reach the whole Solar System (`CHAPTER5_REGIO
 | 🌫️ The next galaxy over | 2.5M ly | 800M | $300K | $21Sx | 2.6Sx | the next town over |
 | 🫧 The Local Group | 10M ly | 2.5B | $1M | $800Sx | 100Sx | the city |
 | 🌌 The whole universe | 46B ly | 8B | $3M | $7.2Sp | 900Sx | the whole planet |
+| 🚪 The universe next door | 1e27 km | 14B | $5.5M | $17Sp | 2.1Sp | |
 | 🍋 The Schnitzelverse | everywhere at once | 25B | $10M | $20Sp | 2.5Sp | the finale |
 
 The Solar System got cheaper with it ($4Qi, 500Qa ⭐; was $60Qi, 8Qi ⭐), so it arrives at about 2¼ days instead of never in the bot's 64 hours.
 
 - **Vehicles** (`deep`: only in Chapter 5): 🌠 Warp freighter (1M/s, reaches the Milky Way, $500Qa; arrives cold past the nearby stars without stasis crates), 🕳️ Wormhole gate (30M/s, any distance, no cooling, $1Sx). Perk: Warp contracts (start runs with warp freighters, up to 3).
-- **Equipment:** stasis crates (cooling ÷100), warp coils (fleet ×3), a constellation shaped like a schnitzel (orders ×3), pig planets / wheat worlds / nebula mills (farm groups ×5), quantum crunch (crisp +0.3), neutron star fryer (kitchen ×5), your face in the night sky (reputation ×3), three Michelin stars (prices ×2), the intergalactic grocer (shop ×1.5, renames the shop “Horáková’s universe”). A fifth kitchen crew on every step (singularity tenderizer, crumb galaxy, supernova fryers), and a farm-gear rung per building at every new place (56 pieces).
+- **Equipment:** stasis crates (cooling ÷100), warp coils (fleet ×3), a constellation shaped like a schnitzel (orders ×3), pig planets / wheat worlds / nebula mills (farm groups ×6), quantum crunch (crisp +0.3), neutron star fryer (kitchen ×3), your face in the night sky (reputation ×3), three Michelin stars (prices ×2), the intergalactic grocer (shop ×1.5, renames the shop “Horáková’s universe”). A fifth kitchen crew on every step (singularity tenderizer, crumb galaxy, supernova fryers), and a farm-gear rung per building at every new place (56 pieces).
 - **Promotions:** Galactic farms, Cosmic kitchen (1B/s), Warp logistics, Wormhole network.
 - **Badges:** a new section, The Schnitzelverse (20 badges: every place, the vehicles, the crews, speedruns, the final one). Place and promotion badges add +3% like the space ones.
 - **Finale:** reaching the Schnitzelverse shows a closing screen once (`finaleSeen`): the story's ending, your numbers, credits for the family, then “Keep frying”: the game goes on with badges, perks and records.
@@ -311,14 +324,16 @@ Numbers tick several times a second, so nothing in normal flow may change size b
 
 | | Active player (`playtest-main`: plays 5 min per run, checks every 30 s, sells when crumbs double or after 2 h) | Check-in player (`playtest-checkin`: a 15-minute session every 8 h, sells when crumbs double or after a day) |
 |---|---|---|
-| Next town / city | 1h 15m / 1h 44m | 8h 35m / 16h 47m |
-| Whole planet | 9h 45m | 5d 0h |
-| Solar System | 2d 8h | 6d 16h |
-| The Schnitzelverse | 13d 17h | 9d 8h |
-| Longest wait for a new place or chapter | 3d 16h (universe → Schnitzelverse), 2d 20h (Local Group → universe) | 40h (continent → chapter 4), 32h (country → continent) |
-| Longest wait for anything new | 2d 8h (day 10–12) | 31h (day 11–12) |
+| Next town / city | 1h 14m / 1h 43m | 1h 1m / 16h 42m |
+| Whole planet | 8h 16m | 4d 0h |
+| Solar System | 2d 0h | 5d 13h |
+| The Schnitzelverse | 14d 3h | 8d 16h |
+| Longest wait for a new place or chapter | 2d 10h (Local Group → universe), 46h (universe next door → Schnitzelverse) | 32h (continent → chapter 4), 24h (country → continent) |
+| Longest wait for anything new | 40h (before a click badge, after the universe next door) | 31h (a long-run badge, late) |
 
-The check-in player is far slower early (nothing gets bought between visits until the managers are promoted) and faster late: 8–24 hour runs earn more crumbs than the active bot's 2-hour runs. The driest stretch for both is the end of chapter 5 (universe → Schnitzelverse).
+With the critics and the fleet choices (critic stars, fit-outs, fleet gear, vehicle count goals), the bot fits out 🔥 express for the kind serving the farthest place and 📦 cargo for the rest. Near places sit at ★★★ almost all the time (helpers arrive hot, the kitchen cooks to order); the far hops are where stars are won and lost (the next star and the cluster drop to 10–50% hot on warp freighters until the wormhole arrives). Thresholds were raised from 60/80/95% and the star from +15% to +10% after the first run came in a day fast (13d 1h).
+
+The check-in player now reaches the next town within the hour (the family joins in at the first sale, so Mum opens it while they're away; it used to wait for the next visit, 8 hours later). Places that need another sale (the city: 3 franchises) still wait for a visit, since selling is the player's call (or Mum's, if they switch her on). Late on, their 8–24 hour runs earn more crumbs than the active bot's 2-hour runs. The universe next door splits what used to be the driest stretch (3d 16h from the universe to the Schnitzelverse) into two.
 
 ## Roadmap
 

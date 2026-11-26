@@ -1,7 +1,7 @@
 // Derived values: modifiers from upgrades, costs, capacities, requirements.
 // Pure functions of the state; nothing here changes it.
 import { D, Decimal } from './decimal'
-import { BASE_COOLING, BUFFER_SECONDS, CHAPTER2_FRANCHISES, CHAPTER2_PERKS, CHAPTER3_FRANCHISES, CHAPTER3_PERKS, CHAPTER4_PERKS, CHAPTER4_REGION, CHAPTER5_PERKS, CHAPTER5_REGION, CRISP_BASE_SKILL, CRISP_REPUTATION_SHARE, CRISP_SPEED_PER_DEGREE, CRISP_TEMP_BEST, CRISP_TEMP_SPREAD, CRUMB_DIVISOR, type Effect, FACILITIES, FACILITY_BY_ID, type FacilityDef, type FacilityGroup, type FacilityId, FARM_GOAL_MULT, FARM_GOALS, FRANCHISE_UNLOCK_REGION, FRESHNESS_KM_PER_KMH, FRONTIER_CRUMB_SHARE, HELPER_RANGE_KM, type IngredientId, type ItemId, MIN_BUFFERS, MIN_ORDER_BACKLOG, NEXT_TASK, NIGHT_SHIFT_HOURS, OFFLINE_CAP_HOURS, OIL_LEVELS, ORDER_BACKLOG_SECONDS, PERK_BY_ID, PERK_SOFT_GROWTH, PERK_SOFT_LEVEL, type PerkDef, type PerkId, PERKS, REGION_INDEX, type RegionDef, REGIONS, type Requirement, SHOP, SHOP_SHELF_SECONDS, SHOP_SUPPLY_RATE, STAGE_IDS, type StageId, STAGES, type Task, type UpgradeDef, UPGRADES, type VehicleDef, VEHICLES, WORKER_BY_ID, type WorkerDef, type WorkerId, WORKERS, CHAPTERS, REGION_BY_ID, type RegionId, CRUMB_PRIDE_PER_DECADE, INGREDIENT_IDS, FUEL_IDS, FUEL_FROM_KM, FUEL_PER_SCHNITZEL, type ShipFuelId } from './content'
+import { BASE_COOLING, BUFFER_SECONDS, CHAPTER2_FRANCHISES, CHAPTER2_PERKS, CHAPTER3_FRANCHISES, CHAPTER3_PERKS, CHAPTER4_PERKS, CHAPTER4_REGION, CHAPTER5_PERKS, CHAPTER5_REGION, CRISP_BASE_SKILL, CRISP_REPUTATION_SHARE, CRISP_SPEED_PER_DEGREE, CRISP_TEMP_BEST, CRISP_TEMP_SPREAD, CRUMB_DIVISOR, type Effect, FACILITIES, FACILITY_BY_ID, type FacilityDef, type FacilityGroup, type FacilityId, FARM_GOAL_MULT, FARM_GOALS, FRANCHISE_UNLOCK_REGION, FRESHNESS_KM_PER_KMH, FRONTIER_CRUMB_SHARE, HELPER_RANGE_KM, type IngredientId, type ItemId, MIN_BUFFERS, MIN_ORDER_BACKLOG, NEXT_TASK, NIGHT_SHIFT_HOURS, OFFLINE_CAP_HOURS, OIL_LEVELS, ORDER_BACKLOG_SECONDS, PERK_BY_ID, PERK_SOFT_GROWTH, PERK_SOFT_LEVEL, type PerkDef, type PerkId, PERKS, REGION_INDEX, type RegionDef, REGIONS, type Requirement, SHOP, SHOP_SHELF_SECONDS, SHOP_SUPPLY_RATE, STAGE_IDS, type StageId, STAGES, type Task, type UpgradeDef, UPGRADES, type VehicleDef, VEHICLES, WORKER_BY_ID, type WorkerDef, type WorkerId, WORKERS, CHAPTERS, REGION_BY_ID, type RegionId, CRUMB_PRIDE_PER_DECADE, INGREDIENT_IDS, FUEL_IDS, FUEL_FROM_KM, FUEL_PER_SCHNITZEL, type ShipFuelId, CRITIC_STARS, STAR_PRICE, FIT_OUT_BY_ID, type VehicleId } from './content'
 import { BEST_SALE_EARLY, BEST_SALE_MIN_SHARE, CRUMB_RATE_DROP, CRUMB_RATE_FROM, type BuyAmount, type GameState } from './state'
 import { BADGE_BONUS } from './badgeBonus'
 
@@ -25,6 +25,10 @@ export interface Mods {
   shopSupply: number
   /** One kind of farm building (farm gear), on top of its group. */
   building: Record<FacilityId, number>
+  /** One kind of vehicle's capacity (fleet gear, fit-out, count goals), on top of `fleet`. */
+  vehicleCap: Record<VehicleId, number>
+  /** How far one kind of vehicle keeps food hot (fleet gear, fit-out). */
+  vehicleFresh: Record<VehicleId, number>
 }
 
 function applyEffect(mods: Mods, e: Effect): void {
@@ -73,6 +77,10 @@ function applyEffect(mods: Mods, e: Effect): void {
     case 'building':
       mods.building[e.facility] *= e.mult
       break
+    case 'vehicle':
+      mods.vehicleCap[e.vehicle] *= e.capacity ?? 1
+      mods.vehicleFresh[e.vehicle] *= e.fresh ?? 1
+      break
   }
 }
 
@@ -91,6 +99,8 @@ function identityMods(): Mods {
     crisp: 0,
     shopSupply: 1,
     building: Object.fromEntries(FACILITIES.map((f) => [f.id, 1])) as Record<FacilityId, number>,
+    vehicleCap: Object.fromEntries(VEHICLES.map((v) => [v.id, 1])) as Record<VehicleId, number>,
+    vehicleFresh: Object.fromEntries(VEHICLES.map((v) => [v.id, 1])) as Record<VehicleId, number>,
   }
 }
 
@@ -117,6 +127,18 @@ export function modSources(state: GameState): ModSource[] {
   for (const w of WORKERS) {
     if (w.task === 'deliver' || farmGoalsReached(state.workers[w.id]) === 0) continue
     out.push({ name: `Count goals (${state.workers[w.id]} helpers)`, emoji: '🎯', effects: [{ kind: 'speed', task: w.task, mult: farmGoalBonus(state.workers[w.id]) }] })
+  }
+  // Vehicles: count goals like the farm's, and how each kind is fitted out.
+  for (const v of VEHICLES) {
+    const count = state.vehicles[v.id]
+    if (farmGoalsReached(count) > 0) {
+      out.push({ name: `Count goals (${count} ${v.name.toLowerCase()}s)`, emoji: '🎯', effects: [{ kind: 'vehicle', vehicle: v.id, capacity: farmGoalBonus(count) }] })
+    }
+    const fit = state.fitOuts[v.id]
+    if (fit && fit !== 'standard') {
+      const f = FIT_OUT_BY_ID[fit]
+      out.push({ name: `${f.name} fit-out (${v.name.toLowerCase()})`, emoji: f.emoji, effects: [{ kind: 'vehicle', vehicle: v.id, capacity: f.capacity, fresh: f.fresh }] })
+    }
   }
   if (state.crisp.unlocked) {
     // Crispness multiplies price and reputation; the skill comes from the sources above.
@@ -205,7 +227,10 @@ function modsKey(state: GameState): string {
   // Kitchen count goals reached (see modSources).
   let goals = ''
   for (const w of WORKERS) if (w.task !== 'deliver') goals += farmGoalsReached(state.workers[w.id])
-  return `${upgrades}|${perks}|${badges}|${state.prestige.franchises}|${c.unlocked ? 1 : 0}|${c.temperature}|${c.oil}|${goals}`
+  // Vehicle count goals and fit-outs.
+  let fleet = ''
+  for (const v of VEHICLES) fleet += `${farmGoalsReached(state.vehicles[v.id])}${state.fitOuts[v.id]?.[0] ?? 's'}`
+  return `${upgrades}|${perks}|${badges}|${state.prestige.franchises}|${c.unlocked ? 1 : 0}|${c.temperature}|${c.oil}|${goals}|${fleet}`
 }
 
 const modsCache = new WeakMap<GameState, { key: string; mods: Mods }>()
@@ -224,13 +249,15 @@ export function getMods(state: GameState): Mods {
   Object.freeze(mods.speed)
   Object.freeze(mods.facility)
   Object.freeze(mods.building)
+  Object.freeze(mods.vehicleCap)
+  Object.freeze(mods.vehicleFresh)
   Object.freeze(mods)
   modsCache.set(state, { key, mods })
   return mods
 }
 
 /** The numbers a "Why?" breakdown can explain. */
-export type ModKey = Exclude<keyof Mods, 'speed' | 'facility' | 'building' | 'autoBuy'> | Task | FacilityGroup | FacilityId
+export type ModKey = Exclude<keyof Mods, 'speed' | 'facility' | 'building' | 'autoBuy' | 'vehicleCap' | 'vehicleFresh'> | Task | FacilityGroup | FacilityId
 
 function readMod(m: Mods, key: ModKey): number {
   if (key in m.speed) return m.speed[key as Task]
@@ -565,7 +592,7 @@ export function vehicleCost(state: GameState, def: VehicleDef): Decimal {
 
 /** Schnitzels per second all vehicles of this kind deliver. */
 export function vehicleCapacity(state: GameState, def: VehicleDef, mods: Mods): Decimal {
-  return D(def.capacity).mul(state.vehicles[def.id]).mul(mods.fleet)
+  return D(def.capacity).mul(state.vehicles[def.id]).mul(mods.fleet * mods.vehicleCap[def.id])
 }
 
 /**
@@ -608,7 +635,8 @@ export function canReach(state: GameState, region: RegionDef): boolean {
 
 /** Share of hot schnitzel that is still hot after this vehicle's trip. */
 export function freshness(def: VehicleDef, region: RegionDef, mods: Mods): number {
-  return Math.exp((-region.distance / (def.freshKm ?? def.speed * FRESHNESS_KM_PER_KMH)) * mods.cooling)
+  const km = (def.freshKm ?? def.speed * FRESHNESS_KM_PER_KMH) * mods.vehicleFresh[def.id]
+  return Math.exp((-region.distance / km) * mods.cooling)
 }
 
 export function chapter2Unlocked(state: GameState): boolean {
@@ -825,7 +853,9 @@ export function upgradeUnlocked(state: GameState, def: UpgradeDef): boolean {
     !state.upgrades[def.id] &&
     (!def.quality || state.crisp.unlocked) &&
     chapterOpenFor(state, def) &&
-    meets(state, def.requires)
+    meets(state, def.requires) &&
+    // Fleet gear goes on a vehicle you own.
+    (!def.vehicle || state.vehicles[def.vehicle] > 0)
   )
 }
 
@@ -878,6 +908,22 @@ export function orderCap(region: RegionDef, mods: Mods): Decimal {
 
 export function regionPrice(region: RegionDef, mods: Mods): Decimal {
   return D(region.price).mul(mods.price)
+}
+
+/** The food critics' stars for a place, 0–3: from Chapter 3 on, by how much arrives hot there. */
+export function criticStars(state: GameState, region: RegionDef): number {
+  if (!chapter3Unlocked(state)) return 0
+  const hot = state.regions[region.id].critic
+  let stars = 0
+  for (const t of CRITIC_STARS) if (hot >= t - 1e-9) stars++
+  return stars
+}
+
+/** What this place pays per hot schnitzel today: its price, × STAR_PRICE per critic star. */
+export function placePrice(state: GameState, region: RegionDef, mods: Mods): Decimal {
+  const stars = criticStars(state, region)
+  const price = regionPrice(region, mods)
+  return stars ? price.mul(STAR_PRICE ** stars) : price
 }
 
 export function coolingRate(mods: Mods): number {

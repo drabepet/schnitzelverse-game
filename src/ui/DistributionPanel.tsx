@@ -1,4 +1,4 @@
-import { ITEMS, KNOCK_COOLDOWN, REGIONS, type ShipFuelId } from '../engine/content'
+import { CRITIC_STARS, ITEMS, KNOCK_COOLDOWN, REGIONS, STAR_PRICE, type RegionDef, type ShipFuelId } from '../engine/content'
 import type { GameState } from '../engine/state'
 import { farmSupplyNow, needsNow } from './derived'
 import { fuelStatus } from './insights'
@@ -8,7 +8,7 @@ import { fmt, fmtCompact, fmtInt, fmtKm, fmtMoney } from '../engine/format'
 import { useSteady } from './useSteady'
 import { LabelStack } from './LabelStack'
 import { canKnock, canUnlockRegion, clickDeliver, knockOnDoors, knockWait, unlockRegion } from '../engine/actions'
-import { canReach, fuelFor, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, regionPrice, regionRequirementsMet } from '../engine/rules'
+import { canReach, chapter3Unlocked, criticStars, fuelFor, chapter4Unlocked, chapter5Unlocked, getMods, helperReaches, orderCap, orderRate, placePrice, regionRequirementsMet } from '../engine/rules'
 import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
@@ -89,7 +89,7 @@ export function DistributionPanel() {
                 <div className="row-title">
                   {r.name}{' '}
                   <span className="muted">
-                    · {fmtMoney(regionPrice(r, mods))} each
+                    · {fmtMoney(placePrice(s, r, mods))} each
                     <Why k="price" label={`Price in ${r.name.toLowerCase()}`} base={fmtMoney(r.price)} /> ·{' '}
                     {fmt(orderRate(r, mods))} orders/s
                     <Why k="orders" label={`Orders from ${r.name.toLowerCase()}`} base={`${fmt(r.orderRate)}/s`} /> ·{' '}
@@ -116,6 +116,7 @@ export function DistributionPanel() {
                     {status.by.length > 0 && <span className="muted"> · {status.by.map((b) => b.carrier.emoji).join('')}</span>}
                   </div>
                 )}
+                {chapter3Unlocked(s) && <CriticLine s={s} r={r} />}
                 {fuelFor(r) && canReach(s, r) && <FuelLine fuel={fuelFor(r)!} s={s} />}
               </div>
               <HintButton
@@ -245,6 +246,28 @@ function FuelBox({ s, sails }: { s: GameState; sails: number }) {
       <div className={`small ${sailing ? 'warn' : 'muted'} fuel-box-foot`}>
         {sailing ? `⛵ ${fmtCompact(sails, true)}/s drift on solar sails and arrive cold.` : '✅ Every long trip is fuelled.'}
       </div>
+    </div>
+  )
+}
+
+/** Food critics (Chapter 3 on): a place's stars, its hot share, and what the next star needs. */
+function CriticLine({ s, r }: { s: GameState; r: RegionDef }) {
+  const stars = criticStars(s, r)
+  const hot = Math.floor(s.regions[r.id].critic * 100)
+  const next = CRITIC_STARS[stars]
+  const boost = Math.round((STAR_PRICE ** stars - 1) * 100)
+  const text = useSteady(
+    `${'★'.repeat(stars)}${'☆'.repeat(3 - stars)} · ${hot}% arrive hot` +
+      (next !== undefined ? ` · ${'★'.repeat(stars + 1)} at ${Math.round(next * 100)}%` : '') +
+      (boost ? ` · price +${boost}%` : ''),
+    1500,
+  )
+  return (
+    <div
+      className={`critic-line small ${stars ? 'starred' : 'muted'}`}
+      title={`${text}.\n\nThe food critics watch what arrives hot here (over the last few minutes). ${CRITIC_STARS.map((t, i) => `${'★'.repeat(i + 1)} at ${Math.round(t * 100)}%`).join(', ')}; each star puts this place’s price up ${Math.round((STAR_PRICE - 1) * 100)}%. Faster or 🔥 express vehicles, ❄️ fleet gear and a kitchen that cooks to order keep schnitzel hot.`}
+    >
+      {text}
     </div>
   )
 }

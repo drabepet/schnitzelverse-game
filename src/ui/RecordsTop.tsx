@@ -261,6 +261,7 @@ const STORY: { badge: string; text: string; emoji: string }[] = [
   { badge: 'placeNextGalaxy', emoji: '🌫️', text: 'The next galaxy' },
   { badge: 'placeLocalGroup', emoji: '🫧', text: 'The Local Group' },
   { badge: 'placeUniverse', emoji: '🌌', text: 'The whole universe' },
+  { badge: 'placeNextUniverse', emoji: '🚪', text: 'The universe next door' },
   { badge: 'placeSchnitzelverse', emoji: '🍋', text: 'The Schnitzelverse' },
 ]
 

@@ -135,6 +135,21 @@ describe('Mum saving up', () => {
   })
 })
 
+describe('the family joins in at the first sale', () => {
+  it('Grandma and Mum become managers for free, once', async () => {
+    const { franchise } = await import('./actions')
+    const s = newGame(0)
+    s.prestige.unlocked = true
+    s.stats.earned = D(1e9)
+    s.run.earned = D(1e9)
+    expect(franchise(s)).toBe(true)
+    expect(managerActive(s, 'familyManager')).toBe(true)
+    expect(managerActive(s, 'estateAgent')).toBe(true)
+    expect(s.prestige.perks.quartermaster ?? 0).toBe(0)
+    expect(s.log.some((e) => e.text.startsWith('👪 The family joins in'))).toBe(true)
+  })
+})
+
 describe('Grandma and equipment', () => {
   /** 30 kids on bikes, delivery is the slowest step, the cargo bike (delivery ×3, $5K) is unlocked. */
   function thirtyKids() {
@@ -157,6 +172,25 @@ describe('Grandma and equipment', () => {
     expect(familyNextStep(s)?.kind).toBe('equip')
     runManagers(s, 1)
     expect(s.upgrades.cargoBike).toBe(true)
+  })
+
+  it('who goes first: a strict order makes the next wait while Grandma saves up', async () => {
+    const { moveManager, managerOrder } = await import('./automation')
+    const run = (strict: boolean) => {
+      const s = thirtyKids()
+      s.prestige.perks.quartermaster = 1
+      s.money = D(1_000) // Grandma waits for the cargo bike
+      moveManager(s, 'familyManager', -1)
+      moveManager(s, 'familyManager', -1)
+      moveManager(s, 'familyManager', -1)
+      expect(managerOrder(s)[0]).toBe('familyManager')
+      s.managerStrict = strict
+      const before = Object.keys(s.upgrades).length
+      runManagers(s, 1)
+      return Object.keys(s.upgrades).length - before
+    }
+    expect(run(true)).toBe(0)
+    expect(run(false)).toBeGreaterThan(0)
   })
 
   it('waits for it rather than hiring when it is a few minutes away', async () => {

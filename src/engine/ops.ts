@@ -4,7 +4,7 @@
 import { Decimal, ZERO, nonNeg } from './decimal'
 import { COLD_PRICE_FACTOR, COLD_REPUTATION, HOT_REPUTATION, INGREDIENT_IDS, SHOP, STAGES, type ItemId, type RegionDef, type StageId } from './content'
 import type { GameState } from './state'
-import { packSize, regionPrice, stageInputs, type Mods } from './rules'
+import { packSize, placePrice, stageInputs, type Mods } from './rules'
 
 /**
  * Run a recipe for up to `max` cycles, limited by available inputs.
@@ -33,7 +33,8 @@ export function runStage(state: GameState, stage: StageId, max: Decimal): Decima
 
 /**
  * Deliver up to `max` schnitzels to a region. Hot ones go first; `fresh` is the
- * share of them still hot on arrival (long trips cool them). Returns [served, revenue].
+ * share of them still hot on arrival (long trips cool them). Returns
+ * [served, revenue, arrived hot] (the critics count the last one, see tick.ts).
  */
 export function deliverTo(
   state: GameState,
@@ -41,18 +42,18 @@ export function deliverTo(
   max: Decimal,
   mods: Mods,
   fresh = 1,
-): [Decimal, Decimal] {
+): [Decimal, Decimal, Decimal] {
   const r = state.regions[region.id]
-  if (!r.unlocked) return [ZERO, ZERO]
+  if (!r.unlocked) return [ZERO, ZERO, ZERO]
   const stock = state.items.hot.add(state.items.cold)
   const amount = Decimal.min(Decimal.min(max, r.orders), stock)
-  if (amount.lte(0)) return [ZERO, ZERO]
+  if (amount.lte(0)) return [ZERO, ZERO, ZERO]
 
   const hotTaken = Decimal.min(amount, state.items.hot)
   const coldTaken = amount.sub(hotTaken)
   const hot = hotTaken.mul(fresh) // still hot on arrival
   const cold = amount.sub(hot)
-  const price = regionPrice(region, mods)
+  const price = placePrice(state, region, mods)
   const revenue = price.mul(hot.add(cold.mul(COLD_PRICE_FACTOR)))
 
   state.items.hot = nonNeg(state.items.hot.sub(hotTaken))
@@ -66,7 +67,7 @@ export function deliverTo(
   state.run.servedCold = state.run.servedCold.add(cold)
   state.stats.earned = state.stats.earned.add(revenue)
   state.run.earned = state.run.earned.add(revenue)
-  return [amount, revenue]
+  return [amount, revenue, hot]
 }
 
 /**

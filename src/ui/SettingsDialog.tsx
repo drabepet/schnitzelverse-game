@@ -1,4 +1,5 @@
 import { setBadgePopups, setChapterColours, setEffects, setNotationSetting, setUiScale, setUpdateRate } from '../engine/actions'
+import { useEscape } from './useEscape'
 import { UPDATE_RATES, type EffectsLevel, type UiScale } from '../engine/state'
 
 const EFFECTS: { value: EffectsLevel; label: string; hint: string }[] = [
@@ -20,6 +21,7 @@ import { fmtTime } from '../engine/format'
 import { useGame } from '../game/store'
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
+  useEscape(onClose)
   const game = useGame()
   const s = game.state.settings
   return (

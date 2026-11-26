@@ -15,7 +15,7 @@ import {
   VEHICLES,
   WORKERS,
 } from './content'
-import { crispness } from './rules'
+import { criticStars, crispness } from './rules'
 import type { BadgeDef } from './badges'
 import { badgeCount, building, byHand, earned, fame, franchises, hours, ownedUpgrades, place, served, speedrun, totalCrumbs, totalVehicles, totalWorkers, totalFacilities, vehicles, workers } from './badgeChecks'
 
@@ -25,6 +25,9 @@ const SHOP_GEAR: UpgradeId[] = ['biggerVan', 'wholesaleCard', 'secondVan', 'mini
 const farmGear = () => UPGRADES.filter((u) => u.building && !FACILITY_BY_ID[u.building].space)
 const farmHands = () => UPGRADES.filter((u) => u.chain && u.chain !== 'paprika')
 const paprikaGear = () => UPGRADES.filter((u) => u.building && FACILITY_BY_ID[u.building].space)
+const fleetGear = () => UPGRADES.filter((u) => u.vehicle)
+/** Places with at least this many critic stars right now. */
+const starred = (s: Parameters<BadgeDef['check']>[0], stars: number) => REGIONS.filter((r) => s.regions[r.id].unlocked && criticStars(s, r) >= stars)
 
 type Def = Omit<BadgeDef, 'category'>
 const cat = (category: BadgeDef['category'], defs: Def[]): BadgeDef[] => defs.map((d) => ({ ...d, category }))
@@ -148,6 +151,17 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'pigsOnly', emoji: '🐽', name: 'Animal Farm', goal: 'Secret', flavor: '100 pig farms, not a single field. The pigs are thrilled. The bread is not.', secret: true, check: (s) => s.facilities.pigFarm >= 100 && s.facilities.wheatField === 0 },
   ]),
 
+  // ------------------------------------------------------------ food critics (records only: no bonuses, see badgeBonus.ts)
+  ...cat('critics', [
+    { id: 'criticFirst', emoji: '🌟', name: 'Noted', goal: 'Earn a critic’s star anywhere', flavor: 'The critic wrote one word in the notebook. Mum has been guessing which word for a week.', check: (s) => starred(s, 1).length > 0 },
+    { id: 'criticThree', emoji: '🏵️', name: 'Nothing to Complain About', goal: 'Earn ★★★ at a place', flavor: 'The critic left without a single note. It is the most upsetting day of their career.', check: (s) => starred(s, 3).length > 0 },
+    { id: 'criticFive', emoji: '📰', name: 'Front Page', goal: 'Have ★★★ at five places at once', flavor: 'Five papers, one headline: “STILL HOT”.', check: (s) => starred(s, 3).length >= 5 },
+    { id: 'criticAll', emoji: '🗞️', name: 'The Whole Guidebook', goal: 'Have ★★★ at every place you’ve opened (at least twelve)', flavor: 'The guidebook is now just your menu with a map stapled to it.', check: (s) => { const open = REGIONS.filter((r) => s.regions[r.id].unlocked).length; return open >= 12 && starred(s, 3).length === open } },
+    { id: 'criticSpace', emoji: '🪐', name: 'Reviewed in Orbit', goal: 'Earn a critic’s star at a place in space', flavor: '“Arrived hot. In a vacuum. How?” The critic is still writing.', check: (s) => starred(s, 1).some((r) => r.space) },
+    { id: 'criticVerse', emoji: '🍋', name: 'Critic of Everything', goal: 'Earn ★★★ in the Schnitzelverse', flavor: 'Every critic in every universe agreed. That has never happened before, about anything.', check: (s) => starred(s, 3).some((r) => r.id === 'schnitzelverse') },
+    { id: 'fitOutsAll', emoji: '🔧', name: 'Tinkerer', goal: 'Fit a vehicle out for 📦 cargo and one for 🔥 express', flavor: 'Uncle has unscrewed every seat in the fleet at least once. He put most of them back.', check: (s) => !!s.fitOutsTried.cargo && !!s.fitOutsTried.express },
+    { id: 'fleetGearAll', emoji: '🧳', name: 'Roof Rack on a Wormhole', goal: 'Own every piece of fleet gear in one run', flavor: 'Roof racks on the wormhole. Nobody asked. Everybody looked.', check: (s) => fleetGear().every((u) => s.upgrades[u.id]) },
+  ]),
   // ------------------------------------------------------------ star paprika (records only: no bonuses, see badgeBonus.ts)
   ...cat('paprika', [
     { id: 'paprikaFirst', emoji: '🏜️', name: 'Red Sand, Big Plans', goal: 'Build your first paprika dunes', flavor: 'Grandma’s old tin, a little Martian sand, and a lot of questions nobody can answer.', check: building('paprikaDunes', 1) },
@@ -194,6 +208,7 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'placeNextGalaxy', emoji: '🌫️', name: 'The Andromeda Strain (Breaded)', goal: 'Deliver to the next galaxy over', flavor: 'Highly contagious. Symptoms: craving crust.', check: place('nextGalaxy') },
     { id: 'placeLocalGroup', emoji: '🫧', name: 'Group Hug', goal: 'Deliver to the Local Group', flavor: 'Fifty galaxies, one big family lunch.', check: place('localGroup') },
     { id: 'placeUniverse', emoji: '🌌', name: 'Universal Lunch Break', goal: 'Deliver to the whole universe', flavor: 'Everywhere there is anything, there is now schnitzel.', check: place('universe') },
+    { id: 'placeNextUniverse', emoji: '🚪', name: 'Knock Knock', goal: 'Deliver to the universe next door', flavor: 'Another universe, the same hungry faces, slightly different laws of gravy.', check: place('nextUniverse') },
     { id: 'placeSchnitzelverse', emoji: '🍋', name: 'The End (of the Pan)', goal: 'Deliver to the Schnitzelverse', flavor: 'Thin. Golden. Never soggy. Everywhere. Grandma was right all along.', check: place('schnitzelverse') },
     { id: 'warp1', emoji: '🌠', name: 'Warp Factor Lunch', goal: 'Buy a warp freighter', flavor: 'Engage. (The schnitzel, not the engines. Well, both.)', check: vehicles('warp', 1) },
     { id: 'warp100', emoji: '🚀', name: 'Warp Armada', goal: 'Own 100 warp freighters', flavor: 'Space bends around your delivery route out of respect.', check: vehicles('warp', 100) },

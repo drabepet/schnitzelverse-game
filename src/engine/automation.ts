@@ -105,6 +105,53 @@ export function setManager(state: GameState, id: PerkId, on: boolean): void {
   else state.managersOff[id] = true
 }
 
+/** The managers who spend money, in the order they go (Mum, who opens places and sells, always goes first). */
+export const SPENDERS: PerkId[] = ['quartermaster', 'farmManager', 'dispatcher', 'familyManager']
+
+/** The player's order, repaired if a save lacks someone (or has a stranger). */
+export function managerOrder(state: GameState): PerkId[] {
+  const known = state.managerOrder.filter((id, i, all) => SPENDERS.includes(id) && all.indexOf(id) === i)
+  return [...known, ...SPENDERS.filter((id) => !known.includes(id))]
+}
+
+/** Move a manager one place earlier (`-1`) or later (`1`) in the order. */
+export function moveManager(state: GameState, id: PerkId, by: -1 | 1): void {
+  const order = managerOrder(state)
+  const i = order.indexOf(id)
+  const j = i + by
+  if (i < 0 || j < 0 || j >= order.length) return
+  ;[order[i], order[j]] = [order[j], order[i]]
+  state.managerOrder = order
+}
+
+export function setManagerStrict(state: GameState, strict: boolean): void {
+  state.managerStrict = strict
+}
+
+/**
+ * Whether a manager still has something to do after their turn (strict order:
+ * the next in line waits for them). Saving up for equipment counts as busy.
+ */
+export function managerWants(state: GameState, id: PerkId): boolean {
+  if (id === 'familyManager') {
+    const step = familyNextStep(state)
+    return !!step && step.kind !== 'hold'
+  }
+  if (id === 'farmManager') return !!farmNextStep(state)
+  if (id === 'dispatcher') {
+    if (!chapter3Unlocked(state)) return false
+    const mods = getMods(state)
+    return REGIONS.some((r) => state.regions[r.id].unlocked && !canReach(state, r)) || deliveryCapacity(state, mods).toNumber() < fleetTarget(state, mods)
+  }
+  if (id === 'quartermaster') {
+    const mods = getMods(state)
+    const limits = businessLimits(state, mods)
+    const share = spendShare(state, 'quartermaster', QUARTERMASTER_SPEND_SHARE)
+    return UPGRADES.some((u) => canBuyUpgrade(state, u) && cheapEnough(state, D(u.cost), share) && gearUse(state, u, limits, mods) > 0)
+  }
+  return false
+}
+
 /**
  * Income per second over the last few minutes of this run (from the income
  * history), or this run's average while the run is younger than that.
@@ -178,6 +225,9 @@ function effectPillar(e: Effect): { pillar: Pillar; task?: Task } | null {
       return { pillar: 'supply' }
     case 'fleet':
       return { pillar: 'delivery' }
+    case 'vehicle':
+      // Carrying more is delivery; keeping food hot earns critic stars, so it always helps.
+      return e.capacity && e.capacity !== 1 ? { pillar: 'delivery' } : null
     case 'orders':
       return { pillar: 'customers' }
     default:
@@ -448,7 +498,8 @@ function dispatcher(state: GameState): void {
     const best = useful
       .map((v) => ({ v, plan: vehiclePlan(state, v, 1) }))
       .filter((x) => cheapEnough(state, x.plan.cost, share))
-      .sort((a, b) => b.v.capacity / b.plan.cost.toNumber() - a.v.capacity / a.plan.cost.toNumber())[0]
+      // Per dollar, with each kind's own gear, fit-out and count goals counted in.
+      .sort((a, b) => (b.v.capacity * mods.vehicleCap[b.v.id]) / b.plan.cost.toNumber() - (a.v.capacity * mods.vehicleCap[a.v.id]) / a.plan.cost.toNumber())[0]
     if (!best) return
     // Rank 2: ten at a time when that is still cheap enough.
     const ten = managerRank(state, 'dispatcher') >= 2 && cheapEnough(state, vehiclePlan(state, best.v, 10).cost, share)
@@ -468,10 +519,13 @@ export function runManagers(state: GameState, dt: number): void {
   }
   // A short pause (a few minutes at most, see savingStatus) while Mum saves up.
   if (savingFor(state)) return
-  if (managerActive(state, 'quartermaster')) logged(state, 'quartermaster', quartermaster)
-  if (managerActive(state, 'farmManager')) logged(state, 'farmManager', farmManager)
-  if (managerActive(state, 'dispatcher')) logged(state, 'dispatcher', dispatcher)
-  if (managerActive(state, 'familyManager')) logged(state, 'familyManager', familyManager)
+  // In the player's order; with a strict order the next waits while the one before still has something to buy.
+  const work: Partial<Record<PerkId, (state: GameState) => void>> = { quartermaster, farmManager, dispatcher, familyManager }
+  for (const id of managerOrder(state)) {
+    if (!managerActive(state, id)) continue
+    logged(state, id, work[id]!)
+    if (state.managerStrict && managerWants(state, id)) return
+  }
 }
 
 // ---------------------------------------------------------------- the managers' log

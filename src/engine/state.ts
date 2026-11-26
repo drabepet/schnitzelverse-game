@@ -11,6 +11,7 @@ import {
   VEHICLES,
   WORKERS,
   type FacilityId,
+  type FitOut,
   type ForkId,
   type SpendLevel,
   type IngredientId,
@@ -54,6 +55,8 @@ export interface RegionState {
   unlocked: boolean
   /** Open orders waiting to be delivered. */
   orders: Decimal
+  /** What the food critics think (Chapter 3 on): rolling share of deliveries that arrived hot, 0–1. */
+  critic: number
 }
 
 export interface LogEntry {
@@ -137,6 +140,13 @@ export interface GameState extends RunState {
   history: { clock: number; earned: Decimal; points: HistoryPoint[] }
   /** Managers the player switched off (bought managers are on by default). */
   managersOff: Partial<Record<PerkId, true>>
+  /** Who spends first each look-around (Mum always goes before them), and whether the next waits until the one before has nothing to do. */
+  managerOrder: PerkId[]
+  managerStrict: boolean
+  /** How each kind of vehicle is fitted out (missing: standard). Kept between runs. */
+  fitOuts: Partial<Record<VehicleId, FitOut>>
+  /** Fit-outs ever chosen (for a badge). */
+  fitOutsTried: Partial<Record<FitOut, true>>
   /** How boldly each manager spends (default Normal). */
   managerSpend: Partial<Record<PerkId, SpendLevel>>
   /** What the managers bought lately, newest last (see automation.ts). */
@@ -264,7 +274,7 @@ export function freshRun(): RunState {
     workers: Object.fromEntries(WORKERS.map((w) => [w.id, 0])) as Record<WorkerId, number>,
     upgrades: {},
     regions: Object.fromEntries(
-      REGIONS.map((r) => [r.id, { unlocked: r.unlockCost === 0, orders: D(0) }]),
+      REGIONS.map((r) => [r.id, { unlocked: r.unlockCost === 0, orders: D(0), critic: 0 }]),
     ) as Record<RegionId, RegionState>,
     facilities: Object.fromEntries(FACILITIES.map((f) => [f.id, 0])) as Record<FacilityId, number>,
     vehicles: Object.fromEntries(VEHICLES.map((v) => [v.id, 0])) as Record<VehicleId, number>,
@@ -293,6 +303,10 @@ export function newGame(now = Date.now()): GameState {
     prestige: { unlocked: false, franchises: 0, crumbs: D(0), totalCrumbs: D(0), bonusCrumbs: D(0), perks: {} },
     history: { clock: 0, earned: D(0), points: [] },
     managersOff: {},
+    managerOrder: ['quartermaster', 'farmManager', 'dispatcher', 'familyManager'],
+    managerStrict: false,
+    fitOuts: {},
+    fitOutsTried: {},
     managerSpend: {},
     managerLog: [],
     autoSell: { enabled: false, rule: 'best', percent: 25, minutes: 120, spendCrumbs: false },

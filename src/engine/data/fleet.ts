@@ -156,3 +156,43 @@ export const VEHICLES: VehicleDef[] = [
  * exp(-distance / (speed × FRESHNESS_KM_PER_KMH) × cooling multiplier).
  */
 export const FRESHNESS_KM_PER_KMH = 20
+
+// ---------------------------------------------------------------- critics and fit-outs
+
+/**
+ * Food critics (from Chapter 3): every place keeps a rolling share of the
+ * schnitzels that arrived hot there, averaged over about this many seconds.
+ */
+export const CRITIC_SECONDS = 300
+/** Hot share needed for ★, ★★ and ★★★. */
+export const CRITIC_STARS = [0.7, 0.85, 0.97] as const
+/** Each star multiplies that place's price by this. */
+export const STAR_PRICE = 1.1
+
+/** How each kind of vehicle is fitted out: switch freely, kept between runs. */
+export type FitOut = 'standard' | 'cargo' | 'express'
+
+export interface FitOutDef {
+  id: FitOut
+  name: string
+  emoji: string
+  /** Capacity multiplier. */
+  capacity: number
+  /** Multiplier on the distance it keeps food hot (freshKm). */
+  fresh: number
+  blurb: string
+}
+
+export const FIT_OUTS: FitOutDef[] = [
+  { id: 'standard', name: 'Standard', emoji: '⚖️', capacity: 1, fresh: 1, blurb: 'As it came from the dealer.' },
+  { id: 'cargo', name: 'Cargo', emoji: '📦', capacity: 2, fresh: 0.5, blurb: 'Seats out, crates in: carries ×2, but food cools twice as fast.' },
+  {
+    id: 'express',
+    name: 'Express',
+    emoji: '🔥',
+    capacity: 1,
+    fresh: 2,
+    blurb: 'Hot boxes and the fast lane: keeps food hot twice as far.',
+  },
+]
+export const FIT_OUT_BY_ID = Object.fromEntries(FIT_OUTS.map((f) => [f.id, f])) as Record<FitOut, FitOutDef>

@@ -30,6 +30,7 @@ function totals(s: GameState) {
       else if (e.kind === 'speed') add(`speed.${e.task}`, e.mult, perk, times, 1)
       else if (e.kind === 'facility') add(`facility.${e.group}`, e.mult, perk, times, 1)
       else if (e.kind === 'building') add(`building`, e.mult, perk, times, 1)
+      else if (e.kind === 'vehicle') add('vehicle', e.capacity ?? 1, perk, times, 1)
       else if (e.kind !== 'autoBuy') add(e.kind, e.mult, perk, times, 1)
     }
   }

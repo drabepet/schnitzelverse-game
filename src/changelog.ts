@@ -12,6 +12,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.014',
+    date: '26 Nov 2026',
+    emoji: '🌟',
+    title: 'The critics are coming',
+    items: [
+      'Food critics, from Chapter 3: every place watches how much arrives hot. Earn ★ ★★ ★★★ and that place pays more.',
+      'Fit out each kind of vehicle: 📦 cargo carries twice as much, 🔥 express keeps it hot twice as far. Switch any time, free.',
+      'Gear for every vehicle, from roof racks to stasis cupboards, and goals for 10, 25, 50… of a kind.',
+      'The family joins in at your first sale: Grandma hires and Mum opens the next place while you’re away.',
+      'A new place: the universe next door, between the universe and the Schnitzelverse.',
+      'Choose who spends first in the family office, and whether each waits for the one before.',
+      'Eight new records for critics’ darlings, and tidier delivery rows on phones.',
+    ],
+  },
+  {
     version: '0.013',
     date: '25 Nov 2026',
     emoji: '🌶️',

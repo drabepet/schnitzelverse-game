@@ -20,6 +20,7 @@ import {
   buyFacility,
   buyIngredient,
   buyVehicle,
+  setFitOut,
   buyPerk,
   buyUpgrade,
   canUnlockRegion,
@@ -51,6 +52,7 @@ import {
   taskCapacity,
   vehicleServes,
   vehicleVisible,
+  criticStars,
   workerCost,
 } from '../src/engine/rules'
 import { Decimal } from '../src/engine/decimal'
@@ -132,8 +134,33 @@ function usefulVehicles(s: GameState) {
   return VEHICLES.filter((v) => vehicleVisible(s, v) && REGIONS.some((r) => s.regions[r.id].unlocked && vehicleServes(v, r)))
 }
 
+/**
+ * Fit-outs: 🔥 express for the kind that serves the farthest place you
+ * deliver to (Earth and space each), 📦 cargo for the rest. The wormhole
+ * is always hot, so it carries cargo.
+ */
+function fitOut(s: GameState): void {
+  for (const space of [false, true]) {
+    const owned = VEHICLES.filter((v) => !!v.space === space && s.vehicles[v.id] > 0)
+    const farthest = [...REGIONS].reverse().find((r) => s.regions[r.id].unlocked && !!r.space === space && owned.some((v) => vehicleServes(v, r)))
+    const express = farthest && owned.find((v) => vehicleServes(v, farthest) && v.freshKm !== Infinity && v.range >= farthest.distance)
+    for (const v of owned) {
+      const want = v === express ? 'express' : 'cargo'
+      if ((s.fitOuts[v.id] ?? 'standard') !== want) setFitOut(s, v.id, want)
+    }
+  }
+}
+
+/** Average critic stars over the places open, and each place's hot share (%). */
+function criticLine(s: GameState): string {
+  const open = REGIONS.filter((r) => s.regions[r.id].unlocked)
+  const stars = open.reduce((n, r) => n + criticStars(s, r), 0) / Math.max(1, open.length)
+  return `stars ${stars.toFixed(1)} hot ${open.map((r) => `${r.id}:${Math.round(s.regions[r.id].critic * 100)}`).join(' ')}`
+}
+
 function fleet(s: GameState): void {
   if (!chapter3Unlocked(s)) return
+  fitOut(s)
   const mods = getMods(s)
   for (const r of REGIONS) {
     if (!s.regions[r.id].unlocked || canReach(s, r)) continue
@@ -144,7 +171,7 @@ function fleet(s: GameState): void {
     const kitchen = Math.min(...STAGE_IDS.map((t) => taskCapacity(s, t, mods).toNumber()))
     if (deliveryCapacity(s, mods).toNumber() >= kitchen * 1.1) return
     const best = usefulVehicles(s)
-      .map((v) => ({ v, value: (v.capacity * mods.fleet) / vehicleCost(s, v).toNumber() }))
+      .map((v) => ({ v, value: (v.capacity * mods.fleet * mods.vehicleCap[v.id]) / vehicleCost(s, v).toNumber() }))
       .filter((x) => vehicleCost(s, x.v).lte(s.money.div(4)))
       .sort((a, b) => b.value - a.value)[0]
     if (!best || !buyVehicle(s, best.v.id)) return
@@ -226,7 +253,7 @@ function shop(s: GameState, log: (t: string) => void): void {
     // Delivery: once the fleet is here, buy whichever is cheaper per schnitzel/s, a helper or a vehicle.
     if (weakest.t === 'deliver' && chapter3Unlocked(s)) {
       const kidPerUnit = workerCost(s, worker.id).toNumber() / (worker.rate * mods.speed.deliver)
-      const vehicles = usefulVehicles(s).map((v) => ({ v, perUnit: vehicleCost(s, v).toNumber() / (v.capacity * mods.fleet) }))
+      const vehicles = usefulVehicles(s).map((v) => ({ v, perUnit: vehicleCost(s, v).toNumber() / (v.capacity * mods.fleet * mods.vehicleCap[v.id]) }))
       const best = vehicles.sort((a, b) => a.perUnit - b.perUnit)[0]
       if (best && best.perUnit < kidPerUnit) {
         if (!affordable(vehicleCost(s, best.v).toNumber()) || !buyVehicle(s, best.v.id)) break
@@ -432,6 +459,7 @@ export function runFranchises(p: FranchiseProfile): void {
     // Once a minute of game time, whether or not the player is looking.
     if (t >= nextNews) {
       news.look(s, t)
+      for (const r of PLACES) if (reached[r] === undefined && s.regions[r].unlocked) reached[r] = t
       nextNews = t + 60
     }
     if (townAt === undefined && s.regions.town.unlocked) townAt = s.run.time
@@ -445,7 +473,8 @@ export function runFranchises(p: FranchiseProfile): void {
           `fleet ${VEHICLES.map((v) => s.vehicles[v.id]).join('/')} ` +
           `| stock ${INGREDIENT_IDS.map((i) => fmt(s.items[i]))} cut ${fmt(s.items.cutlet)} br ${fmt(s.items.breaded)} hot ${fmt(s.items.hot)} ` +
           `| served ${fmt(s.stats.served)} | upgrades ${Object.keys(s.upgrades).length}/${UPGRADES.length}` +
-          ` | sails ${delivered > 0 ? Math.round((sailed / delivered) * 100) : 0}%`,
+          ` | sails ${delivered > 0 ? Math.round((sailed / delivered) * 100) : 0}%` +
+          ` | ${criticLine(s)}`,
       )
       delivered = 0
       sailed = 0

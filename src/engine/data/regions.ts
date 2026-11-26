@@ -27,6 +27,7 @@ export type RegionId =
   | 'nextGalaxy'
   | 'localGroup'
   | 'universe'
+  | 'nextUniverse'
   | 'schnitzelverse'
 
 export interface RegionDef {
@@ -364,6 +365,20 @@ export const REGIONS: RegionDef[] = [
     unlockCost: 8e24,
     unlockReputation: 1e24,
     distance: 4.35206e23,
+    space: true,
+    deep: true,
+  },
+  {
+    id: 'nextUniverse',
+    name: 'The universe next door',
+    emoji: '🚪',
+    flavor: 'Same street, different physics. They put ketchup on everything; Grandma is working on it.',
+    population: 1e26,
+    orderRate: 14_000_000_000,
+    price: 5_500_000,
+    unlockCost: 1.7e25,
+    unlockReputation: 2.1e24,
+    distance: 1e27,
     space: true,
     deep: true,
   },

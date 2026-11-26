@@ -36,6 +36,7 @@ import {
   WORKER_BY_ID,
   type WorkerId,
   WORKERS,
+  type FitOut,
 } from './content'
 import { addLog, AUTO_SELL_PERCENTS, freshRun, RUNS_LIMIT, type BuyAmount, type GameState, type Notation, type UiScale, type EffectsLevel, UPDATE_RATES, type UpdateRate } from './state'
 import {
@@ -63,6 +64,10 @@ import {
   regionRequirementsMet,
 } from './rules'
 import { buyPacks, deliverTo, runStage } from './ops'
+
+
+/** Managers the first sale brings for free (see familyJoinsIn). */
+const FIRST_MANAGERS: PerkId[] = ['familyManager', 'estateAgent']
 
 export function clickStage(state: GameState, stage: StageId): boolean {
   const done = runStage(state, stage, clickAmount(stage, getMods(state)))
@@ -216,7 +221,30 @@ export function franchise(state: GameState): boolean {
   state.prestige.franchises++
   applyStartPerks(state)
   addLog(state, FRANCHISE_MESSAGES[(state.prestige.franchises - 1) % FRANCHISE_MESSAGES.length])
+  if (familyJoinsIn(state)) {
+    addLog(
+      state,
+      '👪 The family joins in.\nGrandma: “While you’re out, I’ll hire for the slowest step, and your mother will open the next place the moment we can afford it.”',
+    )
+  }
   return true
+}
+
+/**
+ * The first sale brings Grandma and Mum in as managers (rank 1, free), so the
+ * business hires and expands while you're away from then on: a player who
+ * checks in a few times a day doesn't wait a whole visit for the next town.
+ * Returns true when it did something.
+ */
+export function familyJoinsIn(state: GameState): boolean {
+  if (state.prestige.franchises < 1) return false
+  let joined = false
+  for (const id of FIRST_MANAGERS) {
+    if (perkLevel(state, id) > 0) continue
+    state.prestige.perks[id] = 1
+    joined = true
+  }
+  return joined
 }
 
 export function buyPerk(state: GameState, id: PerkId): boolean {
@@ -263,6 +291,13 @@ export function buyVehicle(state: GameState, id: VehicleId, amount: BuyAmount = 
   state.vehicles[id] += plan.count
   if (state.vehicles[id] === plan.count) addLog(state, `${def.emoji} Your first ${def.name.toLowerCase()} is on the road.`)
   return true
+}
+
+/** Fit out one kind of vehicle (free, any time; kept between runs). The fit-outs tried are remembered for a badge. */
+export function setFitOut(state: GameState, id: VehicleId, fit: FitOut): void {
+  if (fit === 'standard') delete state.fitOuts[id]
+  else state.fitOuts[id] = fit
+  state.fitOutsTried[fit] = true
 }
 
 /** Seconds of play until the neighbours open the door again (0 = now). */

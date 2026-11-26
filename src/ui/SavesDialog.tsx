@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { useEscape } from './useEscape'
 import { noteCopyKept } from '../engine/actions'
 import { ago, useGame } from '../game/store'
 import { downloadSave } from './saveCopy'
@@ -26,6 +27,7 @@ function Row({ title, text, children }: { title: string; text: ReactNode; childr
 
 /** ☰ Game → Saves: keep a copy, bring one back, roll back, or start over. */
 export function SavesDialog({ onClose }: { onClose: () => void }) {
+  useEscape(onClose)
   const game = useGame()
   const [note, setNote] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)

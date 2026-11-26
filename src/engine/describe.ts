@@ -1,5 +1,5 @@
 // Plain-language lines for what an effect does, for equipment and perk tooltips.
-import { type Effect, FACILITIES, FACILITY_BY_ID, type FacilityGroup, STAGES, type Task, WORKERS } from './content'
+import { type Effect, FACILITIES, FACILITY_BY_ID, type FacilityGroup, STAGES, type Task, VEHICLE_BY_ID, WORKERS } from './content'
 import { facilityLook, workerLook } from './names'
 import type { GameState } from './state'
 
@@ -57,6 +57,14 @@ export function describeEffect(e: Effect, state?: GameState): string {
     case 'building': {
       const f = state ? facilityLook(state, e.facility) : FACILITY_BY_ID[e.facility]
       return `${f.emoji} ${f.name}: every one works ${times(e.mult)} faster`
+    }
+    case 'vehicle': {
+      const v = VEHICLE_BY_ID[e.vehicle]
+      const parts = [
+        e.capacity && e.capacity !== 1 ? `carries ${times(e.capacity)} as much` : '',
+        e.fresh && e.fresh !== 1 ? `keeps food hot ${times(e.fresh)} as far` : '',
+      ].filter(Boolean)
+      return `${v.emoji} ${v.name}: every one ${parts.join(' and ') || 'is unchanged'}`
     }
   }
 }

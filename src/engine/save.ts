@@ -5,6 +5,7 @@ import { Decimal } from './decimal'
 import { newGame, SAVE_VERSION, type GameState } from './state'
 import { REGIONS } from './content'
 import { chapterNumber } from './rules'
+import { familyJoinsIn } from './actions'
 
 const DECIMAL_PREFIX = 'D:'
 
@@ -78,6 +79,8 @@ function migrate(state: GameState): GameState {
     state.autoSell.rule = 'share'
     state.autoSell.percent = rule === 'double' ? 100 : 200
   }
+  // Saves from before the family joined in at the first sale: they join now.
+  familyJoinsIn(state)
   state.version = SAVE_VERSION
   return state
 }

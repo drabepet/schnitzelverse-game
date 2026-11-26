@@ -37,6 +37,7 @@ export function UpgradesPanel({
     (u) =>
       !u.building &&
       !u.chain &&
+      !u.vehicle &&
       (quality ? u.quality : !u.quality && PILLAR_OF.get(u) === pillar) &&
       (!only || only(u)),
   )

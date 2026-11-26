@@ -1,5 +1,5 @@
 import { BRANCHES, MANAGER_RANKS, PERK_BY_ID, type PerkId, SPEND_LEVELS } from '../engine/content'
-import { describeManagerItems as describeItems, managerActive, managerRank, setManager, setSpendLevel, spendLevel } from '../engine/automation'
+import { describeManagerItems as describeItems, managerActive, managerOrder, managerRank, moveManager, setManager, setManagerStrict, setSpendLevel, spendLevel } from '../engine/automation'
 import { doingNow } from './managerStatus'
 import { MoodLegend } from './MoodLegend'
 import { setAutoSell } from '../engine/actions'
@@ -189,6 +189,44 @@ function ManagerCard({ id }: { id: PerkId }) {
   )
 }
 
+/**
+ * Who spends first each second (Mum, who opens places, always goes before
+ * them). With a strict order the next in line waits while the one before
+ * still has something to buy: “farm before fleet”.
+ */
+function PriorityList() {
+  const game = useGame()
+  const s = game.state
+  const order = managerOrder(s).filter((id) => managerRank(s, id) > 0)
+  if (order.length < 2) return null
+  return (
+    <div className="office-order">
+      <span className="muted small">Who goes first</span>
+      <ol>
+        {order.map((id, i) => (
+          <li key={id}>
+            <span>
+              {PERK_BY_ID[id].emoji} {BRANCHES.find((b) => b.manager === id)?.person ?? PERK_BY_ID[id].name}
+            </span>
+            <button
+              className="small-btn"
+              disabled={i === 0}
+              aria-label={`Move ${PERK_BY_ID[id].name} up`}
+              onClick={() => game.act((st) => moveManager(st, id, -1))}
+            >
+              ↑
+            </button>
+          </li>
+        ))}
+      </ol>
+      <label className="setting-check" title="The next in line only buys once the one before has nothing left to buy (saving up counts as busy).">
+        <input type="checkbox" checked={s.managerStrict} onChange={(e) => game.act((st) => setManagerStrict(st, e.target.checked))} />
+        Strict: each waits until the one before is done
+      </label>
+    </div>
+  )
+}
+
 /** Franchise tab, under the family tree: one card per manager. */
 export function FamilyOffice() {
   return (
@@ -201,6 +239,7 @@ export function FamilyOffice() {
       <p className="hint office-legend">
         The dots on their faces in the sidebar: <MoodLegend />
       </p>
+      <PriorityList />
       <div className="office-grid">
         {BRANCHES.map((b) => (
           <ManagerCard key={b.id} id={b.manager} />
