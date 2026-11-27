@@ -12,6 +12,7 @@ import { canReach, chapter3Unlocked, criticStars, fuelFor, chapter4Unlocked, cha
 import { useGame } from '../game/store'
 import { Why } from './Why'
 import { floatText } from './juice'
+import { sfx } from './sound'
 import { HintButton } from './HintButton'
 import { firstReason, needMoney, needRequirement, affordShare } from './reasons'
 import { guideHint } from './guide'
@@ -55,7 +56,10 @@ export function DistributionPanel() {
                 : `The neighbours’ order list is full (${fmtInt(orderCap(REGIONS[0], mods))} orders waiting). Deliver some of them first, then knock again.`
           }
           onClick={(e) => {
-            if (game.act((st) => knockOnDoors(st))) floatText(e, '+1 order')
+            if (game.act((st) => knockOnDoors(st))) {
+              floatText(e, '+1 order')
+              sfx('knock')
+            }
           }}
         >
           <LabelStack
@@ -66,8 +70,8 @@ export function DistributionPanel() {
       </div>
       <p className="hint">
         Hot schnitzel first. Cold ones sell for less and barely help your reputation.{' '}
-        <span className="chip hot num-chip">🔥 {fmtCompact(s.items.hot.floor(), true)}</span>{' '}
-        <span className="chip cold num-chip">🧊 {fmtCompact(s.items.cold.floor(), true)}</span>
+        <span className="chip hot num-chip" title={`${ITEMS.hot.name}: ready to deliver`}>{ITEMS.hot.emoji} {fmtCompact(s.items.hot.floor(), true)}</span>{' '}
+        <span className="chip cold num-chip" title={`${ITEMS.cold.name}: gone cold while waiting, sells for less`}>{ITEMS.cold.emoji} {fmtCompact(s.items.cold.floor(), true)}</span>
         <Why k="cooling" label="How fast schnitzel cools" />
       </p>
 

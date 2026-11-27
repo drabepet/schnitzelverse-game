@@ -185,9 +185,17 @@ export class GameStore {
   // ---------------------------------------------------------- actions
 
   /** Run a player action against the state and refresh the UI. */
+  /**
+   * Called after every player action with a few numbers from before it, so the interface can react
+   * (main.tsx: spending money clinks, earning it rings the till).
+   */
+  onAct: ((before: { money: Decimal; franchises: number }, state: GameState, result: unknown) => void) | null = null
+
   act<T>(fn: (state: GameState) => T): T {
+    const before = { money: this.state.money, franchises: this.state.prestige.franchises }
     const result = fn(this.state)
     this.notify()
+    this.onAct?.(before, this.state, result)
     return result
   }
 

@@ -355,6 +355,24 @@ export function setChapterColours(state: GameState, on: boolean): void {
   state.settings.chapterColours = on
 }
 
+const volume = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0)
+
+export function setSoundVolume(state: GameState, v: number): void {
+  state.settings.soundVolume = volume(v)
+}
+
+export function setMusicVolume(state: GameState, v: number): void {
+  state.settings.musicVolume = volume(v)
+}
+
+export function setSoundMuted(state: GameState, muted: boolean): void {
+  state.settings.soundMuted = muted
+}
+
+export function setMuteHidden(state: GameState, on: boolean): void {
+  state.settings.muteHidden = on
+}
+
 /** Open (false) or close (true) the welcome screen. */
 export function setIntroSeen(state: GameState, seen: boolean): void {
   state.introSeen = seen

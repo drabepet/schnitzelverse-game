@@ -49,6 +49,14 @@ export interface Settings {
   effects: EffectsLevel
   /** Each chapter tints the interface (the garage, the farm, the road, the stars, the Schnitzelverse). */
   chapterColours: boolean
+  /** Sound effects volume, 0–1 (ui/sound.ts). */
+  soundVolume: number
+  /** Chapter tunes volume, 0–1. */
+  musicVolume: number
+  /** The header's mute button: silences everything, keeps the volumes. */
+  soundMuted: boolean
+  /** No sound while the game's tab is hidden. */
+  muteHidden: boolean
 }
 
 export interface RegionState {
@@ -290,7 +298,7 @@ export function newGame(now = Date.now()): GameState {
   return {
     version: SAVE_VERSION,
     ...freshRun(),
-    settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto', updateRate: 20, effects: 'full', chapterColours: true },
+    settings: { buyAmount: 1, notation: 'short', badgePopups: true, uiScale: 'auto', updateRate: 20, effects: 'full', chapterColours: true, soundVolume: 0.4, musicVolume: 0.4, soundMuted: false, muteHidden: true },
     introSeen: false,
     newsSeen: '',
     finaleSeen: false,

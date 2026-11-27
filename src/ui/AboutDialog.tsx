@@ -76,7 +76,21 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="intro-footer">
-          <p className="muted">Made with a lot of breadcrumbs. Thanks for playing!</p>
+          <p className="muted">
+            Made with a lot of breadcrumbs. Thanks for playing!
+            <br />
+            <span className="small">
+              Emoji:{' '}
+              <a href="https://github.com/googlefonts/noto-emoji" target="_blank" rel="noreferrer">
+                Noto Emoji
+              </a>{' '}
+              by Google,{' '}
+              <a href="./licenses/noto-emoji.txt" target="_blank" rel="noreferrer">
+                Apache License 2.0
+              </a>
+              .
+            </span>
+          </p>
           <button className="primary intro-start" onClick={onClose}>
             Back to the frying pan 🍳
           </button>

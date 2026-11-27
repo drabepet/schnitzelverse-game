@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.015',
+    date: '27 Nov 2026',
+    emoji: '🔊',
+    title: 'Sound on',
+    items: [
+      'Sound: every pound, crumb and sizzle, each sale and knock at the door, new places and badges, and a short tune for each chapter.',
+      'Set effects and music apart in ☰ Game → Settings, or mute it all with 🔊 at the top. It goes quiet while the game’s tab is in the background.',
+      'The same emoji on every computer and phone: the game now brings its own.',
+      'Our own pictures for the schnitzel and what goes into it: 🍖 hot, 🍗 cold, 🫓 pounded, 🍘 breaded, flour, oil, wheat and Grandma’s pan.',
+      'Hover the hot and cold schnitzels in Distribution to see which is which, and the ⓘ next to a number to see what makes it up.',
+    ],
+  },
+  {
     version: '0.014',
     date: '26 Nov 2026',
     emoji: '🌟',

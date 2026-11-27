@@ -1,4 +1,17 @@
-import { setBadgePopups, setChapterColours, setEffects, setNotationSetting, setUiScale, setUpdateRate } from '../engine/actions'
+import {
+  setBadgePopups,
+  setChapterColours,
+  setEffects,
+  setMusicVolume,
+  setMuteHidden,
+  setNotationSetting,
+  setSoundMuted,
+  setSoundVolume,
+  setUiScale,
+  setUpdateRate,
+} from '../engine/actions'
+import { chapterNumber } from '../engine/rules'
+import { chapterTune, setSoundSettings, sfx } from './sound'
 import { useEscape } from './useEscape'
 import { UPDATE_RATES, type EffectsLevel, type UiScale } from '../engine/state'
 
@@ -17,6 +30,7 @@ const SCALES: { value: UiScale; label: string }[] = [
 ]
 import { fmt } from '../engine/format'
 import { offlineCap } from '../engine/rules'
+import type { GameState } from '../engine/state'
 import { fmtTime } from '../engine/format'
 import { useGame } from '../game/store'
 
@@ -24,6 +38,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   useEscape(onClose)
   const game = useGame()
   const s = game.state.settings
+  /** Change a sound setting and hear it straight away (the next render would be a moment too late). */
+  const sound = (change: (st: GameState) => void, sample?: () => void) => {
+    game.act(change)
+    setSoundSettings(game.state.settings)
+    sample?.()
+  }
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Settings" onClick={onClose}>
       <div className="dialog settings" onClick={(e) => e.stopPropagation()}>
@@ -105,6 +125,52 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           </div>
           <span className="muted small">{EFFECTS.find((o) => o.value === s.effects)?.hint} Your system’s “reduce motion” setting is respected too.</span>
         </div>
+
+        <div className="setting">
+          <span>Sound</span>
+          <label className="volume">
+            <span>Effects</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(s.soundVolume * 100)}
+              aria-label="Sound effects volume"
+              onChange={(e) => sound((st) => setSoundVolume(st, Number(e.target.value) / 100), () => sfx('buy'))}
+            />
+            <span className="num">{Math.round(s.soundVolume * 100)}%</span>
+          </label>
+          <label className="volume">
+            <span>Music</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(s.musicVolume * 100)}
+              aria-label="Music volume"
+              onChange={(e) => sound((st) => setMusicVolume(st, Number(e.target.value) / 100))}
+              onPointerUp={() => chapterTune(chapterNumber(game.state))}
+              onKeyUp={() => chapterTune(chapterNumber(game.state))}
+            />
+            <span className="num">{Math.round(s.musicVolume * 100)}%</span>
+          </label>
+          <span className="muted small">
+            Effects: your clicks, buying, selling, badges and new places. Music: a short tune when you reach a new chapter. The game running
+            by itself makes no sound.
+          </span>
+        </div>
+
+        <label className="setting setting-check">
+          <input type="checkbox" checked={s.soundMuted} onChange={(e) => sound((st) => setSoundMuted(st, e.target.checked))} />
+          <span>Mute all sound (the 🔊 button at the top does the same)</span>
+        </label>
+
+        <label className="setting setting-check">
+          <input type="checkbox" checked={s.muteHidden} onChange={(e) => sound((st) => setMuteHidden(st, e.target.checked))} />
+          <span>Quiet while the game’s tab is in the background</span>
+        </label>
 
         <label className="setting setting-check">
           <input type="checkbox" checked={s.chapterColours} onChange={(e) => game.act((st) => setChapterColours(st, e.target.checked))} />

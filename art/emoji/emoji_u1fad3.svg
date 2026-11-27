@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- 🫓 Pounded cutlet: a thin raw pork cutlet, flattened by Uncle's mallet (diamond mallet marks) -->
+  <defs>
+    <radialGradient id="meat" cx="56" cy="58" r="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7B9B1"/><stop offset="0.75" stop-color="#EF9A92"/><stop offset="1" stop-color="#E2827B"/>
+    </radialGradient>
+    <clipPath id="cut">
+      <path d="M12 66 C10 46 30 30 58 30 C86 28 116 40 116 62 C116 84 94 98 64 98 C36 100 14 88 12 66 Z"/>
+    </clipPath>
+  </defs>
+  <path transform="translate(0 5)" d="M12 66 C10 46 30 30 58 30 C86 28 116 40 116 62 C116 84 94 98 64 98 C36 100 14 88 12 66 Z" fill="#C46562"/>
+  <path d="M12 66 C10 46 30 30 58 30 C86 28 116 40 116 62 C116 84 94 98 64 98 C36 100 14 88 12 66 Z" fill="url(#meat)"/>
+  <path d="M14 60 C18 42 36 32 58 31 C80 30 104 36 113 52 C104 42 82 36 58 37 C38 38 22 46 14 60 Z" fill="#FCE3DC"/>
+  <g clip-path="url(#cut)" stroke="#E2857F" stroke-width="2.2" stroke-linecap="round">
+    <path d="M20 96 L72 44"/><path d="M40 100 L92 48"/><path d="M60 104 L112 52"/><path d="M8 84 L54 38"/>
+    <path d="M36 44 L88 96"/><path d="M16 50 L66 100"/><path d="M58 40 L108 90"/>
+  </g>
+  <path d="M26 58 C30 50 38 46 46 45" fill="none" stroke="#FCD6CF" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -12,6 +12,7 @@ import { useGame, type GameStore } from '../game/store'
 import type { GameState } from '../engine/state'
 import { Why } from './Why'
 import { floatText } from './juice'
+import { sfx } from './sound'
 import { HintButton } from './HintButton'
 import { guideHint } from './guide'
 import { BuyAmountPicker, BuyLabel } from './BuyAmount'
@@ -73,7 +74,10 @@ function KitchenHead({ game, s }: { game: GameStore; s: GameState }) {
                 : null
             }
             onClick={(e) => {
-              if (game.act((st) => cookAll(st))) floatText(e, '+🔥')
+              if (game.act((st) => cookAll(st))) {
+                floatText(e, `+${ITEMS.hot.emoji}`)
+                sfx('cook')
+              }
             }}
           >
             🍳 Cook all three
@@ -154,7 +158,10 @@ function Station({ id, game, s, mods, slowest }: { id: StageId; game: GameStore;
             : null
         }
         onClick={(e) => {
-          if (game.act((st) => clickStage(st, id))) floatText(e, `+${fmt(clickAmount(id, mods))} ${ITEMS[stage.output].emoji}`)
+          if (game.act((st) => clickStage(st, id))) {
+            floatText(e, `+${fmt(clickAmount(id, mods))} ${ITEMS[stage.output].emoji}`)
+            sfx(id)
+          }
         }}
       >
         {stage.verb} ×{fmtShort(clickAmount(id, mods))}

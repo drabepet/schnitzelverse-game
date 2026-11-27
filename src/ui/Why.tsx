@@ -10,12 +10,14 @@ function show(mult: number, lowerIsBetter: boolean): string {
 }
 
 /**
- * A small ⓘ next to a number. Opens a list of everything multiplying it.
- * `base` is shown first when the number has one (e.g. a place's base price).
+ * A small ⓘ next to a number. Hovering it shows everything multiplying that number; clicking
+ * keeps the list open until you click elsewhere (or press Esc). `base` is shown first when the
+ * number has one (e.g. a place's base price).
  */
 export function Why({ k, label, base }: { k: ModKey; label: string; base?: string }) {
   const { state } = useGame()
-  const [open, setOpen] = useState(false)
+  // 'hover' closes when the pointer leaves; 'pinned' (after a click) stays until a click elsewhere.
+  const [open, setOpen] = useState<false | 'hover' | 'pinned'>(false)
   const ref = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -37,13 +39,17 @@ export function Why({ k, label, base }: { k: ModKey; label: string; base?: strin
   const lower = k === 'cooling'
 
   return (
-    <span className="why" ref={ref}>
+    <span
+      className="why"
+      ref={ref}
+      onMouseEnter={() => setOpen((o) => o || 'hover')}
+      onMouseLeave={() => setOpen((o) => (o === 'hover' ? false : o))}
+    >
       <button
         className="why-btn"
-        aria-expanded={open}
-        aria-label={`Why: ${label}`}
-        title="Why this number?"
-        onClick={() => setOpen((o) => !o)}
+        aria-expanded={!!open}
+        aria-label={`What makes up: ${label}`}
+        onClick={() => setOpen((o) => (o === 'pinned' ? false : 'pinned'))}
       >
         ⓘ
       </button>
@@ -56,7 +62,8 @@ export function Why({ k, label, base }: { k: ModKey; label: string; base?: strin
               <span>{base}</span>
             </span>
           )}
-          {factors.length === 0 && <span className="muted">Nothing changes it yet.</span>}
+          {factors.length === 0 && <span className="muted">Nothing multiplies it yet. Anything that does will be listed here.</span>}
+          {factors.length > 0 && <span className="muted small">{base ? 'Multiplied by:' : 'Everything that multiplies it:'}</span>}
           {factors.map((f) => (
             <span key={f.name} className="why-row">
               <span>

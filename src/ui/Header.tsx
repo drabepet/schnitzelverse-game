@@ -6,7 +6,8 @@ import { OPEN_TALE_EVENT, unreadTales } from './tales'
 import { GAME_VERSION } from '../version'
 import { chapterNumber, furthestPlace, nextChapterGoal } from '../engine/rules'
 import { CHAPTERS, REGIONS } from '../engine/content'
-import { clickLogo, setIntroSeen, setNewsSeen } from '../engine/actions'
+import { clickLogo, setIntroSeen, setNewsSeen, setSoundMuted } from '../engine/actions'
+import { setSoundSettings, sfx } from './sound'
 import { useGame } from '../game/store'
 
 /** “The whole town” → “the whole town”; proper names (Moon, Mars, Jupiter) stay. */
@@ -87,6 +88,19 @@ export function Header() {
       </div>
 
       <div className="menu" ref={menuRef}>
+        <button
+          className="ghost sound-btn"
+          aria-pressed={s.settings.soundMuted}
+          aria-label={s.settings.soundMuted ? 'Sound is off: turn it on' : 'Sound is on: mute it'}
+          title={s.settings.soundMuted ? 'Sound is off. Click to turn it on.' : 'Mute all sound (volumes are in Settings)'}
+          onClick={() => {
+            game.act((st) => setSoundMuted(st, !st.settings.soundMuted))
+            setSoundSettings(game.state.settings)
+            sfx('buy')
+          }}
+        >
+          {s.settings.soundMuted ? '🔇' : '🔊'}
+        </button>
         <button className="ghost" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-haspopup="menu">
           ☰ Game
           {(hasNews || newTales > 0) && <span className="news-dot" title={hasNews ? 'What’s new' : 'A new kitchen tale'} />}

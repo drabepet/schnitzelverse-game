@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- 🍳 Fry / the kitchen: Grandma's pan with a golden schnitzel and a lemon wedge -->
+  <defs>
+    <radialGradient id="pan" cx="54" cy="52" r="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5E5F61"/><stop offset="1" stop-color="#3B3B3D"/>
+    </radialGradient>
+    <radialGradient id="crust" cx="50" cy="46" r="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8C863"/><stop offset="0.65" stop-color="#E9A437"/><stop offset="1" stop-color="#CC831E"/>
+    </radialGradient>
+  </defs>
+  <g transform="translate(86 86) rotate(45)">
+    <rect x="0" y="-7.5" width="50" height="15" rx="7.5" fill="#2F2F2F"/>
+    <rect x="8" y="-4.5" width="36" height="3.5" rx="1.75" fill="#6C6D6F"/>
+  </g>
+  <circle cx="56" cy="56" r="50" fill="#2F2F2F"/>
+  <circle cx="56" cy="56" r="44" fill="url(#pan)"/>
+  <path d="M11.8 39.9 A47 47 0 0 1 43.8 10.6" fill="none" stroke="#7A7B7D" stroke-width="3" stroke-linecap="round"/>
+  <path transform="translate(1 3.5)" d="M24 50 C22 36 36 26 52 28 C66 24 84 30 86 44 C92 54 88 70 76 76 C66 86 46 86 36 78 C24 74 20 62 24 50 Z" fill="#9C5A16"/>
+  <path d="M24 50 C22 36 36 26 52 28 C66 24 84 30 86 44 C92 54 88 70 76 76 C66 86 46 86 36 78 C24 74 20 62 24 50 Z" fill="url(#crust)"/>
+  <path d="M31 45 C34 37 44 32 55 33" fill="none" stroke="#FBDB92" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#C27F22">
+    <circle cx="40" cy="47" r="2.3"/><circle cx="58" cy="40" r="2.1"/><circle cx="70" cy="51" r="2.4"/><circle cx="49" cy="61" r="2.1"/>
+    <circle cx="61" cy="66" r="2.2"/><circle cx="35" cy="61" r="1.9"/><circle cx="78" cy="61" r="1.8"/><circle cx="76" cy="40" r="1.7"/>
+  </g>
+  <g fill="#FCE3A2">
+    <circle cx="47" cy="42" r="1.6"/><circle cx="63" cy="48" r="1.6"/><circle cx="53" cy="70" r="1.4"/><circle cx="69" cy="37" r="1.4"/><circle cx="33" cy="53" r="1.4"/>
+  </g>
+  <g transform="translate(72 70) rotate(-20)">
+    <path d="M-13 0 A13 13 0 0 0 13 0 Z" fill="#F6C21C"/>
+    <path d="M-10 0.5 A10 10 0 0 0 10 0.5 Z" fill="#FFF2A8"/>
+    <path d="M0 1 L0 9.5 M-5.5 1 L-6.5 7.5 M5.5 1 L6.5 7.5" stroke="#F6C21C" stroke-width="1.6" stroke-linecap="round"/>
+  </g>
+</svg>

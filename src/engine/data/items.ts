@@ -30,8 +30,9 @@ export const ITEMS: Record<ItemId, ItemMeta> = {
   oil: { name: 'Frying oil', emoji: '🫗' },
   cutlet: { name: 'Pounded cutlets', emoji: '🫓' },
   breaded: { name: 'Breaded cutlets', emoji: '🍘' },
-  hot: { name: 'Hot schnitzel', emoji: '🔥' },
-  cold: { name: 'Cold schnitzel', emoji: '🧊' },
+  // 🍖 and 🍗 are drawn as our own hot and cold schnitzel (art/emoji/); nothing else uses them.
+  hot: { name: 'Hot schnitzel', emoji: '🍖' },
+  cold: { name: 'Cold schnitzel', emoji: '🍗' },
   wheat: { name: 'Wheat', emoji: '🌾' },
   seeds: { name: 'Sunflower seeds', emoji: '🌻' },
   pigs: { name: 'Pigs', emoji: '🐖' },

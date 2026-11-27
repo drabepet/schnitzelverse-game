@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- 🍘 Breaded cutlet: the cutlet in flour, egg and breadcrumbs, ready for the pan -->
+  <defs>
+    <radialGradient id="crumb" cx="56" cy="56" r="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F3DCA6"/><stop offset="0.72" stop-color="#E6C07C"/><stop offset="1" stop-color="#D6A95C"/>
+    </radialGradient>
+  </defs>
+  <path transform="translate(0 6)" d="M12 66 C9 54 16 44 26 40 C32 32 46 29 58 30 C70 27 86 30 96 36 C108 40 117 50 116 62 C118 72 110 84 98 90 C88 97 76 99 64 98 C50 100 34 96 26 90 C16 84 10 76 12 66 Z" fill="#B0803F"/>
+  <path d="M12 66 C9 54 16 44 26 40 C32 32 46 29 58 30 C70 27 86 30 96 36 C108 40 117 50 116 62 C118 72 110 84 98 90 C88 97 76 99 64 98 C50 100 34 96 26 90 C16 84 10 76 12 66 Z" fill="url(#crumb)"/>
+  <path d="M22 54 C28 42 42 36 56 36 M66 34 C78 33 90 36 98 42" fill="none" stroke="#F8EACB" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#C7974F">
+    <circle cx="34" cy="60" r="2.7"/><circle cx="50" cy="52" r="2.3"/><circle cx="70" cy="46" r="2.6"/><circle cx="88" cy="54" r="2.4"/>
+    <circle cx="102" cy="64" r="2.5"/><circle cx="82" cy="74" r="2.7"/><circle cx="60" cy="66" r="2.4"/><circle cx="42" cy="78" r="2.5"/>
+    <circle cx="24" cy="70" r="2.1"/><circle cx="66" cy="86" r="2.3"/><circle cx="94" cy="82" r="2.1"/><circle cx="50" cy="90" r="2"/>
+    <circle cx="74" cy="60" r="1.9"/><circle cx="106" cy="50" r="1.9"/>
+  </g>
+  <g fill="#FAEFD3">
+    <circle cx="44" cy="64" r="1.9"/><circle cx="62" cy="42" r="1.7"/><circle cx="86" cy="64" r="1.9"/><circle cx="56" cy="80" r="1.7"/>
+    <circle cx="98" cy="74" r="1.6"/><circle cx="30" cy="66" r="1.6"/><circle cx="76" cy="52" r="1.6"/><circle cx="74" cy="90" r="1.5"/>
+  </g>
+</svg>

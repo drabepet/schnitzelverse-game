@@ -12,6 +12,7 @@ import { FleetPanel } from './ui/FleetPanel'
 import { BadgeToasts } from './ui/BadgeToasts'
 import { Moments } from './ui/Moments'
 import { setEffectsLevel } from './ui/juice'
+import { setSoundSettings } from './ui/sound'
 import { StatusSidebar } from './ui/StatusSidebar'
 import { preloadLazyParts, RecordsTab } from './ui/lazyParts'
 import { IntroDialog } from './ui/IntroDialog'
@@ -52,6 +53,8 @@ export default function App() {
   // Effects (Settings): the juice functions and CSS (sizzle, pulse) follow it.
   const effects = game.state.settings.effects
   setEffectsLevel(effects)
+  // Sound (Settings and the header's mute button).
+  setSoundSettings(game.state.settings)
   useEffect(() => {
     document.documentElement.dataset.effects = effects
   }, [effects])

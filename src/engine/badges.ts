@@ -150,7 +150,7 @@ export const BADGES: BadgeDef[] = [
   { id: 'arkFleet', category: 'space', emoji: '🌌', name: 'Noah’s Schnitzel', goal: 'Own a schnitzel ark', flavor: 'Two by two, golden and crisp.', check: (s) => s.vehicles.ark >= 1 },
 
   // ------------------------------------------------------------ shame
-  { id: 'cold1', category: 'shame', emoji: '🧊', name: 'Lukewarm Welcome', goal: 'Serve a cold schnitzel', flavor: 'Mr. Dvořák ate it anyway. He’s a saint.', check: (s) => s.stats.servedCold.gte(1) },
+  { id: 'cold1', category: 'shame', emoji: '🍗', name: 'Lukewarm Welcome', goal: 'Serve a cold schnitzel', flavor: 'Mr. Dvořák ate it anyway. He’s a saint.', check: (s) => s.stats.servedCold.gte(1) },
   { id: 'cold1k', category: 'shame', emoji: '🥶', name: 'Cold Shoulder', goal: 'Serve 1,000 cold schnitzels', flavor: 'Some people call it “schnitzel carpaccio”. Nobody does.', check: (s) => s.stats.servedCold.gte(1e3) },
   { id: 'cold1m', category: 'shame', emoji: '🏔️', name: 'Ice Age', goal: 'Serve 1 million cold schnitzels', flavor: 'A mammoth was found frozen inside one.', check: (s) => s.stats.servedCold.gte(1e6) },
   { id: 'rescue1', category: 'shame', emoji: '🧺', name: 'Mum’s Fridge', goal: 'Get rescued by Mum', flavor: 'Every empire starts with a parent’s fridge.', check: (s) => s.stats.rescues >= 1 },

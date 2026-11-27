@@ -54,7 +54,7 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'served1sx', emoji: '🌠', name: 'Galactic Lunch Rush', goal: 'Serve 1 sextillion schnitzels', flavor: 'The Milky Way is being renamed the Breaded Way.', check: served(1e21) },
     { id: 'served1sp', emoji: '♾️', name: 'Schnitzel Event Horizon', goal: 'Serve 1 septillion schnitzels', flavor: 'Not even light can escape. Light doesn’t want to. It smells too good.', check: served(1e24) },
     { id: 'runServed1m', emoji: '🏃', name: 'One-Run Wonder', goal: 'Serve 1 million schnitzels in a single run', flavor: 'From empty garage to a million plates, without selling up.', check: (s) => s.run.served.gte(1e6) },
-    { id: 'runServed1b', emoji: '🏃‍♀️', name: 'Marathon Fryer', goal: 'Serve 1 billion schnitzels in a single run', flavor: 'Your fryer has not been switched off since spring.', check: (s) => s.run.served.gte(1e9) },
+    { id: 'runServed1b', emoji: '🎽', name: 'Marathon Fryer', goal: 'Serve 1 billion schnitzels in a single run', flavor: 'Your fryer has not been switched off since spring.', check: (s) => s.run.served.gte(1e9) },
     { id: 'runServed1t', emoji: '🦸', name: 'Ironman of the Iron Pan', goal: 'Serve 1 trillion schnitzels in a single run', flavor: 'Grandma suggests you take a break. You suggest she takes a schnitzel.', check: (s) => s.run.served.gte(1e12) },
   ]),
 
@@ -96,7 +96,7 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'family5k', emoji: '🏙️', name: 'Population: Family', goal: 'Have 5,000 helpers at once', flavor: 'The family is now officially a town. The town is now officially hungry.', check: (s) => totalWorkers(s) >= 5000 },
     { id: 'family10k', emoji: '🧬', name: 'Family Tree (Forest)', goal: 'Have 10,000 helpers at once', flavor: 'Genealogists have given up and opened a schnitzel stand.', check: (s) => totalWorkers(s) >= 10000 },
     { id: 'evenFamily', emoji: '⚖️', name: 'No Favourites', goal: 'Secret', flavor: 'Exactly the same number of uncles, grandmas, cousins and kids (at least 10 each). Mum is very proud.', secret: true, check: (s) => s.workers.uncle >= 10 && WORKERS.every((w) => s.workers[w.id] === s.workers.uncle) },
-    { id: 'soloGrandma', emoji: '🦸‍♀️', name: 'Grandma Does It All', goal: 'Secret', flavor: '50 grandmas and not a single other helper. They prefer it this way.', secret: true, check: (s) => s.workers.grandma >= 50 && s.workers.uncle === 0 && s.workers.cousin === 0 && s.workers.kid === 0 },
+    { id: 'soloGrandma', emoji: '👵', name: 'Grandma Does It All', goal: 'Secret', flavor: '50 grandmas and not a single other helper. They prefer it this way.', secret: true, check: (s) => s.workers.grandma >= 50 && s.workers.uncle === 0 && s.workers.cousin === 0 && s.workers.kid === 0 },
   ]),
 
   // ------------------------------------------------------------ places
@@ -227,7 +227,7 @@ export const MORE_BADGES: BadgeDef[] = [
 
   // ------------------------------------------------------------ shame
   ...cat('shame', [
-    { id: 'cold1b', emoji: '🧊', name: 'Permafrost Platter', goal: 'Serve 1 billion cold schnitzels', flavor: 'Penguins have started ordering. They love it.', check: (s) => s.stats.servedCold.gte(1e9) },
+    { id: 'cold1b', emoji: '🍗', name: 'Permafrost Platter', goal: 'Serve 1 billion cold schnitzels', flavor: 'Penguins have started ordering. They love it.', check: (s) => s.stats.servedCold.gte(1e9) },
     { id: 'cold1t', emoji: '🥶', name: 'Absolute Zero Tolerance', goal: 'Serve 1 trillion cold schnitzels', flavor: 'Somewhere, a physicist measured one at −273 °C. It was still a little soggy.', check: (s) => s.stats.servedCold.gte(1e12) },
     { id: 'rescue50', emoji: '🛋️', name: 'Basement Dweller', goal: 'Get rescued by Mum 50 times', flavor: 'She’s turned your room into a pantry. You’re still in it.', check: (s) => s.stats.rescues >= 50 },
     { id: 'soldOut1k', emoji: '📦', name: 'Shelf Destroyer', goal: 'Empty the corner shop’s shelves 1,000 times', flavor: 'Mrs. Horáková now restocks with a bulldozer.', check: (s) => s.stats.soldOut >= 1000 },
