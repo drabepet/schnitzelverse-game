@@ -818,6 +818,11 @@ input[type='number'] {
   border-radius: var(--radius);
   padding: 1.3333rem 1.6rem;
   max-width: 28rem;
+  /* A tall dialog on a short screen scrolls inside, so its buttons stay reachable. */
+  max-height: calc(100vh - 2.1333rem);
+  max-height: calc(100dvh - 2.1333rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 20px 60px rgb(0 0 0 / 30%);
 }
 /* Every dialog opens with the brand band (the welcome page has its own, bigger one). */
@@ -1883,6 +1888,7 @@ button.buy-btn {
 .dialog.intro {
   width: 100%;
   max-width: 68rem;
+  max-height: none;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border);
