@@ -97,7 +97,8 @@ export function FinaleDialog() {
 
         <div className="intro-footer">
           <p className="muted">
-            That’s the end of the story, for now. The fryer keeps going: badges, perks and records are still there to chase.
+            That’s the end of the road. One job is left: feed everyone in every universe at once. Orders stop growing now, so everything you build
+            closes the gap (🍋 in the sidebar).
           </p>
           <button className="primary intro-start" onClick={close}>
             Keep frying 🍳

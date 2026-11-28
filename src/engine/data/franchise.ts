@@ -1,4 +1,5 @@
 // The franchise: Golden Crumbs, perks, the family tree and managers.
+import { WORD_OF_MOUTH_MAX } from './tuning'
 import type { RegionId } from './regions'
 import type { Effect } from './upgrades'
 
@@ -90,6 +91,13 @@ export interface PerkDef {
   requires?: { perk: PerkId; level: number }[]
   /** One of a pair: owning one side blocks the other (you may swap once per run). */
   fork?: ForkId
+  /**
+   * Chapter 6 picks this side of its pair for good: the other side's levels move
+   * here and the choice locks. The text says why (shown on the tile).
+   */
+  endgamePick?: string
+  /** …and makes up for the closed side with free levels of another perk, once (only when the closed side had levels). */
+  endgameGift?: { perk: PerkId; levels: number; text: string }
   /** The big reward at the bottom of a branch. */
   capstone?: true
   /** Endless perks: the highest level per chapter (index 0 = Chapter 1). */
@@ -162,7 +170,7 @@ export const BRANCHES: BranchDef[] = [
 ]
 
 /** Endless perks stop at these levels per chapter: far beyond normal play, only a wall for grinding one chapter forever. */
-export const CHAPTER_CAPS = [10, 20, 40, 75, 150] as const
+export const CHAPTER_CAPS = [10, 20, 40, 75, 150, 300] as const
 /** Endless perks get dearer faster past this level (each level costs 1.5× more again), so late-game crumbs don't run away. */
 export const PERK_SOFT_LEVEL = 25
 export const PERK_SOFT_GROWTH = 1.5
@@ -213,10 +221,12 @@ export const PERKS: PerkDef[] = [
     id: 'wordOfMouth',
     name: 'Word of mouth',
     emoji: '🗣️',
-    description: 'Orders ×1.25 per level',
+    description: `Orders ×1.25 per level, up to level ${WORD_OF_MOUTH_MAX}: by then everyone in every universe has heard`,
     baseCost: 2,
     costGrowth: 2,
-    effects: (l) => [{ kind: 'orders', mult: 1.25 ** l }],
+    maxLevel: WORD_OF_MOUTH_MAX,
+    // Clamped too, for saves that went past the top before it existed.
+    effects: (l) => [{ kind: 'orders', mult: 1.25 ** Math.min(l, WORD_OF_MOUTH_MAX) }],
   },
   {
     id: 'betterPans',
@@ -408,6 +418,13 @@ export const PERKS: PerkDef[] = [
     costGrowth: 5,
     maxLevel: 5,
     fork: 'mumFork',
+    endgamePick:
+      'Locked in for the end. Mum quit the press after the last interviewer asked whether the schnitzel comes gluten-free. Everyone in every universe already knows who we are; now she just phones them all to say dinner’s ready.',
+    endgameGift: {
+      perk: 'localLegend',
+      levels: 1,
+      text: 'Her press friends throw a leaving party and name a street after her in every universe: Local legend +1, free.',
+    },
     effects: (l) => [{ kind: 'orders', mult: 1.1 ** l }],
   },
   {

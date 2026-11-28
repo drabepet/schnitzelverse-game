@@ -17,6 +17,7 @@ import { StatusSidebar } from './ui/StatusSidebar'
 import { preloadLazyParts, RecordsTab } from './ui/lazyParts'
 import { IntroDialog } from './ui/IntroDialog'
 import { FinaleDialog } from './ui/FinaleDialog'
+import { LemonDialog } from './ui/LemonDialog'
 import { TabBar } from './ui/Tabs'
 import { visibleTabs, type TabId } from './ui/tabList'
 import { chapter2Unlocked, chapterNumber } from './engine/rules'
@@ -140,6 +141,7 @@ export default function App() {
       <OfflineDialog />
       <IntroDialog />
       <FinaleDialog />
+      <LemonDialog />
     </div>
   )
 }

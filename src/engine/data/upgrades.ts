@@ -57,6 +57,7 @@ export const SHOP_PLACES = [
 export type ShopRungId = `shop_${(typeof SHOP_PLACES)[number]}`
 
 export type UpgradeId =
+  | StandardsId
   | FarmGearId
   | KitchenGearId
   | FleetGearId
@@ -146,6 +147,10 @@ export type UpgradeId =
   | 'faceInTheStars'
   | 'michelinStars'
   | 'intergalacticGrocer'
+  // The epilogue: Now, the lemon
+  | 'multiverseMallets'
+  | 'everyCrumbEverywhere'
+  | 'lastFryer'
 
 export interface UpgradeDef {
   id: UpgradeId
@@ -168,6 +173,8 @@ export interface UpgradeDef {
   station?: StageId
   /** Fleet gear for one kind of vehicle (shown on its row), see fleetGear.ts. */
   vehicle?: VehicleId
+  /** A ladder's rung: shown and buyable only once this one is owned (Grandma's standards). */
+  after?: UpgradeId
   effects: Effect[]
 }
 
@@ -196,6 +203,10 @@ const LEVEL_B = { franchises: 3, reputation: 2_000_000 }
 const LEVEL_C = { franchises: 5, reputation: 50_000_000 }
 const LEVEL_D = { reputation: 5_000_000_000 }
 const LEVEL_E = { reputation: 2e18 }
+/** The epilogue's equipment opens once the Schnitzelverse is reached in a run. */
+const LEMON = { place: 'schnitzelverse' as const }
+/** Each epilogue crew multiplies its step by this. */
+export const LEMON_CREW_MULT = 4
 
 export const CREW_UPGRADES: CrewUpgrade[] = [
   // Pound
@@ -224,6 +235,11 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     description: 'A tiny black hole, on a leash. Cutlets come out one atom thin. Pounding ×5',
     crew: { name: 'Singularity tenderizer', emoji: '🕳️', flavor: 'A pet black hole. Uncle feeds it the bones.' },
   },
+  {
+    id: 'multiverseMallets', name: 'Multiverse mallets', task: 'pound', mult: LEMON_CREW_MULT, cost: 2e27, requires: LEMON, space: true, deep: true,
+    description: `One Uncle in every universe, all swinging in time. Pounding ×${LEMON_CREW_MULT}`,
+    crew: { name: 'Uncles of every universe', emoji: '🔨', flavor: 'Infinite Uncles, one rhythm. They argue about the polka in every universe at once.' },
+  },
   // Bread
   {
     id: 'breadingLine', name: 'Breading line', task: 'bread', mult: 3, cost: 2_500_000, requires: LEVEL_A,
@@ -250,6 +266,11 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     description: 'A spiral arm made entirely of breadcrumbs. Cutlets orbit through it. Breading ×5',
     crew: { name: 'Crumb galaxy', emoji: '💫', flavor: 'A spiral arm of breadcrumbs, a hundred light years wide. Grandma still sifts it.' },
   },
+  {
+    id: 'everyCrumbEverywhere', name: 'Every crumb, everywhere', task: 'bread', mult: LEMON_CREW_MULT, cost: 2.5e27, requires: LEMON, space: true, deep: true,
+    description: `Every universe’s breadcrumbs, sifted into one bowl. Breading ×${LEMON_CREW_MULT}`,
+    crew: { name: 'The bowl of everything', emoji: '🥣', flavor: 'One bowl, every crumb there is. Grandma still says it needs a pinch more.' },
+  },
   // Fry
   {
     id: 'fryBrigade', name: 'Fry cook brigade', task: 'fry', mult: 3, cost: 3_000_000, requires: LEVEL_A,
@@ -275,6 +296,11 @@ export const CREW_UPGRADES: CrewUpgrade[] = [
     id: 'supernovaFryers', name: 'Supernova fryers', task: 'fry', mult: 5, cost: 3e19, requires: LEVEL_E, space: true, deep: true,
     description: 'Every exploding star is now a fryer. The cutlets are timed to the second. Frying ×5',
     crew: { name: 'Supernova fryer', emoji: '💥', flavor: 'One exploding star, one perfect batch. The cousins wear very dark sunglasses.' },
+  },
+  {
+    id: 'lastFryer', name: 'The fryer at the end of everything', task: 'fry', mult: LEMON_CREW_MULT, cost: 3e27, requires: LEMON, space: true, deep: true,
+    description: `The biggest fryer there will ever be, still at exactly 170 °C. Frying ×${LEMON_CREW_MULT}`,
+    crew: { name: 'The last fryer', emoji: '🍳', flavor: 'It holds all the oil in every universe. The cousins take turns on a very long spatula.' },
   },
 ]
 
@@ -987,6 +1013,79 @@ UPGRADES.push(...buildFarmGear(REGIONS, FACILITIES, CHAPTER2_FRANCHISES))
 UPGRADES.push(...buildKitchenGear(REGIONS))
 // Fleet gear (fleetGear.ts): four rungs per kind of vehicle.
 UPGRADES.push(...buildFleetGear(REGIONS, VEHICLES, CHAPTER3_FRANCHISES))
+
+// ---------------------------------------------------------------- the epilogue: Grandma's standards
+
+/**
+ * Grandma's standards: three ladders (kitchen, farm, fleet) that open with the
+ * Schnitzelverse and are the only way past the helpers' price wall. Each rung
+ * doubles its part of the business; the next one shows once you own the one
+ * before. Orders stop growing at the end (EVERYONE_ORDERS), so every rung feeds more of everyone.
+ */
+export type StandardsLadder = 'kitchen' | 'farm' | 'fleet'
+export const STANDARDS_RUNGS = 8
+export type StandardsId = `standards_${StandardsLadder}_${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
+export const STANDARDS_MULT = 2
+/** First rung's price and how much each rung costs more than the one before. */
+export const STANDARDS_COST: Record<StandardsLadder, { base: number; growth: number }> = {
+  kitchen: { base: 4e27, growth: 5 },
+  farm: { base: 2e27, growth: 5 },
+  fleet: { base: 1e27, growth: 5 },
+}
+const STANDARDS: Record<StandardsLadder, [emoji: string, name: string, flavor: string][]> = {
+  kitchen: [
+    ['👵', 'Grandma inspects the kitchen', 'She runs a finger along the hood. Everyone works twice as fast out of fear.'],
+    ['⏱️', 'No cutlet waits', 'Grandma’s rule: a breaded cutlet goes into the oil within a heartbeat.'],
+    ['🎵', 'The breading song, in every universe', 'Sung in time across all of existence. Slightly off-key in two of them.'],
+    ['🎓', 'Grandma teaches the multiverse', 'Every cook in every universe, one lesson: thin, golden, never soggy.'],
+    ['🌡️', '170 °C, everywhere at once', 'Every fryer in existence held at exactly the right temperature. Grandma checks.'],
+    ['♾️', 'Infinite pans', 'Grandma’s old pan, copied once for every plate. The handle still wobbles.'],
+    ['🕰️', 'Frying before the order', 'The schnitzel is golden a second before anyone gets hungry.'],
+    ['🍋', 'Grandma’s own hands', 'She rolls up her sleeves one last time. The kitchen goes quiet and very, very fast.'],
+  ],
+  farm: [
+    ['👴', 'Grandpa walks the fields', 'He talks to every pig by name. They grow out of politeness.'],
+    ['🌾', 'Wheat that ripens overnight', 'Grandpa says it’s the weather. It’s Grandpa.'],
+    ['🐓', 'Hens that never take a day off', 'They lay on Sundays too. Nobody dares to tell them.'],
+    ['🌻', 'Sunflowers that follow every sun', 'With a trillion suns to follow, they never stop turning.'],
+    ['🚜', 'A tractor in every universe', 'All of them the same green, all of them with Grandpa’s hat on the seat.'],
+    ['🌍', 'Every planet a pantry', 'Where there is soil, there is wheat. Where there is wheat, there are crumbs.'],
+    ['🪐', 'Farms between the stars', 'Fields float in the dark between galaxies. The pigs like the view.'],
+    ['🧺', 'Grandpa’s harvest of everything', 'One harvest for all of existence. He still counts the eggs by hand.'],
+  ],
+  fleet: [
+    ['🚲', 'The kid’s shortcut', 'Through the back gardens, over the fence, across three galaxies.'],
+    ['🗺️', 'Every route, memorised', 'The kid knows every road in every universe. And where the dogs are.'],
+    ['📦', 'Stack them higher', 'Twice as many boxes per trip. The wormholes groan a little.'],
+    ['🔔', 'Bell rung once, door opened', 'Every customer already waits at the door, plate in hand.'],
+    ['🌠', 'Delivered by shooting star', 'Make a wish. It will be schnitzel.'],
+    ['🕳️', 'A wormhole to every table', 'No trip is longer than reaching across the table.'],
+    ['⚡', 'Faster than hunger', 'It arrives before the stomach finishes rumbling.'],
+    ['🍋', 'Everyone, at once', 'One ring of the bell, every door in every universe. Still hot.'],
+  ],
+}
+const STANDARDS_EFFECT: Record<StandardsLadder, Effect[]> = {
+  kitchen: [{ kind: 'kitchen', mult: STANDARDS_MULT }],
+  farm: (['field', 'animal', 'processor'] as const).map((group) => ({ kind: 'facility', group, mult: STANDARDS_MULT })),
+  fleet: [{ kind: 'fleet', mult: STANDARDS_MULT }],
+}
+const STANDARDS_WHAT: Record<StandardsLadder, string> = { kitchen: 'Kitchen', farm: 'Farm', fleet: 'Fleet' }
+UPGRADES.push(
+  ...(['kitchen', 'farm', 'fleet'] as const).flatMap((ladder) =>
+    STANDARDS[ladder].map(([emoji, name, flavor], i): UpgradeDef => ({
+      id: `standards_${ladder}_${i + 1}` as StandardsId,
+      name,
+      emoji,
+      description: `${flavor} ${STANDARDS_WHAT[ladder]} ×${STANDARDS_MULT} (Grandma’s standards ${i + 1}/${STANDARDS_RUNGS})`,
+      cost: STANDARDS_COST[ladder].base * STANDARDS_COST[ladder].growth ** i,
+      requires: LEMON,
+      space: true,
+      deep: true,
+      after: i > 0 ? (`standards_${ladder}_${i}` as StandardsId) : undefined,
+      effects: STANDARDS_EFFECT[ladder],
+    })),
+  ),
+)
 
 /** Shop rungs: the supply multiplier each one adds, and its price as a share of its place's price. */
 export const SHOP_RUNG_MULT = 3

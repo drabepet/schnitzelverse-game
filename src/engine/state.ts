@@ -121,11 +121,13 @@ export interface GameState extends RunState {
   newsSeen: string
   /** The finale (reaching the Schnitzelverse) has been shown. */
   finaleSeen: boolean
+  /** The epilogue's closing card (everyone fed) has been read. */
+  lemonSeen: boolean
   /** The last chapter we suggested keeping a copy of the save at (a new chapter suggests it once). */
   copyNudgeChapter: number
-  /** Kitchen tales (one per chapter) the player has opened, by chapter. */
+  /** Kitchen tales the player has opened, by tale id (1–5 are the chapters' first tales, so older saves still match). */
   talesRead: number[]
-  /** The last chapter whose tale was offered on the new-chapter card. */
+  /** The newest tale (id) offered on the new-chapter card. */
   taleOffered: number
   /** Crispness: unlocked once (for good), fryer temperature and oil changes. */
   crisp: { unlocked: boolean; temperature: number; oil: number }
@@ -201,6 +203,8 @@ export interface GameState extends RunState {
     lastCopyAt: number
     /** The last RUNS_LIMIT finished runs, oldest first (Records → run history). */
     runs: RunRecord[]
+    /** The epilogue: the biggest share of everyone in every universe ever fed at once (0–1, see fedShare). */
+    bestFed: number
   }
   /** Wall-clock ms of the last save; used for offline progress. */
   lastSaved: number
@@ -302,6 +306,7 @@ export function newGame(now = Date.now()): GameState {
     introSeen: false,
     newsSeen: '',
     finaleSeen: false,
+    lemonSeen: false,
     copyNudgeChapter: 1,
     talesRead: [],
     taleOffered: 1,
@@ -328,7 +333,7 @@ export function newGame(now = Date.now()): GameState {
         text: 'You found a frying pan in the garage and a few things in Mum’s fridge. The neighbours look hungry.',
       },
     ],
-    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, paprikaBurned: D(0), sailed: D(0), bestTownTime: 0, bestPlace: 0, bestIncome: 0, bestSale: D(0), bestRunServed: D(0), longestRun: 0, lastCopyAt: 0, runs: [] },
+    stats: { served: D(0), servedCold: D(0), earned: D(0), clicks: 0, playtime: 0, rescues: 0, soldOut: 0, logoClicks: 0, knocks: 0, byHand: { pound: 0, bread: 0, fry: 0 }, paprikaBurned: D(0), sailed: D(0), bestTownTime: 0, bestPlace: 0, bestIncome: 0, bestSale: D(0), bestRunServed: D(0), longestRun: 0, lastCopyAt: 0, runs: [], bestFed: 0 },
     lastSaved: now,
   }
 }

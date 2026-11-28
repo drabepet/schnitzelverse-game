@@ -14,7 +14,7 @@ describe('what opens the next chapter', () => {
     expect(goal.when).toBe(`after ${CHAPTER3_FRANCHISES} franchises`)
   })
 
-  it('asks for a place for chapters 4 and 5, and nothing after the last', () => {
+  it('asks for a place for chapters 4, 5 and 6, and nothing after the last', () => {
     const s = newGame()
     s.prestige.franchises = CHAPTER3_FRANCHISES
     s.stats.bestPlace = REGION_INDEX.country
@@ -26,6 +26,10 @@ describe('what opens the next chapter', () => {
     s.milestones.planet = true
     expect(nextChapterGoal(s)!.chapter).toBe(5)
     s.milestones.solar = true
+    const six = nextChapterGoal(s)!
+    expect(six.chapter).toBe(6)
+    expect(six.text).toMatch(/^reach .*Schnitzelverse/)
+    s.stats.bestPlace = REGION_INDEX.schnitzelverse
     expect(nextChapterGoal(s)).toBeNull()
   })
 })
@@ -52,9 +56,12 @@ describe('family chronicle', () => {
 })
 
 describe('kitchen tales', () => {
-  it('one tale per chapter, each a few minutes’ read', async () => {
+  it('a tale for every chapter (Chapter 6 has five), each a few minutes’ read', async () => {
     const { CHAPTERS, TALES } = await import('./content')
-    expect(TALES.map((t) => t.chapter)).toEqual(CHAPTERS.map((_, i) => i + 1))
+    expect([...new Set(TALES.map((t) => t.chapter))]).toEqual(CHAPTERS.map((_, i) => i + 1))
+    // Ids are unique and in reading order; 1–5 are the first five chapters' tales (older saves store those).
+    expect(TALES.map((t) => t.id)).toEqual(TALES.map((_, i) => i + 1))
+    expect(TALES.filter((t) => t.chapter === 6).map((t) => t.fed ?? 0)).toEqual([0, 0.25, 0.5, 0.75, 1])
     for (const t of TALES) {
       const words = t.paragraphs.join(' ').split(/\s+/).length
       expect(words).toBeGreaterThan(350)

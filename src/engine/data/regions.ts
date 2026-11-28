@@ -404,14 +404,15 @@ export const CHAPTERS = [
   { emoji: '🚜', name: 'Grandpa’s farm' },
   { emoji: '🚚', name: 'On the road' },
   { emoji: '🚀', name: 'The stars' },
-  { emoji: '🍋', name: 'The Schnitzelverse' },
+  { emoji: '🌌', name: 'The Schnitzelverse' },
+  { emoji: '🍋', name: 'Now, the lemon' },
 ] as const
 
 /** Chapter 4 starts the first time you reach this place. */
 export const CHAPTER4_REGION: RegionId = 'planet'
 /** Chapter 5 (the Schnitzelverse) starts the first time you reach this place. */
 export const CHAPTER5_REGION: RegionId = 'solar'
-/** The last place: reaching it shows the finale. */
+/** The last place: reaching it shows the finale, and opens Chapter 6 (Now, the lemon: feed everyone). */
 export const FINAL_REGION: RegionId = 'schnitzelverse'
 
 /** Your own delivery helpers (the "kid on a bike", later with vans) reach this far. */

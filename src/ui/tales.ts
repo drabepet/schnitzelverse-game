@@ -6,13 +6,22 @@ import type { GameState } from '../engine/state'
 
 export const OPEN_TALE_EVENT = 'schnitzelverse:open-tale'
 
-/** Open ☰ Game → Kitchen tales at a chapter's tale. */
-export function openTale(chapter: number): void {
-  window.dispatchEvent(new CustomEvent<number>(OPEN_TALE_EVENT, { detail: chapter }))
+/** Open ☰ Game → Kitchen tales at one tale (by its id). */
+export function openTale(id: number): void {
+  window.dispatchEvent(new CustomEvent<number>(OPEN_TALE_EVENT, { detail: id }))
 }
 
-/** Tales of every chapter reached so far. */
-export const openTales = (s: GameState): Tale[] => TALES.filter((t) => t.chapter <= chapterNumber(s))
+/** Open to read: its chapter is reached and, for Chapter 6's later tales, enough of everyone has been fed. */
+export const taleOpen = (s: GameState, t: Tale): boolean => t.chapter <= chapterNumber(s) && (t.fed === undefined || s.stats.bestFed >= t.fed)
 
-/** Reached but not opened yet. */
-export const unreadTales = (s: GameState): Tale[] => openTales(s).filter((t) => !s.talesRead.includes(t.chapter))
+/** Every tale you can read so far, in reading order. */
+export const openTales = (s: GameState): Tale[] => TALES.filter((t) => taleOpen(s, t))
+
+/** Open but not read yet. */
+export const unreadTales = (s: GameState): Tale[] => openTales(s).filter((t) => !s.talesRead.includes(t.id))
+
+/** The first open tale the new-chapter card hasn't offered yet (in reading order, so a chapter's opening tale comes first). */
+export const taleToOffer = (s: GameState): Tale | undefined => openTales(s).find((t) => t.id > s.taleOffered)
+
+/** The newest open tale: “Later” on the card counts every open tale as offered. */
+export const newestOpenTale = (s: GameState): Tale | undefined => openTales(s).at(-1)

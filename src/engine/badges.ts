@@ -18,6 +18,7 @@ export type BadgeCategory =
   | 'fleet'
   | 'space'
   | 'beyond'
+  | 'lemon'
   | 'paprika'
   | 'critics'
   | 'fame'
@@ -51,6 +52,7 @@ export const BADGE_CATEGORIES: { id: BadgeCategory; name: string }[] = [
   { id: 'fleet', name: 'On the road' },
   { id: 'space', name: 'The stars' },
   { id: 'beyond', name: 'The Schnitzelverse' },
+  { id: 'lemon', name: 'Now, the lemon' },
   { id: 'paprika', name: 'Star paprika' },
   { id: 'critics', name: 'Food critics' },
   { id: 'shame', name: 'Hall of shame' },

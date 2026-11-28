@@ -1,7 +1,8 @@
 import { ITEMS, type IngredientId } from '../engine/content'
 import { fmtCompact, fmtTime } from '../engine/format'
 import { D } from '../engine/decimal'
-import { canFranchise, chapter2Unlocked, crispness, pendingCrumbs } from '../engine/rules'
+import { FED_GOALS } from '../engine/content'
+import { canFranchise, chapter2Unlocked, crispness, epilogueOpen, fedShare, pendingCrumbs } from '../engine/rules'
 import { useGame } from '../game/store'
 import { adviceFor, flow, fuelStatus, ingredients, nextGoal } from './insights'
 import { goTo } from './goTo'
@@ -126,8 +127,45 @@ export function StatusSidebar() {
         </div>
       )}
 
+      {epilogueOpen(s) && <LemonMeter />}
+
       <BadgeQuote />
     </aside>
+  )
+}
+
+/** “1.49%”, “12.5%”, “100%”: enough digits that the meter visibly moves at the start. */
+function fedPercent(share: number): string {
+  const pct = share * 100
+  return `${pct >= 99.995 ? '100' : pct >= 10 ? pct.toFixed(1) : pct.toFixed(2)}%`
+}
+
+/** The epilogue's goal: feed everyone in every universe at once (after the Schnitzelverse). */
+function LemonMeter() {
+  const s = useGame().state
+  const now = fedShare(s)
+  // The record is written once a minute; show it never below what you feed right now.
+  const best = Math.max(s.stats.bestFed, now)
+  const next = FED_GOALS.find((g) => g > best)
+  return (
+    <div className="sb-section sb-detail sb-lemon">
+      <div className="sb-title">🍋 Now, the lemon</div>
+      <div
+        className="sb-progress"
+        title="Grandma’s last job: feed everyone in every universe at once. Orders stop growing once everyone has ordered, so every helper, rung of Grandma’s standards and crumb now closes the gap."
+      >
+        <span>Fed</span>
+        <div className="mini-bar">
+          <div style={{ width: `${Math.max(1, Math.round(now * 100))}%` }} />
+        </div>
+        <span>{fedPercent(now)}</span>
+      </div>
+      <div className="muted small">
+        {best >= 1
+          ? 'Everyone in every universe, fed. Grandma has the lemon.'
+          : `Of everyone in every universe, at once. Best ${fedPercent(best)}${next ? `; next goal ${fedPercent(next)}` : ''}.`}
+      </div>
+    </div>
   )
 }
 

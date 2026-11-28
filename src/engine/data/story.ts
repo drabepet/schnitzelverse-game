@@ -169,6 +169,27 @@ export const MILESTONES: Milestone[] = [
     check: (s) => s.regions.schnitzelverse.unlocked,
     text: 'The Schnitzelverse. Every table in every universe. Grandma takes off her apron, just for a minute.',
   },
+  // The epilogue: Now, the lemon. Orders stop growing; the share of everyone fed is the goal.
+  {
+    id: 'everyone',
+    check: (s) => s.badges.everyone !== undefined,
+    text: 'Everyone in every universe has ordered at once. There is nobody left to ask, only plates left to fill.',
+  },
+  {
+    id: 'fed10',
+    check: (s) => s.stats.bestFed >= 0.1,
+    text: 'One in ten of everyone, fed at once. The queue at the end of everything starts to move.',
+  },
+  {
+    id: 'fed50',
+    check: (s) => s.stats.bestFed >= 0.5,
+    text: 'Half of everyone, fed at once. The other half can hear the sizzle.',
+  },
+  {
+    id: 'fedAll',
+    check: (s) => s.stats.bestFed >= 1,
+    text: 'Every order in every universe, served. Hot. Grandma reaches for the lemon.',
+  },
 ]
 
 /**
@@ -208,6 +229,10 @@ export const FAMILY_LINES: Record<string, string> = {
   universe: 'Grandpa: “Every star is a farm now. I miss my tractor.”',
   nextUniverse: 'Grandma: “A whole universe and nobody taught them to bread a cutlet? Pack my bowls.”',
   schnitzelverse: 'Grandma: “Thin. Golden. Never soggy.” She smiles. “You remembered.”',
+  everyone: 'Mum: “Everyone has ordered, darling. Even the hairdresser’s cousin in the universe next door.”',
+  fed10: 'Grandpa: “More fields, then. There is always more soil somewhere.”',
+  fed50: 'Uncle: “Half way. I’ve worn out my third mallet in this universe alone.”',
+  fedAll: 'Grandma: “Now. The lemon.” She squeezes it over the very last plate, and the whole of everything smells of it.',
 }
 
 /** The legend of star paprika (Chapters 4–5), behind the 📜 button on the fuel box and the paprika chain. */

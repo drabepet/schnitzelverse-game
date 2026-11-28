@@ -164,7 +164,62 @@ export function modSources(state: GameState): ModSource[] {
       })
     }
   }
+  // Everyone has ordered: total orders never pass EVERYONE_ORDERS (the epilogue's fixed goal).
+  const cap = orderCeiling(state, out)
+  if (cap < 1) out.push({ name: 'Everyone has ordered', emoji: '🍋', effects: [{ kind: 'orders', mult: cap }] })
   return out
+}
+
+/**
+ * Everyone in every universe, ordering at once: every place open, every piece
+ * of order equipment and every order perk at its top level (Word of mouth stops
+ * at WORD_OF_MOUTH_MAX; Gossip queen is the side Chapter 6 picks for good). Pick-one
+ * perks count only on that side. Nothing can order more, so it is the epilogue's goal;
+ * the ceiling below (“Everyone has ordered”) only guards it.
+ */
+export const EVERYONE_ORDERS: number = (() => {
+  let total = REGIONS.reduce((n, r) => n + r.orderRate, 0)
+  const ordersOf = (effects: Effect[]) => effects.reduce((m, e) => (e.kind === 'orders' ? m * e.mult : m), 1)
+  for (const u of UPGRADES) total *= ordersOf(u.effects)
+  for (const p of PERKS) {
+    // Pick-one perks count only on the side Chapter 6 picks for good (Gossip queen).
+    if ((p.fork && !p.endgamePick) || !p.effects) continue
+    const mult = ordersOf(p.effects(1))
+    if (mult === 1) continue
+    if (p.maxLevel === undefined) throw new Error(`${p.id} adds orders with no top level: give it a maxLevel (EVERYONE_ORDERS)`)
+    total *= ordersOf(p.effects(p.maxLevel))
+  }
+  return total
+})()
+
+/** Orders per second from every place you've opened, before the ceiling, for these order multipliers. */
+function uncappedDemand(state: GameState, ordersMult: number): number {
+  let base = 0
+  for (const r of REGIONS) if (state.regions[r.id].unlocked) base += r.orderRate
+  return base * ordersMult
+}
+
+/** What scales orders down so they add up to EVERYONE_ORDERS at most (1: not reached). */
+function orderCeiling(state: GameState, sources: ModSource[]): number {
+  let mult = 1
+  for (const src of sources) for (const e of src.effects) if (e.kind === 'orders') mult *= e.mult
+  const demand = uncappedDemand(state, mult)
+  return demand > EVERYONE_ORDERS ? EVERYONE_ORDERS / demand : 1
+}
+
+/** Customers order as much as everyone in every universe can: every order boost is in place. */
+export function ordersCapped(state: GameState): boolean {
+  return uncappedDemand(state, getMods(state).orders) >= EVERYONE_ORDERS * 0.999999
+}
+
+/** The epilogue is open once you have reached the Schnitzelverse in any run. */
+export function epilogueOpen(state: GameState): boolean {
+  return state.stats.bestPlace >= REGION_INDEX.schnitzelverse
+}
+
+/** Share of everyone in every universe you can feed right now (0–1): what the business sells against EVERYONE_ORDERS. */
+export function fedShare(state: GameState, mods = getMods(state)): number {
+  return Math.min(1, businessLimits(state, mods).limit / EVERYONE_ORDERS)
 }
 
 /** Income multiplier from all the Golden Crumbs ever collected (see CRUMB_PRIDE_PER_DECADE). */
@@ -230,7 +285,10 @@ function modsKey(state: GameState): string {
   // Vehicle count goals and fit-outs.
   let fleet = ''
   for (const v of VEHICLES) fleet += `${farmGoalsReached(state.vehicles[v.id])}${state.fitOuts[v.id]?.[0] ?? 's'}`
-  return `${upgrades}|${perks}|${badges}|${state.prestige.franchises}|${c.unlocked ? 1 : 0}|${c.temperature}|${c.oil}|${goals}|${fleet}`
+  // Places open (the order ceiling depends on them).
+  let places = 0
+  for (const r of REGIONS) if (state.regions[r.id].unlocked) places++
+  return `${upgrades}|${perks}|${badges}|${state.prestige.franchises}|${c.unlocked ? 1 : 0}|${c.temperature}|${c.oil}|${goals}|${fleet}|${places}`
 }
 
 const modsCache = new WeakMap<GameState, { key: string; mods: Mods }>()
@@ -337,16 +395,35 @@ export function forkPartner(perk: PerkDef): PerkDef | undefined {
   return perk.fork ? PERKS.find((p) => p.fork === perk.fork && p.id !== perk.id) : undefined
 }
 
-/** You own the other side of this choice. */
+/**
+ * Chapter 6 has made this choice for good: the perk is the side it picks
+ * (`endgamePick`, e.g. Gossip queen) or the side it closed (Darling of the press).
+ */
+export function endgameLocked(state: GameState, perk: PerkDef): 'picked' | 'retired' | null {
+  if (!perk.fork || !chapter6Unlocked(state)) return null
+  if (perk.endgamePick) return 'picked'
+  return forkPartner(perk)?.endgamePick ? 'retired' : null
+}
+
+/** You own the other side of this choice (or Chapter 6 closed this side). */
 export function forkTaken(state: GameState, perk: PerkDef): boolean {
+  const locked = endgameLocked(state, perk)
+  if (locked) return locked === 'retired'
   const other = forkPartner(perk)
   return !!other && perkLevel(state, other.id) > 0
 }
 
-/** Can the player switch this choice to its other side now (once per run per choice)? */
+/** Can the player switch this choice to its other side now (once per run per choice; never once Chapter 6 has decided it)? */
 export function canSwapFork(state: GameState, perk: PerkDef): boolean {
   const other = forkPartner(perk)
-  return !!perk.fork && !!other && perkLevel(state, perk.id) === 0 && perkLevel(state, other.id) > 0 && !state.run.forkSwaps?.[perk.fork]
+  return (
+    !!perk.fork &&
+    !!other &&
+    !endgameLocked(state, perk) &&
+    perkLevel(state, perk.id) === 0 &&
+    perkLevel(state, other.id) > 0 &&
+    !state.run.forkSwaps?.[perk.fork]
+  )
 }
 
 /** The part of the game a perk waits for: a later chapter, crispness, or nothing (open from the start). */
@@ -534,9 +611,16 @@ export function chapter5Unlocked(state: GameState): boolean {
   return !!state.milestones[CHAPTER5_REGION] || state.regions[CHAPTER5_REGION].unlocked
 }
 
-/** The chapter you're in: 1 (the garage) to 5 (the Schnitzelverse). */
-export function chapterNumber(state: GameState): 1 | 2 | 3 | 4 | 5 {
-  return chapter5Unlocked(state) ? 5 : chapter4Unlocked(state) ? 4 : chapter3Unlocked(state) ? 3 : chapter2Unlocked(state) ? 2 : 1
+/** Chapter 6 (Now, the lemon): once you have reached the Schnitzelverse, for good. */
+export function chapter6Unlocked(state: GameState): boolean {
+  return epilogueOpen(state)
+}
+
+export type ChapterNo = 1 | 2 | 3 | 4 | 5 | 6
+
+/** The chapter you're in: 1 (the garage) to 6 (Now, the lemon). */
+export function chapterNumber(state: GameState): ChapterNo {
+  return chapter6Unlocked(state) ? 6 : chapter5Unlocked(state) ? 5 : chapter4Unlocked(state) ? 4 : chapter3Unlocked(state) ? 3 : chapter2Unlocked(state) ? 2 : 1
 }
 
 /**
@@ -545,10 +629,10 @@ export function chapterNumber(state: GameState): 1 | 2 | 3 | 4 | 5 {
  */
 export function nextChapterGoal(
   state: GameState,
-): { chapter: 2 | 3 | 4 | 5; name: string; text: string; when: string; progress: number } | null {
+): { chapter: Exclude<ChapterNo, 1>; name: string; text: string; when: string; progress: number } | null {
   const chapter = chapterNumber(state)
-  if (chapter === 5) return null
-  const next = (chapter + 1) as 2 | 3 | 4 | 5
+  if (chapter === 6) return null
+  const next = (chapter + 1) as Exclude<ChapterNo, 1>
   const name = CHAPTERS[next - 1].name
   const sales = (needed: number) => {
     const have = Math.min(state.prestige.franchises, needed)
@@ -560,7 +644,7 @@ export function nextChapterGoal(
     const place = `${REGION_BY_ID[id].emoji} ${REGION_BY_ID[id].name.replace(/^The /, 'the ')}`
     return { text: `reach ${place}`, when: `the first time you reach ${place}`, progress: Math.min(1, best / target) }
   }
-  const goal = next === 2 ? sales(CHAPTER2_FRANCHISES) : next === 3 ? sales(CHAPTER3_FRANCHISES) : reach(next === 4 ? CHAPTER4_REGION : CHAPTER5_REGION)
+  const goal = next === 2 ? sales(CHAPTER2_FRANCHISES) : next === 3 ? sales(CHAPTER3_FRANCHISES) : reach(next === 4 ? CHAPTER4_REGION : next === 5 ? CHAPTER5_REGION : 'schnitzelverse')
   return { chapter: next, name, ...goal }
 }
 
@@ -844,7 +928,7 @@ export function canHire(state: GameState, def: WorkerDef): boolean {
 
 /** Crispness upgrades stay hidden until crispness is unlocked. */
 export function upgradeVisible(state: GameState, def: UpgradeDef): boolean {
-  return (!def.quality || state.crisp.unlocked) && chapterOpenFor(state, def) && isTeased(state, def.requires)
+  return (!def.quality || state.crisp.unlocked) && chapterOpenFor(state, def) && isTeased(state, def.requires) && (!def.after || !!state.upgrades[def.after])
 }
 
 /** Not owned yet and everything but the money is in place. */
@@ -854,6 +938,8 @@ export function upgradeUnlocked(state: GameState, def: UpgradeDef): boolean {
     (!def.quality || state.crisp.unlocked) &&
     chapterOpenFor(state, def) &&
     meets(state, def.requires) &&
+    // A ladder's next rung needs the one before.
+    (!def.after || !!state.upgrades[def.after]) &&
     // Fleet gear goes on a vehicle you own.
     (!def.vehicle || state.vehicles[def.vehicle] > 0)
   )

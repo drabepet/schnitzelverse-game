@@ -101,6 +101,13 @@
   --border: #d8c6e4;
   --cloth: rgb(150 80 170 / 8%);
 }
+:root[data-chapter='6'] {
+  --bg: #f6f2dc;
+  --panel: #fffdf0;
+  --panel-2: #f1ebc8;
+  --border: #e0d49a;
+  --cloth: rgb(200 170 30 / 9%);
+}
 @media (prefers-color-scheme: dark) {
   :root[data-chapter='2'] {
     --bg: #17190f;
@@ -129,6 +136,13 @@
     --panel-2: #2b1f36;
     --border: #3e2c4d;
     --cloth: rgb(230 170 255 / 8%);
+  }
+  :root[data-chapter='6'] {
+    --bg: #17150c;
+    --panel: #221f13;
+    --panel-2: #2d2919;
+    --border: #463f22;
+    --cloth: rgb(240 210 90 / 7%);
   }
 }
 /* The brand band per chapter: green fields into ripe wheat; asphalt under a
@@ -168,7 +182,15 @@
   --brand-line: linear-gradient(90deg, #4a2378, #8a3190 55%, #d9741e);
   --brand-glow: #722a86;
 }
-/* The pattern behind the panels: gingham in the garage, then field rows, lane dashes, stars, sparkles. */
+:root[data-chapter='6'] {
+  --brand:
+    radial-gradient(circle at 18% 30%, rgb(255 245 180 / 85%) 0 1px, transparent 1.5px) 0 0 / 4.5rem 3rem,
+    radial-gradient(circle at 85% 20%, rgb(255 240 150 / 35%), transparent 42%),
+    linear-gradient(135deg, #5a3a7a, #8a6a1e 50%, #c9a417);
+  --brand-line: linear-gradient(90deg, #6a4580, #a67f18 55%, #e3c02a);
+  --brand-glow: #a67f18;
+}
+/* The pattern behind the panels: gingham in the garage, then field rows, lane dashes, stars, sparkles, lemon slices. */
 :root[data-chapter='2'] body {
   background-image:
     repeating-linear-gradient(100deg, var(--cloth) 0 0.5rem, transparent 0.5rem 2.4rem),
@@ -195,6 +217,12 @@
     radial-gradient(circle at 75% 70%, var(--cloth) 0 0.1rem, transparent 0.14rem),
     linear-gradient(135deg, var(--cloth), transparent 40%, var(--cloth));
   background-size: 6rem 6rem, 4rem 4rem, auto;
+}
+:root[data-chapter='6'] body {
+  background-image:
+    radial-gradient(circle at 30% 35%, transparent 0 0.35rem, var(--cloth) 0.38rem 0.5rem, transparent 0.53rem),
+    radial-gradient(circle at 75% 75%, var(--cloth) 0 0.12rem, transparent 0.16rem);
+  background-size: 7rem 7rem, 3.5rem 3.5rem;
 }
 body {
   transition: background-color 1.2s ease;
@@ -4016,6 +4044,11 @@ button.afford:disabled {
 .tales-item-emoji {
   font-size: 1.4rem;
 }
+/* A chapter's later tales (Chapter 6) sit under its first one. */
+.tales-item-more {
+  margin-left: 0.9rem;
+  width: calc(100% - 0.9rem);
+}
 .tales-text p {
   margin: 0 0 0.85rem;
   line-height: 1.65;
@@ -4079,5 +4112,20 @@ button.afford:disabled {
   }
   .row.region > .emoji {
     display: none;
+  }
+}
+
+/* The epilogue: the lemon meter in the sidebar and the closing card's lemon. */
+.sb-lemon .mini-bar > div {
+  background: linear-gradient(90deg, #e9c429, #f4dd5c);
+}
+.lemon-art {
+  font-size: 6rem;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 30%));
+}
+@media (max-width: 600px) {
+  .lemon-art {
+    font-size: 3.6rem;
   }
 }

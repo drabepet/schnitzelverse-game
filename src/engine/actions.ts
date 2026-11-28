@@ -19,6 +19,7 @@ import {
   KNOCK_COOLDOWN,
   OIL_LEVELS,
   PERK_BY_ID,
+  PERKS,
   type PerkId,
   REGION_BY_ID,
   REGION_INDEX,
@@ -42,7 +43,9 @@ import { addLog, AUTO_SELL_PERCENTS, freshRun, RUNS_LIMIT, type BuyAmount, type 
 import {
   canBuyPerk,
   canSwapFork,
+  chapter6Unlocked,
   forkPartner,
+  perkMaxLevel,
   canBuyUpgrade,
   canFranchise,
   chapter2Unlocked,
@@ -392,6 +395,33 @@ export function swapFork(state: GameState, id: PerkId): boolean {
   return true
 }
 
+/** Perks Chapter 6 picks for good (see PerkDef.endgamePick). */
+const ENDGAME_PICKS = PERKS.filter((p) => p.endgamePick)
+
+/**
+ * Chapter 6 decides some pick-one choices for good: the other side's levels move
+ * to the picked side (up to its top) and the choice locks. Runs every tick; does
+ * nothing once settled.
+ */
+export function applyEndgamePicks(state: GameState): void {
+  if (!chapter6Unlocked(state)) return
+  for (const pick of ENDGAME_PICKS) {
+    const other = forkPartner(pick)
+    if (!other || perkLevel(state, other.id) === 0) continue
+    const moved = Math.min(perkMaxLevel(state, pick), perkLevel(state, pick.id) + perkLevel(state, other.id))
+    state.prestige.perks[pick.id] = moved
+    delete state.prestige.perks[other.id]
+    // Something back for the side you can no longer choose (Darling of the press: reputation).
+    const gift = pick.endgameGift
+    if (gift) state.prestige.perks[gift.perk] = perkLevel(state, gift.perk) + gift.levels
+    addLog(
+      state,
+      `${pick.emoji} Mum hangs up on the press for good: “We’re past famous, darling. We’re lunch.” Your ${other.name.toLowerCase()} levels are ${pick.name.toLowerCase()} levels now (${moved}).` +
+        (gift ? ` ${gift.text}` : ''),
+    )
+  }
+}
+
 /** Mum's selling rule (rank 3): switch, rule, minutes for the time rule, and whether Auntie spends the crumbs. */
 export function setAutoSell(state: GameState, change: Partial<GameState['autoSell']>): void {
   const next = { ...state.autoSell, ...change }
@@ -403,6 +433,11 @@ export function setAutoSell(state: GameState, change: Partial<GameState['autoSel
 /** The finale screen has been read. */
 export function setFinaleSeen(state: GameState): void {
   state.finaleSeen = true
+}
+
+/** The epilogue's closing card (everyone fed) has been read. */
+export function setLemonSeen(state: GameState): void {
+  state.lemonSeen = true
 }
 
 /** The player opened About & what's new for this version. */
@@ -420,14 +455,14 @@ export function setCopyNudgeChapter(state: GameState, chapter: number): void {
   state.copyNudgeChapter = Math.max(state.copyNudgeChapter, chapter)
 }
 
-/** A kitchen tale has been opened. */
-export function markTaleRead(state: GameState, chapter: number): void {
-  if (!state.talesRead.includes(chapter)) state.talesRead.push(chapter)
+/** A kitchen tale (by its id) has been opened. */
+export function markTaleRead(state: GameState, id: number): void {
+  if (!state.talesRead.includes(id)) state.talesRead.push(id)
 }
 
-/** The new-chapter card has offered this chapter's tale (read now or later). */
-export function setTaleOffered(state: GameState, chapter: number): void {
-  state.taleOffered = Math.max(state.taleOffered, chapter)
+/** The new-chapter card has offered this tale (by its id; read now or later). */
+export function setTaleOffered(state: GameState, id: number): void {
+  state.taleOffered = Math.max(state.taleOffered, id)
 }
 
 export function setBuyAmount(state: GameState, amount: BuyAmount): void {

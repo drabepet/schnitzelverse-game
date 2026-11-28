@@ -31,6 +31,10 @@ npm run smoke      # browser smoke test (Playwright; PW_CHANNEL=chrome uses your
 npm run playtest   # balance bot, writes playtest-report.*.txt (PLAYTEST_HOURS=150 for a long main run)
                    # each report ends with SUMMARY (first arrival at each place) and DRY lines (longest waits for
                    # anything new); playtest-checkin is the same bot checking in only every 8 hours
+                   # playtest-strategies plays to the end the way real players sell (triples with no 2-hour cap,
+                   # hybrid, Mum's best moment, check-in with Mum selling); PLAYTEST_ONLY=yours runs one of them
+npx vitest run --config vitest.playtest.config.ts tools/inspect.sim.ts   # load a save (SAVE_FILE, default the finale
+                   # save in tools/saves) → inspect-report.txt: orders vs supply, kitchen, delivery, then 1/6/24/48 h on
 npx vitest run --config vitest.playtest.config.ts tools/bench.sim.ts   # engine speed + CPU profile → bench-report.txt
 node tools/perf.mjs http://localhost:5173/ perf-report.txt prod        # page CPU per tab (dev server running, after npm run build)
 ```

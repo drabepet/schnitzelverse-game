@@ -252,6 +252,14 @@ const TUNES: Record<number, Tune> = {
     melody: [[76, 0.5], [77, 0.5], [79, 1], [84, 1], [83, 0.5], [81, 0.5], [79, 0.5], [84, 2]],
     bass: [[48, 1], [45, 1], [41, 1], [43, 1], [48, 2.5]],
   },
+  // 6 · Now, the lemon: the garage polka once more, slower, warm, ending on a bright note.
+  6: {
+    bpm: 100,
+    lead: 'triangle',
+    echo: true,
+    melody: [[72, 0.5], [76, 0.5], [79, 0.5], [76, 0.5], [77, 0.5], [74, 0.5], [79, 1], [84, 0.5], [88, 2]],
+    bass: [[48, 1], [53, 1], [55, 1], [48, 1], [48, 2.5]],
+  },
 }
 
 /** Play the chapter's tune once (does nothing when muted or the music volume is 0). */

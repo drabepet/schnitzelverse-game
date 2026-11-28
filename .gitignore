@@ -31,6 +31,7 @@ test-results
 playwright-report
 bench-report.txt
 perf-report.txt
+inspect-report.txt
 
 # emoji art brief (node tools/emoji-brief.ts)
 emoji-brief

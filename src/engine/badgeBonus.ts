@@ -57,6 +57,14 @@ export const BADGE_BONUS: Record<string, number> = Object.fromEntries([
     'everywhere',
   ]),
   ...tier(0.03, [
+    // The epilogue (after the Schnitzelverse): the share of everyone fed.
+    'fed2',
+    'fed5',
+    'fed10',
+    'fed25',
+    'fed50',
+    'fed75',
+    'fedAll',
     'tier-making-5',
     'tier-making-6',
     'tier-prep-3',

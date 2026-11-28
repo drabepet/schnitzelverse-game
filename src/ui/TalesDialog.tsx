@@ -1,27 +1,37 @@
 import { useEffect, useState } from 'react'
 import { useEscape } from './useEscape'
-import { CHAPTERS, TALES } from '../engine/content'
+import { CHAPTERS, TALES, type Tale } from '../engine/content'
 import { markTaleRead } from '../engine/actions'
 import { chapterNumber } from '../engine/rules'
 import { useGame } from '../game/store'
+import { openTales, taleOpen } from './tales'
+
+/** What a locked tale says about when it opens (its name stays secret). */
+function whenOpen(t: Tale, reached: number): string {
+  if (t.chapter > reached) return 'Not yet'
+  return t.fed !== undefined ? `When ${Math.round(t.fed * 100)}% of everyone is fed` : 'Not yet'
+}
 
 /**
- * ☰ Game → Kitchen tales: one story per chapter, a few minutes' read each.
- * Chapters not reached yet are locked covers (their names stay secret).
+ * ☰ Game → Kitchen tales: a story for every chapter (Chapter 6 has a few, one
+ * for each step towards feeding everyone), a few minutes' read each. Tales not
+ * open yet are locked covers; their names stay secret.
  */
 export function TalesDialog({ onClose, start }: { onClose: () => void; start?: number }) {
   const game = useGame()
   const s = game.state
   const reached = chapterNumber(s)
-  const [chapter, setChapter] = useState(Math.min(start ?? reached, reached))
-  const tale = TALES.find((t) => t.chapter === chapter)!
+  const open = openTales(s)
+  const [id, setId] = useState(() => (start !== undefined && open.some((t) => t.id === start) ? start : open[open.length - 1].id))
+  const tale = TALES.find((t) => t.id === id)!
+  const inChapter = TALES.filter((t) => t.chapter === tale.chapter)
 
   useEscape(onClose)
 
   // Opening a tale marks it read (the “New” dot goes away).
   useEffect(() => {
-    if (!s.talesRead.includes(chapter)) game.act((st) => markTaleRead(st, chapter))
-  }, [chapter, s.talesRead, game])
+    if (!s.talesRead.includes(id)) game.act((st) => markTaleRead(st, id))
+  }, [id, s.talesRead, game])
 
   return (
     <div className="overlay intro-overlay" role="dialog" aria-modal="true" aria-labelledby="tales-title" onClick={onClose}>
@@ -31,7 +41,7 @@ export function TalesDialog({ onClose, start }: { onClose: () => void; start?: n
           <div>
             <p className="intro-kicker">Kitchen tales</p>
             <h1 id="tales-title">Stories from the family</h1>
-            <p className="intro-tagline">One for every chapter, told the way Grandma tells it.</p>
+            <p className="intro-tagline">One for every chapter, and a few more at the end, told the way Grandma tells it.</p>
           </div>
           <button className="about-close" onClick={onClose} aria-label="Close">
             ✕
@@ -39,23 +49,24 @@ export function TalesDialog({ onClose, start }: { onClose: () => void; start?: n
         </div>
 
         <div className="intro-body tales-body">
-          <nav className="tales-list" aria-label="Chapters">
+          <nav className="tales-list" aria-label="Tales">
             {TALES.map((t) => {
-              const open = t.chapter <= reached
+              const can = taleOpen(s, t)
+              const first = TALES.find((x) => x.chapter === t.chapter) === t
               return (
                 <button
-                  key={t.chapter}
-                  className={`tales-item ${t.chapter === chapter ? 'on' : ''}`}
-                  disabled={!open}
-                  aria-current={t.chapter === chapter}
-                  onClick={() => setChapter(t.chapter)}
+                  key={t.id}
+                  className={`tales-item ${t.id === id ? 'on' : ''}${first ? '' : ' tales-item-more'}`}
+                  disabled={!can}
+                  aria-current={t.id === id}
+                  onClick={() => setId(t.id)}
                 >
-                  <span className="tales-item-emoji">{open ? t.emoji : '🔒'}</span>
+                  <span className="tales-item-emoji">{can ? t.emoji : '🔒'}</span>
                   <span>
-                    <span className="muted small">Chapter {t.chapter}</span>
-                    <b>{open ? t.title : 'Not yet'}</b>
+                    <span className="muted small">{first ? `Chapter ${t.chapter}` : t.fed !== undefined ? `${Math.round(t.fed * 100)}% fed` : `Chapter ${t.chapter}`}</span>
+                    <b>{can ? t.title : whenOpen(t, reached)}</b>
                   </span>
-                  {open && !s.talesRead.includes(t.chapter) && <span className="new-pill">New</span>}
+                  {can && !s.talesRead.includes(t.id) && <span className="new-pill">New</span>}
                 </button>
               )
             })}
@@ -63,6 +74,7 @@ export function TalesDialog({ onClose, start }: { onClose: () => void; start?: n
           <article className="intro-card tales-text">
             <p className="intro-kicker">
               Chapter {tale.chapter} · {CHAPTERS[tale.chapter - 1].name}
+              {inChapter.length > 1 && ` · tale ${inChapter.indexOf(tale) + 1} of ${inChapter.length}`}
             </p>
             <h2>
               {tale.emoji} {tale.title}

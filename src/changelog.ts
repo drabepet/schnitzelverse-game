@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.016',
+    date: '28 Nov 2026',
+    emoji: '🍋',
+    title: 'Now, the lemon',
+    items: [
+      'Chapter 6 opens once you reach the Schnitzelverse: feed everyone in every universe, at once. Watch 🍋 in the sidebar.',
+      'Everyone has heard of you now: Word of mouth stops at level 35, and Mum picks Gossip queen for good (her press friends throw in a free Local legend level).',
+      'A sixth crew for every kitchen step, and Grandma’s standards: three ladders that double your kitchen, farm and fleet, rung by rung.',
+      'Five new kitchen tales: one when Chapter 6 opens, then at 25%, 50%, 75% and 100% fed. And a last card when everyone is fed.',
+      'Fourteen new badges, a lemon-gold look for the chapter and its own little tune.',
+    ],
+  },
+  {
     version: '0.015',
     date: '27 Nov 2026',
     emoji: '🔊',

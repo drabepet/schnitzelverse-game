@@ -12,6 +12,7 @@ import {
   WORKERS,
   INGREDIENT_IDS,
   type FacilityId,
+  type RegionId,
   type Task,
 } from '../src/engine/content'
 import { newGame, type GameState } from '../src/engine/state'
@@ -43,6 +44,8 @@ import {
   canBuyPerk,
   canBuyUpgrade,
   bestMomentToSell,
+  businessLimits,
+  fedShare,
   canFranchise,
   canHire,
   getMods,
@@ -338,6 +341,23 @@ interface FranchiseProfile {
   sessionMinutes?: number
   /** Sell anyway once a run is this long, even when the reward is small (default 2 hours). */
   stalledAfter?: number
+  /**
+   * Switch strategy later on: once `lateFrom` has ever been reached, sell by
+   * `lateSell` and only force a sale after `lateStalledAfter` (default 12 hours).
+   */
+  lateSell?: SellRule
+  lateFrom?: RegionId
+  lateStalledAfter?: number
+  /** Stop this long after first reaching the Schnitzelverse (default: run to maxSeconds). */
+  stopAfterFinale?: number
+  /** Switch on Mum's selling (Franchise tab) at this share of lifetime crumbs; she sells once she is rank 3, also while the bot is away. */
+  mumSellsAt?: number
+}
+
+/** What share of all orders the business serves (businessLimits: its weakest part against customers). */
+function servedLine(s: GameState): string {
+  const l = businessLimits(s, getMods(s))
+  return `serves ${fmt(l.limit)}/s of ${fmt(l.customers)}/s orders (${((l.limit / l.customers) * 100).toFixed(2)}%, held back by ${l.bottleneck}; supply ${fmt(l.supply)}, kitchen ${fmt(l.kitchen)}, delivery ${fmt(l.delivery)}); fed now ${(fedShare(s) * 100).toFixed(2)}%, best ${(s.stats.bestFed * 100).toFixed(2)}%`
 }
 
 /**
@@ -384,6 +404,7 @@ const PLACES = REGIONS.slice(REGIONS.findIndex((r) => r.id === 'nextTown')).map(
 export function runFranchises(p: FranchiseProfile): void {
   farmEnabled = !p.noFarm
   const s = newGame(0)
+  if (p.mumSellsAt) s.autoSell = { enabled: true, rule: 'share', percent: p.mumSellsAt, minutes: 120, spendCrumbs: true }
   let soldOutAtRunStart = 0
   const lines: string[] = []
   const log = (text: string) => lines.push(`${fmtTime(s.stats.playtime).padStart(8)}  ${text}`)
@@ -399,7 +420,16 @@ export function runFranchises(p: FranchiseProfile): void {
   let sessionUntil = 0
   let nextSession = 0
 
-  for (let t = 0, dt = DT; t < p.maxSeconds; t += dt) {
+  let end = p.maxSeconds
+  let finaleLine = ''
+  for (let t = 0, dt = DT; t < end; t += dt) {
+    if (p.stopAfterFinale !== undefined && reached.schnitzelverse !== undefined && !finaleLine) {
+      finaleLine = `at the Schnitzelverse (${fmtTime(t)}): ${servedLine(s)}`
+      log(finaleLine)
+      end = Math.min(end, t + p.stopAfterFinale)
+    }
+    // Everyone fed: the epilogue is done, an hour more and stop.
+    if (p.stopAfterFinale !== undefined && s.badges.fedAll !== undefined && end > t + 3600) end = t + 3600
     // The very first run is always played actively until the town.
     const active = s.run.time < p.activeSeconds || t < sessionUntil || (s.prestige.franchises === 0 && !s.regions.town.unlocked)
     dt = active ? DT : DT_IDLE
@@ -425,15 +455,17 @@ export function runFranchises(p: FranchiseProfile): void {
       }
       const pending = pendingCrumbs(s)
       const lifetime = Decimal.max(1, s.prestige.totalCrumbs)
+      const late = p.lateSell !== undefined && p.lateFrom !== undefined && reached[p.lateFrom] !== undefined
+      const rule = late ? p.lateSell! : p.sell
       const want =
-        p.sell === 'atTown'
+        rule === 'atTown'
           ? s.regions.town.unlocked
-          : p.sell === 'best'
+          : rule === 'best'
             ? bestMomentToSell(s)
-            : p.sell === 'double'
+            : rule === 'double'
               ? pending.gte(lifetime)
               : pending.gte(lifetime.mul(2))
-      const stalled = s.run.time > (p.stalledAfter ?? 2 * H)
+      const stalled = s.run.time > (late ? (p.lateStalledAfter ?? 12 * H) : (p.stalledAfter ?? 2 * H))
       if (canFranchise(s) && (want || stalled)) {
         const last = [...REGIONS].reverse().find((r) => s.regions[r.id].unlocked)!
         log(
@@ -484,13 +516,19 @@ export function runFranchises(p: FranchiseProfile): void {
   lines.push(`perks: ${perks.join(' ')}`)
   const badges = Object.entries(s.badges).sort((a, b) => a[1] - b[1])
   lines.push(`badges (${badges.length}): ${badges.map(([id, t]) => `${id} ${fmtTime(t)}`).join(', ')}`)
+  if (finaleLine) lines.push(`FINALE ${finaleLine}`)
+  const fed = ['everyone', 'fed2', 'fed5', 'fed10', 'fed25', 'fed50', 'fed75', 'fedAll', 'lemonCrews', 'standards1', 'standardsTop']
+  if (reached.schnitzelverse !== undefined) {
+    lines.push(`EPILOGUE (after the Schnitzelverse at ${fmtTime(reached.schnitzelverse)}): ` + fed.map((id) => `${id} ${s.badges[id] === undefined ? 'never' : `+${fmtTime(s.badges[id] - reached.schnitzelverse)}`}`).join(', '))
+  }
+  lines.push(`END ${servedLine(s)}`)
   lines.push(
-    `SUMMARY after ${fmtTime(p.maxSeconds)}: ${s.prestige.franchises} franchises, ` +
+    `SUMMARY after ${fmtTime(end)}: ${s.prestige.franchises} franchises, ` +
       `lifetime ✨${fmt(s.prestige.totalCrumbs, 0)}, first reached: ` +
       PLACES.map((r) => `${r} ${reached[r] === undefined ? 'never' : fmtTime(reached[r])}`).join(', '),
   )
-  lines.push(`DRY big steps (longest waits for a new place or chapter): ${news.dry(p.maxSeconds, true)}`)
-  lines.push(`DRY anything (longest waits for anything new: place, badge, equipment, perk): ${news.dry(p.maxSeconds, false)}`)
+  lines.push(`DRY big steps (longest waits for a new place or chapter): ${news.dry(end, true)}`)
+  lines.push(`DRY anything (longest waits for anything new: place, badge, equipment, perk): ${news.dry(end, false)}`)
   appendFileSync(REPORT, `\n===== ${p.name} =====\n${lines.join('\n')}\n`)
 }
 

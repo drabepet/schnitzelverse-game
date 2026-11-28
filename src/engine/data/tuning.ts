@@ -44,3 +44,14 @@ export const HEAD_START_BASE = 50
 /** Orders pile up for at most this many seconds before customers give up. */
 export const ORDER_BACKLOG_SECONDS = 60
 export const MIN_ORDER_BACKLOG = 5
+
+// ---------------------------------------------------------------- the epilogue: “Now, the lemon”
+
+/**
+ * Word of mouth stops here: everyone in every universe has heard. With every
+ * source of orders capped, the most customers can ever order is fixed
+ * (EVERYONE_ORDERS in rules.ts, worked out from the data), and that is the epilogue's goal.
+ */
+export const WORD_OF_MOUTH_MAX = 35
+/** Shares of everyone fed that get a badge (and the last one, the closing card). */
+export const FED_GOALS = [0.02, 0.05, 0.1, 0.25, 0.5, 0.75, 1] as const

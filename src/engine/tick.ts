@@ -6,7 +6,10 @@ import { FACILITIES, type FacilityId, FARM_GOOD_BUFFER, INGREDIENT_IDS, INGREDIE
 import { addLog, HISTORY_LENGTH, HISTORY_STEP, type GameState } from './state'
 import { BADGES } from './badges'
 import { runManagers } from './automation'
+import { applyEndgamePicks } from './actions'
 import {
+  epilogueOpen,
+  fedShare,
   consumption,
   coolingRate,
   crumbGrowth,
@@ -234,6 +237,7 @@ export function tick(state: GameState, dt: number): Flows {
   trackCrumbRate(state)
   state.stats.playtime += dt
   state.run.time += dt
+  applyEndgamePicks(state)
   checkMilestones(state)
   checkBadges(state)
   return flows
@@ -258,6 +262,8 @@ function recordHistory(state: GameState, dt: number): void {
   h.points.push({ t: state.stats.playtime + dt, income: perSecond, f: state.prestige.franchises })
   if (perSecond > state.stats.bestIncome) state.stats.bestIncome = perSecond
   if (h.points.length > HISTORY_LENGTH) h.points.splice(0, h.points.length - HISTORY_LENGTH)
+  // The epilogue's record: the biggest share of everyone fed at once.
+  if (epilogueOpen(state)) state.stats.bestFed = Math.max(state.stats.bestFed, fedShare(state))
   h.clock = 0
   h.earned = state.stats.earned
 }

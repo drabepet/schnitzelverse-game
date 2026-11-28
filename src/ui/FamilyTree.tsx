@@ -15,7 +15,7 @@ import {
 import { buyPerk, swapFork } from '../engine/actions'
 import { managerActive, setManager } from '../engine/automation'
 import { fmt, fmtShort } from '../engine/format'
-import { canBuyPerk, canSwapFork, chapterNumber, forkPartner, forkTaken, perkCost, perkLevel, perkMaxLevel, perkMaxed, perkMissing, perkVisible, perkOpensWith } from '../engine/rules'
+import { canBuyPerk, canSwapFork, chapterNumber, forkPartner, forkTaken, perkCost, perkLevel, perkMaxLevel, perkMaxed, perkMissing, perkVisible, perkOpensWith, endgameLocked } from '../engine/rules'
 import type { GameState } from '../engine/state'
 import { useGame } from '../game/store'
 import { HintButton } from './HintButton'
@@ -64,11 +64,14 @@ function PerkNode({ perk }: { perk: PerkDef }) {
   const other = forkPartner(perk)
   const branch = BRANCH_OF[perk.id]
   const cap = perk.chapterCaps ? perkMaxLevel(s, perk) : null
+  // Chapter 6 decides some choices for good (Gossip queen over Darling of the press).
+  const locked = endgameLocked(s, perk)
 
   let whyNot: string | null = null
   const levelLabel = levelText(s, perk)
   if (state === 'hidden') whyNot = `Opens with ${opensWith(perk)}.`
-  else if (state === 'other-side') whyNot = `You picked ${other?.name.toLowerCase()} for this choice.`
+  else if (state === 'other-side')
+    whyNot = locked === 'retired' ? `Retired for the end: ${other?.name.toLowerCase()} it is, for good.` : `You picked ${other?.name.toLowerCase()} for this choice.`
   else if (state === 'locked')
     whyNot = `First: ${missing.map((m) => `${short(m.perk)} level ${m.level}${BRANCH_OF[m.perk.id] !== branch ? ` (${BRANCH_OF[m.perk.id].person}’s branch)` : ''}`).join(', ')}.`
   else if (state === 'maxed')
@@ -94,6 +97,10 @@ function PerkNode({ perk }: { perk: PerkDef }) {
         <p className="tree-node-next">
           <b>Rank {level + 1}, {MANAGER_RANKS[level].toLowerCase()}:</b> {MANAGER_RANK_TEXT[perk.id]?.[level - 1]}
         </p>
+      )}
+      {locked === 'picked' && state !== 'hidden' && <p className="tree-node-needs">🔒 {perk.endgamePick}</p>}
+      {locked === 'retired' && state !== 'hidden' && (
+        <p className="tree-node-needs">📰 Retired for the end. Mum doesn’t do interviews any more: “We’re past famous, darling. We’re lunch.”</p>
       )}
       {perk.chapterCaps && level >= PERK_SOFT_LEVEL && (
         <p className="tree-node-text">Past level {PERK_SOFT_LEVEL} each level costs {PERK_SOFT_GROWTH}× more again.</p>
@@ -122,7 +129,9 @@ function PerkNode({ perk }: { perk: PerkDef }) {
         {perk.manager && level > 0 && state === 'maxed' ? (
           <span className="tree-node-done">Runs the show</span>
         ) : state === 'other-side' ? (
-          canSwapFork(s, perk) ? (
+          locked ? (
+            <span className="muted small">🍋 Decided for good in Chapter 6</span>
+          ) : canSwapFork(s, perk) ? (
             <HintButton
               className="small-btn"
               explain={`Switch your ${other?.name.toLowerCase()} levels over to this side. Free, but only once per choice per run.`}

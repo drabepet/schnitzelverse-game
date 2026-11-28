@@ -1,9 +1,14 @@
-// Kitchen tales: one short story per chapter (a 2–3 minute read), unlocked
-// when the chapter opens, read from ☰ Game → Kitchen tales.
+// Kitchen tales: short stories (a 2–3 minute read each), read from ☰ Game →
+// Kitchen tales. One per chapter opens with the chapter; Chapter 6 (Now, the
+// lemon) has more, each opening as you feed more of everyone (`fed`).
 
 export interface Tale {
-  /** The chapter it belongs to (1–5). */
+  /** Unique and in reading order; also what talesRead and taleOffered store (1–5 are the chapters' first tales). */
+  id: number
+  /** The chapter it belongs to (1–6). */
   chapter: number
+  /** Opens once this share of everyone has been fed at once (stats.bestFed), not with the chapter. */
+  fed?: number
   emoji: string
   title: string
   paragraphs: string[]
@@ -11,6 +16,7 @@ export interface Tale {
 
 export const TALES: Tale[] = [
   {
+    id: 1,
     chapter: 1,
     emoji: '🏚️',
     title: 'The mallet and the smoke alarm',
@@ -30,6 +36,7 @@ export const TALES: Tale[] = [
     ],
   },
   {
+    id: 2,
     chapter: 2,
     emoji: '🚜',
     title: 'Grandpa buys a pig',
@@ -48,6 +55,7 @@ export const TALES: Tale[] = [
     ],
   },
   {
+    id: 3,
     chapter: 3,
     emoji: '🚐',
     title: 'Ninety kilometres an hour, still crispy',
@@ -66,6 +74,7 @@ export const TALES: Tale[] = [
     ],
   },
   {
+    id: 4,
     chapter: 4,
     emoji: '🚀',
     title: 'Frying without up',
@@ -85,6 +94,7 @@ export const TALES: Tale[] = [
     ],
   },
   {
+    id: 5,
     chapter: 5,
     emoji: '🌌',
     title: 'The last plate',
@@ -102,6 +112,116 @@ export const TALES: Tale[] = [
       'So it sat there, golden, still sizzling a little, while outside the window ten thousand galaxies ate their dinner. And it was, the cousin said afterwards, the most peaceful he had ever seen her.',
       '“Somebody, somewhere,” said Grandma, “is hungry.”',
       'And then, because she is who she is, she got up and fried another one.',
+    ],
+  },
+
+  // ------------------------------------------------------------ Chapter 6: Now, the lemon
+  {
+    id: 6,
+    chapter: 6,
+    emoji: '📣',
+    title: 'The queue at the end of everything',
+    paragraphs: [
+      'The morning after the Schnitzelverse, the kid came down to breakfast with a printout so long that it went down the stairs, across the hall, out of the front door and, according to the neighbours, some way down the street.',
+      '“Good news and bad news,” said the kid, who had run mission control for three hundred years and still could not do this part gently. “The good news is that everyone has heard of us. Everyone. Every being in every universe. There is nobody left to tell.”',
+      'Mum put down her coffee. “Even the hairdresser’s cousin?”',
+      '“Especially the hairdresser’s cousin. She told the others.”',
+      '“And the bad news?”',
+      'The kid unrolled the last metre of paper onto the table. It was a graph. It had two lines on it. One went straight up and stopped at the top of the page, where it had been crossed out and redrawn at the top of a second page sellotaped above the first. The other line, the one marked US, was very small and lay along the bottom like a draught excluder.',
+      '“They have all ordered,” said the kid. “All of them. At once. We are feeding about one in a hundred. The other ninety-nine are queueing. The queue goes round the Andromeda galaxy twice and then, for some reason, through a bakery.”',
+      'Nobody said anything. Uncle quietly put his mallet on the table, the way a knight might lay down a sword before a very long quest.',
+      'Grandma wiped her hands, took the graph, turned it upside down, looked at it again, and turned it back. “So,” she said. “They are hungry.”',
+      '“They are extremely hungry.”',
+      '“Then why,” said Grandma, “is everyone still sitting down?”',
+      'She went to the drawer by the cooker, the one nobody is allowed to open, and took out a notebook with a cracked leather cover. On the first page, in pencil, in the handwriting of a girl of nine, it said GRANDMA’S STANDARDS. Under it was a list. The first rule was “Wipe the hood.” The last rule had been rubbed out so many times that the paper had gone soft.',
+      '“We will feed every one of them,” said Grandma. “Hot. At the same time. Then, and only then, we will have the lemon.”',
+      'The cousin asked, carefully, what the lemon had to do with anything. Grandma looked at him the way you look at someone who has asked what the oil has to do with frying, and went to wipe the hood.',
+    ],
+  },
+  {
+    id: 7,
+    chapter: 6,
+    fed: 0.25,
+    emoji: '🔨',
+    title: 'Uncle meets the other Uncles',
+    paragraphs: [
+      'Nobody remembers who had the idea of multiverse mallets, but everyone remembers Uncle’s face when the first portal opened in the garage and another Uncle stepped through it, holding another mallet, wearing exactly the same coat.',
+      'They looked at each other for a long time. Then the other Uncle said, “Your grip is wrong,” and our Uncle said, “Your grip is wrong,” and they both said, “Mine is the original grip,” and it went on like that for most of the afternoon.',
+      'By the evening there were four hundred Uncles in the garage, and more on the way. There was an Uncle from a universe where pigs had never existed, who had been pounding aubergines for forty years and was extremely relieved. There was an Uncle from a universe made entirely of water, who had a waterproof mallet and very wrinkled fingers. There was an Uncle who was, in his universe, a cat. He was a good pounder. Nobody discussed it.',
+      'The trouble started with the polka.',
+      'Every Uncle, it turned out, pounded to a polka on the radio. But not the same polka. In some universes it was 140 beats a minute. In some it was 141. In one universe the polka went backwards, and that Uncle’s cutlets came out slightly thicker than when he started.',
+      'Four hundred Uncles pounding to four hundred polkas makes a noise like a thunderstorm falling down a staircase. The cutlets were uneven. Grandma came out to the garage with her arms folded, and four hundred Uncles stopped mid-swing and tried to look as if they had always been about to stop.',
+      '“One rhythm,” said Grandma. “Choose.”',
+      'What followed is known in the family as the Great Polka Summit. It lasted nine days. There were speeches. There was a vote, and then a vote about the vote. The Uncle from the water universe filibustered for six hours, mostly about the importance of drying your hands. The cat Uncle abstained and slept on the radio.',
+      'In the end it was Cousin Pavel who solved it, by walking in with his accordion and playing the old tune, the one from the wedding, the one every Uncle in every universe had danced to badly with every Auntie in every universe. Four hundred Uncles went quiet. Then, one by one, they started pounding in time.',
+      'It sounded like a heartbeat. It sounded like a kitchen that knew what it was doing. Across every universe, cutlets came out exactly four millimetres thin, all at once, and a quarter of everyone, everywhere, sat down to eat.',
+      'That night our Uncle and the cat Uncle sat on the garage step and shared a sardine schnitzel, which was a compromise. “Not bad,” said our Uncle. The cat Uncle said nothing, but in a way that clearly meant the same.',
+    ],
+  },
+  {
+    id: 8,
+    chapter: 6,
+    fed: 0.5,
+    emoji: '🛒',
+    title: 'Mrs. Horáková closes for lunch',
+    paragraphs: [
+      'In all the years the family had shopped with her, from the first bag of breadcrumbs to the shop at the end of everything, Mrs. Horáková had never once closed for lunch. She had a sign that said CLOSED FOR LUNCH. She had never turned it round. People said she ate standing up behind the till, between customers, and that there had not been a gap between customers since 1974.',
+      'So when the sign turned, on a quiet Thursday, half of existence noticed at once.',
+      'Every corner shop in every universe was hers by then. Every one of them stopped. The flour stopped. The eggs stopped. The breadcrumbs, which had been flowing out of her stock rooms like a river out of a mountain, stopped mid-air and hung there, slightly embarrassed.',
+      'Grandpa found out first, because Grandpa always knows when the eggs stop. He put on his good hat and walked across three galaxies to the shop, which took him the rest of the morning because he insisted on walking.',
+      'Mrs. Horáková was sitting on a folding chair outside the door, in the sun of four suns, eating a sandwich. It was a very ordinary sandwich. Cheese and pickle.',
+      '“You have closed,” said Grandpa.',
+      '“I am having my lunch,” said Mrs. Horáková. “Fifty-two years. I thought I would see what it was like.”',
+      'Grandpa thought about this, which took a while, and then sat down on the step next to her. She gave him half the sandwich. They watched the traffic of half the multiverse wait patiently at her door, like a dog that has been told to stay.',
+      '“There is one thing I never stock,” she said eventually. “Have you noticed? Every shop, every universe, everything there is. But I have never once sold a lemon.”',
+      'Grandpa had noticed. Everybody had noticed. Nobody had said.',
+      '“She buys one from me every week,” said Mrs. Horáková. “Your wife. Has done since we were girls. And I go out the back, and I come back with one lemon, and I never ring it up. I don’t know where they come from. I go out the back and there it is.”',
+      'Grandpa finished his half of the sandwich. Then he said the longest sentence anyone had heard from him that decade: “Then I suppose we had better make sure everybody is fed before the next one turns up.”',
+      'Mrs. Horáková brushed the crumbs off her apron, stood up, and turned the sign back round. The breadcrumbs, relieved, began to move again. And with the farms of every planet behind them, Grandpa’s harvest and Mrs. Horáková’s shelves fed half of everyone that evening, and nobody went short of anything, except lemons.',
+    ],
+  },
+  {
+    id: 9,
+    chapter: 6,
+    fed: 0.75,
+    emoji: '🚲',
+    title: 'The kid takes one more delivery',
+    paragraphs: [
+      'The fleet by now was mostly doorways. Wormholes opened at the end of every table in every universe, and a hot schnitzel came through, and the door closed, and that was a delivery. It was very efficient. The kid, who ran it all from a chair with a lot of buttons, missed the bicycle terribly.',
+      'So when the order came in from the very last address on the list, the kid stood up, went down to the shed, and wheeled out the old bike.',
+      'It still had the basket. It still had the bell. The tyres had been replaced eleven times and the frame twice, which meant, Uncle pointed out, that it was not technically the same bicycle. The kid said it was the same bicycle in every way that mattered and rang the bell, and that was the end of that.',
+      'The last address was so far away that the universe there had not finished cooling down. The roads were made of starlight and the potholes were black holes, which the kid steered round with the confidence of someone who had once done the paper round on a street with three angry dogs.',
+      'At the end of the road there was a small round house, and in front of it, on a small round chair, sat someone who had been waiting for a very long time.',
+      'It is hard to say what they looked like. Something like a lighthouse. Something like a grandmother. They had never eaten anything at all, the kid found out later, because where they came from food had not been invented, and they had ordered a schnitzel only because everyone else had, and it seemed rude not to.',
+      'The kid handed over the box. It was still hot. They opened it the way you open a letter you have been expecting all your life.',
+      'They ate it slowly. When they had finished, they sat very still for a while, and then they asked, in a voice like a tide going out, whether this was what it was like everywhere. Whether everybody had this.',
+      '“Almost everybody,” said the kid. “Three in four, right now. We’re working on the rest.”',
+      '“Thin,” said the someone, trying the word. “Golden.”',
+      '“Never soggy,” said the kid.',
+      'The ride home took longer, because the kid stopped at every door on the way and rang the bell, just to say that it would not be long now. And behind them, door after door, the wormholes began to open, three tables in every four, and the smell of frying drifted out over the young stars.',
+      'When the kid finally got back to the garage, Grandma was waiting with a plate. “You’re late,” she said. “Did they like it?” The kid said yes. Grandma nodded once, which in this family is the same as a parade.',
+    ],
+  },
+  {
+    id: 10,
+    chapter: 6,
+    fed: 1,
+    emoji: '🍋',
+    title: 'The lemon',
+    paragraphs: [
+      'It happened on an ordinary Tuesday, at about half past six in the evening, which is when most important things happen in this family.',
+      'The kid was watching the graph. The two lines had been creeping towards each other for so long that nobody really believed they would meet. And then the little line, the one marked US, wobbled, and climbed, and touched the big one, and stayed there.',
+      'Every order in every universe. Served. Hot. At the same time.',
+      'The kid said “Grandma,” very quietly, and then much louder, and the whole family came running into the garage: Mum with her coffee, Uncle with his mallet, the cousin wearing the very dark sunglasses he had worn ever since the supernova fryers, Grandpa in his good hat, Auntie with the shopping list, Cousin Pavel with the accordion, and Mrs. Horáková, who had closed the shop again and was not even pretending to be sorry about it.',
+      'Grandma was at the stove, of course. She had one cutlet in the old pan, the first pan, the one from 1974. She lifted it out, laid it on the old plate, and set it on the table in front of the empty chair at the end. Then she reached into her apron pocket.',
+      'It was a lemon. A perfectly ordinary lemon. A little wrinkled, a little bright, the kind you would not look at twice in a shop.',
+      '“My mother gave me this,” said Grandma. “Her mother gave it to her. You do not squeeze it until everyone has eaten. That is the rule. That is the last rule.” She looked round the garage. “Somebody, somewhere, was always hungry. So I never squeezed it.”',
+      'Nobody breathed. Out past the window, in every universe, a quadrillion beings put down their forks at the same moment, without quite knowing why, and waited.',
+      'Grandma cut the lemon in two with the old knife and squeezed it over the last plate.',
+      'The smell went everywhere. Through the garage, down the street, across the town and the planet and the stars and all the galaxies, through every wormhole and every open door, until the whole of everything smelled faintly, wonderfully, of lemon.',
+      'And then the smoke alarm went off. It had never been fixed. It was the cousin’s eyebrows, which had leaned in too close to admire the moment and were, briefly, on fire. Mum put them out with a tea towel without putting down her coffee.',
+      'Grandma sat down in the empty chair at the end of the table. She ate the schnitzel, slowly, all of it. Then she leaned back, closed her eyes, and said: “There. Now it’s a schnitzel.”',
+      'The family stood around her for a long time, not saying anything, because there was nothing that needed saying. Then Uncle picked up his mallet, and the cousin turned up the fryer, and Mum went to put the kettle on, because it was half past six, and in a few hours, somewhere, somebody would be hungry again.',
     ],
   },
 ]

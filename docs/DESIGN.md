@@ -249,11 +249,38 @@ The Solar System got cheaper with it ($4Qi, 500Qa ⭐; was $60Qi, 8Qi ⭐), so i
 - **Equipment:** stasis crates (cooling ÷100), warp coils (fleet ×3), a constellation shaped like a schnitzel (orders ×3), pig planets / wheat worlds / nebula mills (farm groups ×6), quantum crunch (crisp +0.3), neutron star fryer (kitchen ×3), your face in the night sky (reputation ×3), three Michelin stars (prices ×2), the intergalactic grocer (shop ×1.5, renames the shop “Horáková’s universe”). A fifth kitchen crew on every step (singularity tenderizer, crumb galaxy, supernova fryers), and a farm-gear rung per building at every new place (56 pieces).
 - **Promotions:** Galactic farms, Cosmic kitchen (1B/s), Warp logistics, Wormhole network.
 - **Badges:** a new section, The Schnitzelverse (20 badges: every place, the vehicles, the crews, speedruns, the final one). Place and promotion badges add +3% like the space ones.
-- **Finale:** reaching the Schnitzelverse shows a closing screen once (`finaleSeen`): the story's ending, your numbers, credits for the family, then “Keep frying”: the game goes on with badges, perks and records.
+- **Finale:** reaching the Schnitzelverse shows a closing screen once (`finaleSeen`): the story's ending, your numbers, credits for the family, then “Keep frying”, and Chapter 6 opens.
 - **Display:** numbers get suffixes up to Vg (1e63) before going scientific; far distances are in light years.
 - **Sidebar:** when the next place is more than 3 hours away and a sale would pay at least a quarter of your lifetime crumbs, it suggests franchising instead of waiting.
 
 Bot (sells when crumbs double, 2 h runs, `PLAYTEST_HOURS=340 PLAYTEST_IDLE_STEP=4`): Solar System 2d 5h, next-door star 3d 13h, star cluster 4d 9h, Milky Way 5d 23h, next galaxy 8d 7h, Local Group 9d 9h, universe 11d 17h, the Schnitzelverse 12d 23h.
+
+## Chapter 6: Now, the lemon (built)
+
+The post-game. At the finale Grandma says “Not bad. Now, the lemon.” Chapter 6 opens the first time you reach the Schnitzelverse (`chapter6Unlocked` = `epilogueOpen`: `stats.bestPlace` at the Schnitzelverse) and its goal is to **feed everyone in every universe at once**.
+
+- **Why:** at the finale players served ~1% of their orders (the finale save: 15T/s of 1.33Qa/s, held back by bread and fry; the bots 0.2–1.2%), and the share never moved: Word of mouth and Better everything both grow ×1.25 a level, so orders and kitchen rose together. Helpers had hit their price wall (one more fry cousin: 14 minutes of income for +0.2%), and money piled up with nothing to buy.
+- **Orders stop growing:** Word of mouth stops at level 35 (`WORD_OF_MOUTH_MAX`; the effect is clamped too, for saves already past it), and Mum's pick-one is decided for good: in Chapter 6 **Gossip queen** wins (`endgamePick`). Darling of the press's levels move over, the choice locks, and the tile says why (Mum quit the press after the last interviewer asked whether the schnitzel comes gluten-free; “We’re past famous, darling. We’re lunch.”). To make up for the reputation, the move also gives **Local legend +1** for free, once (`endgameGift`; ×1.5 against the press's ×2.0). Every other source of orders already has a top, so the most customers can ever order is fixed: **`EVERYONE_ORDERS` ≈ 6.4Qa/s**, worked out from the data in rules.ts (every place, every piece of order equipment, every order perk at its top; pick-one perks only on the side Chapter 6 picks). A new order perk without a `maxLevel` makes the game refuse to start. The “🍋 Everyone has ordered” ceiling in the orders breakdown only guards it.
+- **Fed share:** `fedShare` = what the business sells (its weakest part, `businessLimits`) ÷ everyone; `stats.bestFed` keeps the best, checked once a minute. The sidebar shows it (🍋 Now, the lemon: fed now, best, next goal) from Chapter 6 on.
+- **What closes the gap** (everything except orders), opening once the Schnitzelverse is reached in a run:
+  - **A sixth kitchen crew** per step (multiverse mallets, every crumb everywhere, the fryer at the end of everything), ×4 each (`LEMON_CREW_MULT`), $2–3e27. They rename the crews like the others.
+  - **Grandma’s standards**: three ladders (kitchen, farm, fleet) of 8 rungs, each ×2 (`STANDARDS_MULT`). A rung shows only once you own the one before (`after` on the upgrade). First rungs $4e27 / $2e27 / $1e27, each ×5 the one before (`STANDARDS_COST`). Tried against the bots: ×8 left them stuck at ~63% after 4 days; ×4 fed everyone in 15 hours with the 25/50/75% tales an hour apart; ×6 took 3 days once Gossip queen joined the goal. Uncle buys them like other equipment (the bottleneck’s first).
+- **Badges** (new section, Now, the lemon): Everyone Has Ordered, fed 2 / 5 / 10 / 25 / 50 / 75 / 100% (these seven +3% each), Kitchen of Everything (the three crews), Up to Standard, Grandma Nods (a ladder’s top), Bedtime Stories (every kitchen tale). Chronicle lines at everyone ordered, 10%, 50% and 100%.
+- **Kitchen tales:** five for Chapter 6, one when it opens and one at 25 / 50 / 75 / 100% fed (`fed` on the tale): the queue at the end of everything, Uncle meets the other Uncles, Mrs. Horáková closes for lunch, the kid takes one more delivery, the lemon. Tales now have ids (1–5 are the old chapter tales, so older saves’ `talesRead` still match). The card offers the first open tale not offered yet, so a fed tale gets its own card (“🍋 25% of everyone fed!”); Later counts all open ones as offered. The Tales dialog lists a chapter’s later tales under its first, locked ones saying when they open.
+- **The end:** at 100% a closing card (`LemonDialog`, `lemonSeen`): Grandma squeezes the lemon. The game goes on (badges, records, the rest of the ladders).
+- **Look and sound:** a lemon-gold chapter skin (light and dark) and a sixth chapter tune (the garage polka, slower, ending high). Chapter 5’s emoji is now 🌌; 🍋 belongs to Chapter 6. Perk chapter caps get a sixth step (300).
+
+Bots (`tools/playtest-strategies.sim.ts`, the EPILOGUE line: time after the Schnitzelverse):
+
+| | Hybrid (Schnitzelverse at 4d 19h) | Mum’s best moment (at 4d 11h) |
+|---|---|---|
+| 10% fed | 10h 35m | 14h 10m |
+| 25% (second tale) | 17h 16m | 20h 57m |
+| 50% (third tale) | 19h 26m | 23h 31m |
+| 75% (fourth tale) | 30h 3m | 32h 38m |
+| Everyone fed (the lemon) | 34h 0m (6d 5h in all) | 36h 33m (5d 23h in all) |
+
+The share climbs in steps: each sale rebuilds the ladders faster with more crumbs, so a big stretch can come in one run (25% to 50% took about 2 hours for both bots).
 
 ## Interface
 
@@ -320,6 +347,8 @@ Numbers tick several times a second, so nothing in normal flow may change size b
 - Layer 3: weeks
 - Endgame: months
 
+**Selling strategies played to the end** (`tools/playtest-strategies.sim.ts`, one bot each with `PLAYTEST_ONLY`): the main bot force-sells every 2 hours, which late on adds only ~5% a run, so it is about 4× slower than a player who lets Mum sell when the sale triples lifetime crumbs (the finale save in `tools/saves`: the Schnitzelverse at 3d 11h). Before Chapter 6: hybrid (doubles every 2 h until the planet, then triples, no cap) 4d 21h; Mum’s best moment, no cap, 4d 16h; triples from the very first run 6d 5h (stuck 15–24 h at the country and continent); check-in with Mum at 200% 11d 21h. `tools/inspect.sim.ts` loads a save and prints what holds it back, then runs it on.
+
 **Measured** (`PLAYTEST_HOURS=340 PLAYTEST_IDLE_STEP=4`; the SUMMARY and DRY lines at the end of each report):
 
 | | Active player (`playtest-main`: plays 5 min per run, checks every 30 s, sells when crumbs double or after 2 h) | Check-in player (`playtest-checkin`: a 15-minute session every 8 h, sells when crumbs double or after a day) |
@@ -349,3 +378,4 @@ The check-in player now reaches the next town within the hour (the family joins 
 - [ ] **M7 Schnitzel OS** scripting
 - [x] **M8 Space (Chapter 4)**: six space places, three space vehicles, six upgrades
 - [x] **M9 The Schnitzelverse (Chapter 5)**: seven places to the end of everything, warp freighters and wormhole gates, stasis crates, 56 farm-gear rungs, a fifth kitchen crew, 20 badges, the finale
+- [x] **M10 Now, the lemon (Chapter 6)**: orders capped (Word of mouth 35), feed everyone, a sixth kitchen crew, Grandma’s standards, 13 badges, five kitchen tales, the lemon

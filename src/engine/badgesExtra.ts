@@ -10,12 +10,13 @@ import {
   PERKS,
   REGION_INDEX,
   REGIONS,
+  TALES,
   type UpgradeId,
   UPGRADES,
   VEHICLES,
   WORKERS,
 } from './content'
-import { criticStars, crispness } from './rules'
+import { criticStars, crispness, ordersCapped } from './rules'
 import type { BadgeDef } from './badges'
 import { badgeCount, building, byHand, earned, fame, franchises, hours, ownedUpgrades, place, served, speedrun, totalCrumbs, totalVehicles, totalWorkers, totalFacilities, vehicles, workers } from './badgeChecks'
 
@@ -223,6 +224,22 @@ export const MORE_BADGES: BadgeDef[] = [
     { id: 'gearSchnitzelverse', emoji: '👴', name: 'Grandpa of Everything', goal: 'Own a piece of Schnitzelverse farm gear', flavor: 'Grandpa now has a farm in every universe. He still wears the same hat.', check: (s) => farmGear().some((u) => u.requires?.place === 'schnitzelverse' && s.upgrades[u.id]) },
     { id: 'bestSchnitzelverse', emoji: '🏁', name: 'Been There, Fried That', goal: 'Have reached the Schnitzelverse at least once', flavor: 'You fed everything. Everything says thank you. Everything wants seconds.', check: (s) => s.stats.bestPlace >= REGION_INDEX.schnitzelverse },
     { id: 'fiveChapters', emoji: '📚', name: 'The Whole Story', goal: 'Reach Chapter 5', flavor: 'A garage, a farm, a road, the stars, and then everything else.', check: (s) => !!s.milestones.solar || s.regions.solar.unlocked },
+  ]),
+
+  // ------------------------------------------------------------ the epilogue: Now, the lemon
+  ...cat('lemon', [
+    { id: 'everyone', emoji: '📣', name: 'Everyone Has Ordered', goal: 'Get orders from everyone in every universe at once', flavor: 'There is nobody left to tell. Word of mouth has run out of mouths.', check: (s) => s.stats.bestPlace >= REGION_INDEX.schnitzelverse && ordersCapped(s) },
+    { id: 'fed2', emoji: '🍋', name: 'A Squeeze of Lemon', goal: 'Feed 2% of everyone in every universe at once', flavor: 'Two in every hundred beings, fed. The other ninety-eight can smell it.', check: (s) => s.stats.bestFed >= 0.02 },
+    { id: 'fed5', emoji: '🍋', name: 'One in Twenty', goal: 'Feed 5% of everyone at once', flavor: 'Somewhere a queue the length of a galaxy moves up one step.', check: (s) => s.stats.bestFed >= 0.05 },
+    { id: 'fed10', emoji: '🍋', name: 'Tithe of Crumbs', goal: 'Feed 10% of everyone at once', flavor: 'One in ten. Grandma says that’s a start.', check: (s) => s.stats.bestFed >= 0.1 },
+    { id: 'fed25', emoji: '🍋', name: 'A Quarter Past Lunch', goal: 'Feed 25% of everyone at once', flavor: 'A quarter of existence is chewing. The other three quarters are getting impatient.', check: (s) => s.stats.bestFed >= 0.25 },
+    { id: 'fed50', emoji: '🍋', name: 'Half of Everything', goal: 'Feed half of everyone at once', flavor: 'Half of all existence has a plate. The other half has a fork, ready.', check: (s) => s.stats.bestFed >= 0.5 },
+    { id: 'fed75', emoji: '🍋', name: 'Three Quarters Full', goal: 'Feed three quarters of everyone at once', flavor: 'Three in four beings in all existence are chewing. The fourth is already holding a plate.', check: (s) => s.stats.bestFed >= 0.75 },
+    { id: 'fedAll', emoji: '🍋', name: 'The Lemon', goal: 'Feed everyone in every universe at once', flavor: 'Every order served. Grandma squeezes the lemon. It was always about the lemon.', check: (s) => s.stats.bestFed >= 1 },
+    { id: 'allTales', emoji: '📖', name: 'Bedtime Stories', goal: 'Read every kitchen tale', flavor: 'Grandma pretends not to listen when you read them aloud. She corrects every detail.', check: (s) => TALES.every((t) => s.talesRead.includes(t.id)) },
+    { id: 'lemonCrews', emoji: '♾️', name: 'Kitchen of Everything', goal: 'Own all three epilogue kitchen crews in one run', flavor: 'Infinite Uncles, one bowl of everything, the last fryer. Grandma still tastes every tenth one.', check: (s) => !!s.upgrades.multiverseMallets && !!s.upgrades.everyCrumbEverywhere && !!s.upgrades.lastFryer },
+    { id: 'standards1', emoji: '👵', name: 'Up to Standard', goal: 'Buy a rung of Grandma’s standards', flavor: 'She ran a finger along the hood. It came back clean. Nobody breathed.', check: (s) => UPGRADES.some((u) => u.id.startsWith('standards_') && s.upgrades[u.id]) },
+    { id: 'standardsTop', emoji: '📐', name: 'Grandma Nods', goal: 'Climb one of Grandma’s standards to the top', flavor: 'She nodded. Once. Historians will argue about it for a thousand years.', check: (s) => !!s.upgrades.standards_kitchen_8 || !!s.upgrades.standards_farm_8 || !!s.upgrades.standards_fleet_8 },
   ]),
 
   // ------------------------------------------------------------ shame
